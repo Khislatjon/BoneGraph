@@ -12,22 +12,13 @@ import WebKit
 @Observable class FetchPaperViewModel {
     var papers: [ArxivPaper] = []
     
-    private func fetchArxivPapers(query: String, maxResults: Int = 5) async throws -> [ArxivPaper] {
-        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        let urlString = "https://export.arxiv.org/api/query?search_query=all:\(encodedQuery)&start=0&max_results=\(maxResults)"
+    func downloadArxivPDFs(maxResults: Int = 5) async {
+        let topics = ["NLP", "graph neural networks"]
+        let query = buildArxivQuery(from: topics)
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
         
-        guard let url = URL(string: urlString) else {
-            throw URLError(.badURL)
-        }
-
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let parser = ArxivXMLParser()
-        return parser.parse(data: data)
-    }
-    
-    func downloadArxivPDFs(for query: String, maxResults: Int = 5) async {
         do {
-            self.papers = try await fetchArxivPapers(query: query, maxResults: maxResults)
+            self.papers = try await fetchArxivPapers(encodedQuery: encodedQuery, maxResults: maxResults)
 
             for (_, paper) in papers.enumerated() {
                 try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds delay
@@ -58,7 +49,27 @@ import WebKit
         }
     }
     
-    func getPDFURL(from absLink: String) -> URL? {
+    private func buildArxivQuery(from topics: [String]) -> String {
+        guard !topics.isEmpty else { return "all:" }
+
+        let escapedTerms = topics.map { "\"\($0)\"" }
+        let orQuery = escapedTerms.joined(separator: " OR ")
+        return "all:(\(orQuery))"
+    }
+    
+    private func fetchArxivPapers(encodedQuery: String, maxResults: Int = 5) async throws -> [ArxivPaper] {
+        let urlString = "https://export.arxiv.org/api/query?search_query=\(encodedQuery)&start=0&max_results=\(maxResults)"
+        
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let parser = ArxivXMLParser()
+        return parser.parse(data: data)
+    }
+    
+    private func getPDFURL(from absLink: String) -> URL? {
         guard absLink.contains("/abs/") else { return nil }
         let pdfLink = absLink
             .replacingOccurrences(of: "http", with: "https")
@@ -66,7 +77,7 @@ import WebKit
         return URL(string: pdfLink)
     }
 
-    func downloadPDF(from url: URL) async throws -> Data {
+    private func downloadPDF(from url: URL) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(from: url)
 
         guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {

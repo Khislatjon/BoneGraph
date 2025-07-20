@@ -23,7 +23,7 @@ struct PaperListView: View {
         .padding()
         .onAppear {
             Task {
-                await viewModel.downloadArxivPDFs(for: "machine learning")
+                await viewModel.downloadArxivPDFs()
             }
         }
     }
