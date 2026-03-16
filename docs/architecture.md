@@ -2,7 +2,7 @@
 
 ## What is BoneLogic?
 
-BoneLogic is an intelligent reasoning system for bone science, built as part of a PhD research project. It is deliberately restricted to the bone domain because of the richness of available data: published papers, textbooks, mechanical measurements, X-ray and MRI images.
+BoneLogic is an intelligent reasoning system for bone science. It is deliberately restricted to the bone domain because of the richness of available data: published papers, textbooks, mechanical measurements, X-ray and MRI images.
 
 The goal is not to build a simple question-answering chatbot. The goal is to build a system that can:
 
@@ -10,8 +10,6 @@ The goal is not to build a simple question-answering chatbot. The goal is to bui
 2. **Reason** over that knowledge to answer clinical and research questions.
 3. **Generate hypotheses** — propose new ideas about bone behaviour, bio-inspired materials, or biomechanical predictions that are not simply recalled from training data.
 4. **Improve** over time as users interact with it and provide feedback.
-
-If it achieves 60% of this vision, it is already a significant research contribution.
 
 ---
 
@@ -21,34 +19,34 @@ If it achieves 60% of this vision, it is already a significant research contribu
 ┌─────────────────────────────────────────────────────────────────────┐
 │  LAYER 1 — Perception & Understanding                               │
 │                                                                     │
-│  ┌──────────────────────────┐   ┌──────────────────────────────┐   │
-│  │  LLM                     │   │  VLM                         │   │
-│  │  (text understanding)    │   │  (image understanding)       │   │
-│  │                          │   │                              │   │
-│  │  Input: abstracts,       │   │  Input: X-ray, MRI images    │   │
-│  │  papers, textbooks,      │   │                              │   │
-│  │  clinical notes          │   │  Output: structured visual   │   │
-│  │                          │   │  descriptions (density,      │   │
-│  │  Output: embeddings,     │   │  fracture lines, erosions…)  │   │
-│  │  structured knowledge    │   │                              │   │
-│  └──────────────────────────┘   └──────────────────────────────┘   │
+│  ┌──────────────────────────┐   ┌──────────────────────────────┐    │
+│  │  LLM                     │   │  VLM                         │    │
+│  │  (text understanding)    │   │  (image understanding)       │    │
+│  │                          │   │                              │    │
+│  │  Input: abstracts,       │   │  Input: X-ray, MRI images    │    │
+│  │  papers, textbooks,      │   │                              │    │
+│  │  clinical notes          │   │  Output: structured visual   │    │
+│  │                          │   │  descriptions (density,      │    │
+│  │  Output: embeddings,     │   │  fracture lines, erosions…)  │    │
+│  │  structured knowledge    │   │                              │    │
+│  └──────────────────────────┘   └──────────────────────────────┘    │
 │                      │                        │                     │
-│                      └──────────┬─────────────┘                    │
+│                      └──────────┬─────────────┘                     │
 │                                 │                                   │
 │                    Fused multimodal representation                  │
 │                                 │                                   │
 ├─────────────────────────────────┼───────────────────────────────────┤
 │  LAYER 2 — Reasoning & Hypothesis Generation                        │
 │                                 │                                   │
-│  ┌──────────────────────────────▼──────────────────────────────┐   │
-│  │  LRM (Large Reasoning Model)                                │   │
-│  │                                                             │   │
-│  │  • Structured bone ontology (knowledge graph)               │   │
-│  │  • Causal inference: structure → function → mechanics       │   │
-│  │  • Hypothesis formulation (beyond recall)                   │   │
-│  │  • Bio-inspired material prediction                         │   │
-│  │  • Feedback-driven ontology updates                         │   │
-│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────▼──────────────────────────────┐    │
+│  │  LRM (Large Reasoning Model)                                │    │
+│  │                                                             │    │
+│  │  • Structured bone ontology (knowledge graph)               │    │
+│  │  • Causal inference: structure → function → mechanics       │    │
+│  │  • Hypothesis formulation (beyond recall)                   │    │
+│  │  • Bio-inspired material prediction                         │    │
+│  │  • Feedback-driven ontology updates                         │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
