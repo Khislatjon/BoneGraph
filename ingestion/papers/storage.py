@@ -25,6 +25,8 @@ The `keywords_matched` column accumulates all the query strings that led to
 this paper, which is useful for understanding the coverage of your keyword set.
 """
 
+from __future__ import annotations  # enables X | Y union syntax on Python 3.9
+
 import json
 import logging
 import sqlite3

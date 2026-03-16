@@ -28,6 +28,8 @@ python -m ingestion.papers.pipeline --keywords "femur fracture osteoporosis" --y
 python -m ingestion.papers.pipeline --groups imaging --max 50
 """
 
+from __future__ import annotations  # enables X | Y union syntax on Python 3.9
+
 import argparse
 import logging
 import sys

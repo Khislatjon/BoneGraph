@@ -23,6 +23,8 @@ The local file path is written back to the `pdf_local_path` column in the
 database.  The processing pipeline later reads this column to find PDFs to parse.
 """
 
+from __future__ import annotations  # enables X | Y union syntax on Python 3.9
+
 import logging
 import time
 from pathlib import Path

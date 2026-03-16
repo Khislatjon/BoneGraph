@@ -20,6 +20,8 @@ Usage example
         print(paper["title"], paper["year"])
 """
 
+from __future__ import annotations  # enables X | Y union syntax on Python 3.9
+
 import logging
 import time
 from typing import Any, Generator
