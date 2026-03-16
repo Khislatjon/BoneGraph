@@ -55,6 +55,17 @@ for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR):
     _dir.mkdir(parents=True, exist_ok=True)
 
 
+# ── Unpaywall API ──────────────────────────────────────────────────────────────
+
+# Your email address for the Unpaywall API.
+# Unpaywall is a free, legal index of open-access papers.
+# Given a DOI it returns a direct PDF URL.  No API key needed — just an email.
+# Sign up / info: https://unpaywall.org/products/api
+# Rate limit: 100,000 requests/day (very generous for a research project).
+# Set this in your .env file as: UNPAYWALL_EMAIL=you@example.com
+UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "")
+
+
 # ── Semantic Scholar API ───────────────────────────────────────────────────────
 
 # Your personal API key, read from the .env file.

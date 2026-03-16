@@ -4,6 +4,55 @@ This document explains exactly how the paper ingestion pipeline works: what each
 
 ---
 
+## Phase 1 Results (completed March 2026)
+
+The full metadata collection run completed successfully. Key statistics:
+
+| Metric | Value |
+|---|---|
+| **Total papers collected** | **55,277** |
+| **Unique — no duplicates** | ✅ enforced by SQLite PRIMARY KEY |
+| **Papers with open-access PDF URL** | 21,571 (39%) |
+| **Year range** | 1822 – 2026 (157 distinct years) |
+| **Peak publication years** | 2015–2021 (~2,400–2,700 papers/year) |
+| **Keywords used** | 133 across 17 topic groups |
+| **PDFs downloaded to disk** | pending (run `--download`) |
+
+**Top journals by paper count:**
+
+| Journal | Papers |
+|---|---|
+| Bone | 2,452 |
+| Journal of Bone and Mineral Research | 1,662 |
+| Journal of Bone and Joint Surgery (Am.) | 814 |
+| Journal of Biomechanics | 771 |
+| Osteoporosis International | 598 |
+| Clinical Orthopaedics and Related Research | 460 |
+| Calcified Tissue International | 447 |
+| J. Mechanical Behavior of Biomedical Materials | 441 |
+| Biomaterials | 388 |
+
+**Most cited papers in corpus:**
+
+| Year | Citations | Title |
+|---|---|---|
+| 1990 | 10,257 | Biomechanics and Motor Control of Human Movement |
+| 1969 | 6,894 | Traumatic arthritis of the hip after dislocation… |
+| 2003 | 6,483 | Osteoclast differentiation and activation |
+| 2005 | 6,244 | Porosity of 3D biomaterial scaffolds and osteogenesis |
+| 1997 | 5,228 | Osteoprotegerin: a novel secreted protein… |
+
+**PDF URL resolution analysis** (measured on a 300-paper sample):
+
+| Tier | Mechanism | Coverage | API call? |
+|---|---|---|---|
+| Tier 1 | URL already a direct `.pdf` link | ~40% | None |
+| Tier 2 | Publisher-specific URL rewrites | +16% | None |
+| Tier 3 | Unpaywall DOI lookup | remaining ~44% | Yes (free) |
+| **Total resolvable** | | **~100% of open-access papers** | |
+
+---
+
 ## Overview
 
 The goal of Phase 1 is to build the knowledge base that will power the LLM in later phases. We collect paper metadata and PDFs from Semantic Scholar using a curated set of bone-domain search keywords.
@@ -32,10 +81,18 @@ The goal of Phase 1 is to build the knowledge base that will power the LLM in la
                       └────────┬────────────┘
                                │ papers with pdf_url
                                ▼
+                      ┌─────────────────────┐     ┌──────────────────────┐
+                      │  resolvers.py       │     │  Unpaywall API       │
+                      │  3-tier URL         │────►│  (free, email only)  │
+                      │  resolution chain   │     │  resolves DOI links  │
+                      └────────┬────────────┘     └──────────────────────┘
+                               │ direct PDF URL
+                               ▼
                       ┌─────────────────────┐
                       │  downloader.py      │
                       │  stream PDF files   │◄── data/raw/papers/
-                      │  to disk            │
+                      │  verify %PDF magic  │
+                      │  number on disk     │
                       └─────────────────────┘
 
 All of the above is orchestrated by pipeline.py (the CLI entry point).
@@ -54,6 +111,7 @@ Key constants:
 | Constant | Value | Purpose |
 |---|---|---|
 | `SEMANTIC_SCHOLAR_API_KEY` | from `.env` | Authenticates API requests (1 req/s limit) |
+| `UNPAYWALL_EMAIL` | from `.env` | Email for Unpaywall API — resolves DOI links to direct PDFs |
 | `REQUEST_DELAY_SECONDS` | `1.1` | Wait between API calls to stay under rate limit |
 | `RETRY_BACKOFF_SECONDS` | `60` | Wait after a 429 (rate-limit) error |
 | `SEARCH_BATCH_SIZE` | `100` | Max results per API request (S2 hard cap) |
@@ -225,18 +283,99 @@ This means:
 
 ---
 
+### `ingestion/papers/resolvers.py`
+
+**Added March 2026** — resolves stored PDF URLs to actual downloadable PDF files.
+
+**Why this was needed:**
+When we analysed the 21,571 stored PDF URLs, we found they fell into distinct categories that could not all be downloaded directly:
+
+```
+doi.org links           4,424   → redirect to publisher landing page
+europepmc.org viewer    2,179   → HTML viewer page, not raw PDF
+ncbi.nlm.nih.gov/pmc      984   → HTML article page, needs /pdf/ suffix
+publisher landing pages  3,000+ → need Unpaywall to find the PDF
+direct .pdf links        ~8,500  → work as-is
+```
+
+**The 3-tier resolution chain:**
+
+```
+stored_url (from S2)
+       │
+       ▼
+Tier 1: is_direct_pdf(url)
+  ├─ URL ends in .pdf                     → return url as-is  ✓
+  ├─ URL contains /article/am/pii/        → ScienceDirect AM  ✓
+  ├─ URL contains blobtype=pdf            → EuropePMC backend ✓
+  └─ URL contains /content/pdf/           → Springer direct   ✓
+
+       │ (if Tier 1 failed)
+       ▼
+Tier 2: apply_publisher_transforms(url)
+  ├─ europepmc.org/articles/pmc{id}       → backend PDF endpoint
+  ├─ ncbi.nlm.nih.gov/pmc/articles/PMC{id} → /pdf/ suffix
+  ├─ journals.plos.org/article?id=        → /article/file?...&type=printable
+  ├─ frontiersin.org/.../full             → .../pdf
+  ├─ mdpi.com/{path}                      → {path}/pdf
+  ├─ onlinelibrary.wiley.com/doi/{doi}    → /pdfdirect
+  └─ link.springer.com/article/{doi}      → /content/pdf/{doi}.pdf
+
+       │ (if Tier 2 failed — doi.org links, unknown publishers)
+       ▼
+Tier 3: resolve_via_unpaywall(doi)
+  └─ GET https://api.unpaywall.org/v2/{doi}?email={email}
+     └─ returns best_oa_location.url_for_pdf  (direct PDF URL)
+```
+
+**Results on the actual corpus (sampled 300 URLs):**
+
+| Tier | Papers resolved | Without API call |
+|---|---|---|
+| Tier 1 | ~40% | ✅ |
+| Tier 2 | +16% | ✅ |
+| Tier 3 (Unpaywall) | ~44% | ❌ (1 call per paper) |
+
+56% of open-access PDFs can be resolved entirely offline with no network calls.
+
+**Safety guard in `download_pdf()`:**
+After downloading, the code reads the first 4 bytes of the saved file and checks for the PDF magic number `%PDF`. If the file starts with anything else (e.g. `<html`) — which happens when servers silently redirect to a login page — the file is deleted and the download is marked as failed. This prevents the disk from filling up with useless HTML files.
+
+**Public functions:**
+
+| Function | Description |
+|---|---|
+| `is_direct_pdf(url)` | Returns True if URL is already a direct PDF link |
+| `apply_publisher_transforms(url)` | Tries all 7 publisher rewrites, returns first match |
+| `resolve_via_unpaywall(doi, session)` | Calls Unpaywall API, returns direct PDF URL |
+| `resolve_pdf_url(paper_id, stored_url, doi, session)` | Main entry point — runs all 3 tiers |
+
+---
+
 ### `ingestion/papers/downloader.py`
 
 Downloads the actual PDF files for papers that have a free legal URL.
 
 **Key function:** `download_all_open_access(store)`
 
-Steps:
+Updated steps (as of March 2026):
 1. Queries the DB: `WHERE has_pdf = 1 AND pdf_local_path IS NULL`
-2. For each paper, constructs the local path: `data/raw/papers/<year>/<paper_id>.pdf`
-3. Calls `download_pdf(url, dest)` which streams the file in 8 KB chunks
-4. On success, writes the path back to `pdf_local_path` in the DB
-5. Waits 1.1s between downloads
+2. Extracts the DOI from `external_ids_json` for each paper (needed for Tier 3)
+3. Calls `resolve_pdf_url()` to find a direct downloadable PDF URL (3-tier chain)
+4. If no URL can be resolved, logs it as `unresolvable` and moves on
+5. Calls `download_pdf(resolved_url, dest)` which streams the file in 8 KB chunks
+6. Verifies the downloaded file starts with `%PDF` — rejects HTML pages silently served as PDFs
+7. On success, writes the local path back to `pdf_local_path` in the DB
+8. Waits 1.1s between downloads
+
+**Return counters:**
+
+| Counter | Meaning |
+|---|---|
+| `downloaded` | PDF successfully fetched, verified, and saved |
+| `failed` | URL resolved but download errored or returned non-PDF |
+| `unresolvable` | No direct PDF URL found after all 3 tiers |
+| `skipped` | File already on disk from a previous run |
 
 **File layout on disk:**
 ```
@@ -309,26 +448,35 @@ python -m ingestion.papers.pipeline --download
 
 ## Inspecting what was collected
 
-You can query the SQLite database directly to explore what was collected:
+### Option 1 — `scripts/inspect_db.py` (recommended)
+
+A ready-made script that prints all key statistics in one command:
 
 ```bash
-python3 -c "
-import sqlite3, json
-conn = sqlite3.connect('data/db/papers.db')
-conn.row_factory = sqlite3.Row
-
-# Overall stats
-row = conn.execute('SELECT COUNT(*) as n, SUM(has_pdf) as pdfs FROM papers').fetchone()
-print(f'Total papers: {row[\"n\"]},  with open PDF: {row[\"pdfs\"]}')
-
-# Top 10 most-cited
-print()
-for r in conn.execute('SELECT title, year, citation_count FROM papers ORDER BY citation_count DESC LIMIT 10'):
-    print(f'  [{r[\"year\"]}] {r[\"title\"][:65]}  ({r[\"citation_count\"]} cites)')
-"
+python scripts/inspect_db.py              # default top-10 per section
+python scripts/inspect_db.py --top 20    # show more rows
+python scripts/inspect_db.py --keyword femur   # filter keyword section
 ```
 
-Or open `data/db/papers.db` directly in **DB Browser for SQLite** (free GUI app) to browse and filter interactively.
+Output sections:
+- Overall counts (total papers, open-access PDFs, download progress)
+- Papers by year with a visual bar chart
+- Top journals by paper count
+- Most cited papers
+- Keyword coverage table
+- PDF download status with progress bar and time estimate
+
+### Option 2 — PyCharm Database tool
+
+**View → Tool Windows → Database → `+` → Data Source → SQLite** → point to `data/db/papers.db`.
+Browse all 55,277 rows, filter, sort, and write SQL queries inside your IDE. No extra install needed.
+
+### Option 3 — DB Browser for SQLite (GUI)
+
+```bash
+brew install --cask db-browser-for-sqlite
+```
+Open `data/db/papers.db` directly. Full table browsing, SQL editor, CSV export.
 
 ---
 

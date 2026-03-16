@@ -76,17 +76,29 @@ BoneLogic is intentionally restricted to bone science. This is not a limitation 
 
 The system is built incrementally. Each phase delivers a working product, and the next phase extends it.
 
-### Phase 1 — Data ingestion (current)
+### Phase 1 — Data ingestion ✅ Complete (March 2026)
 Collect the knowledge base that will ground the LLM and LRM.
 
 ```
-Semantic Scholar API  →  paper metadata (SQLite)  →  PDF downloads
+Semantic Scholar API  →  paper metadata (SQLite)  →  URL resolver  →  PDF downloads
 Textbooks             →  raw PDF files
 ```
 
-**Output:** A corpus of ~15,000–25,000 bone-domain papers with abstracts and open-access PDFs, stored locally.
+**Delivered:**
 
-**Status:** ✅ Complete — pipeline running.
+| Item | Result |
+|---|---|
+| Papers collected | **55,277** unique papers (zero duplicates) |
+| Open-access PDF URLs | 21,571 (39% of corpus) |
+| Year range | 1822–2026 |
+| Search keywords | 133 across 17 topic groups |
+| Top journal | *Bone* — 2,452 papers |
+| PDF resolution | 3-tier chain: direct link → publisher transform → Unpaywall API |
+| PDF coverage | ~56% resolved without any API call; ~100% with Unpaywall |
+| Database | SQLite at `data/db/papers.db` — browsable with PyCharm or DB Browser |
+| Inspection tool | `scripts/inspect_db.py` — stats + progress bar |
+
+**Novel engineering decision here:** Rather than accepting Semantic Scholar's mixed bag of direct links, DOI redirects, and viewer pages, we built a publisher-specific URL resolver (`resolvers.py`) that transforms 7 known publisher URL patterns to direct PDF links before download, and falls back to the free Unpaywall API for DOI-based lookup. This significantly increases the actual downloadable PDF yield compared to a naive download attempt.
 
 ---
 
@@ -197,9 +209,13 @@ BoneLogic/
 │   │   ├── keywords.py          133 bone-domain search queries (17 groups)
 │   │   ├── semantic_scholar.py  S2 API client
 │   │   ├── storage.py           SQLite metadata store
+│   │   ├── resolvers.py         3-tier PDF URL resolver (added Mar 2026)
 │   │   ├── downloader.py        Open-access PDF downloader
 │   │   └── pipeline.py          CLI entrypoint
 │   └── textbooks/               Phase 1b: textbook loading (placeholder)
+│
+├── scripts/
+│   └── inspect_db.py            Database statistics + progress inspector
 │
 ├── processing/                  Phase 2: text extraction and chunking
 │   └── (coming in Phase 2)
