@@ -1,37 +1,36 @@
-# Add any directories, files, or patterns you don't want to be tracked by version control
-## Build generated
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
 build/
-DerivedData/
+.eggs/
+venv/
+.venv/
+env/
 
-## Various settings
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
+# Environment
+.env
 
-## Other
-*.moved-aside
-*.xccheckout
-*.xcscmblueprint
+# Data (raw files are large; track metadata only)
+data/raw/
+data/processed/
 
-## Obj-C/Swift specific
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
+# Database (regenerable)
+data/db/
 
-# CocoaPods
-#
-# We recommend against adding the Pods directory to your .gitignore. However
-# you should judge for yourself, the pros and cons are mentioned at:
-# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
-#
-Pods/
+# macOS
+.DS_Store
 
-## Fastlane
-**/fastlane/report.xml
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
