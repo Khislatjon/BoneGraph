@@ -90,7 +90,8 @@ Textbooks             →  raw PDF files
 |---|---|
 | Papers collected | **55,277** unique papers (zero duplicates) |
 | Open-access PDF URLs | 21,571 (39% of corpus) |
-| Year range | 1822–2026 |
+| PDFs downloaded | **6,125** |
+| Year range | 1900–2025 |
 | Search keywords | 133 across 17 topic groups |
 | Top journal | *Bone* — 2,452 papers |
 | PDF resolution | 3-tier chain: direct link → publisher transform → Unpaywall API |
