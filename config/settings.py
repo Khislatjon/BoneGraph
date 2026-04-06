@@ -133,3 +133,6 @@ MAX_PAPERS_PER_QUERY = 500
 # Path to the SQLite file that stores all paper metadata.
 # SQLite is a single-file database — no server needed, zero configuration.
 PAPERS_DB_PATH = DB_DIR / "papers.db"
+
+# Path to the SQLite file that stores all textbook metadata.
+TEXTBOOKS_DB_PATH = DB_DIR / "textbooks.db"
