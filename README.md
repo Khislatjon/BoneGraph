@@ -7,7 +7,8 @@ An intelligent reasoning system for bone science — morphology, mechanics, path
 | Document | Description |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Full system architecture, all build phases, design principles |
-| [docs/ingestion_pipeline.md](docs/ingestion_pipeline.md) | Phase 1 deep-dive: how data flows from API → SQLite → PDFs |
+| [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Papers ingestion deep-dive: how data flows from API → SQLite → PDFs |
+| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Textbooks ingestion pipeline |
 
 ## Architecture (summary)
 

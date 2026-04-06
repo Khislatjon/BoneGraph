@@ -240,8 +240,9 @@ BoneLogic/
 │   └── db/papers.db             SQLite metadata (gitignored)
 │
 ├── docs/
-│   ├── architecture.md          ← this file
-│   └── ingestion_pipeline.md    Detailed walkthrough of Phase 1 code
+│   ├── architecture.md                      ← this file
+│   ├── papers_ingestion_pipeline.md         Detailed walkthrough of papers ingestion
+│   └── textbooks_ingestion_pipeline.md      Detailed walkthrough of textbooks ingestion
 │
 ├── tests/
 │   └── test_ingestion.py
