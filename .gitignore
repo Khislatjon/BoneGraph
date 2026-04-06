@@ -34,3 +34,6 @@ data/db/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Paper drafts (kept local only)
+mypaper/
