@@ -42,7 +42,7 @@ from pathlib import Path
 import requests
 
 from config.settings import RAW_PAPERS_DIR, REQUEST_DELAY_SECONDS
-from ingestion.papers.resolvers import resolve_pdf_url
+from ingestion.papers.resolvers import resolve_pdf_url, resolve_via_unpaywall
 from ingestion.papers.storage import PaperStore
 
 logger = logging.getLogger(__name__)
@@ -253,6 +253,22 @@ def download_all_open_access(
             idx, total, resolved_url[:70], dest.name
         )
         success = download_pdf(resolved_url, dest)
+
+        # ── Unpaywall fallback on failure ─────────────────────────────────────
+        # If Tier 1 or Tier 2 resolved a URL but the download failed, try
+        # Unpaywall via DOI as a last resort. This catches papers where the
+        # publisher URL was stale, paywalled, or returned HTML — but a legal
+        # open-access copy exists elsewhere (e.g. PubMed Central, a preprint).
+        # Guard: skip if the resolved URL already came from Unpaywall (Tier 3)
+        # to avoid re-requesting the same URL that just failed.
+        if not success and doi:
+            unpaywall_url = resolve_via_unpaywall(doi, session=session)
+            if unpaywall_url and unpaywall_url != resolved_url:
+                logger.info(
+                    "[%d/%d] Tier 3 fallback → %s",
+                    idx, total, unpaywall_url[:70],
+                )
+                success = download_pdf(unpaywall_url, dest)
 
         if success:
             store.set_local_pdf_path(paper_id, str(dest))
