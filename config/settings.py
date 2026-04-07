@@ -136,3 +136,21 @@ PAPERS_DB_PATH = DB_DIR / "papers.db"
 
 # Path to the SQLite file that stores all textbook metadata.
 TEXTBOOKS_DB_PATH = DB_DIR / "textbooks.db"
+
+# Path to the SQLite file that stores all text chunks (papers + textbooks).
+# Kept separate from papers.db and textbooks.db because the chunks table
+# will have hundreds of thousands of rows — isolating it keeps the other
+# databases fast and browsable.
+CHUNKS_DB_PATH = DB_DIR / "chunks.db"
+
+# ── Chunking ──────────────────────────────────────────────────────────────────
+
+# Target chunk size in characters. 512 tokens * ~4 chars/token ≈ 2048 chars.
+# Keeping chunks at roughly 512 tokens is standard for RAG — large enough to
+# carry meaningful context, small enough for embedding models to handle well.
+CHUNK_SIZE_CHARS = 2048
+
+# Overlap between consecutive chunks in characters (~50 tokens * 4 chars).
+# Overlap ensures that sentences split across chunk boundaries are still
+# represented in at least one complete chunk.
+CHUNK_OVERLAP_CHARS = 200
