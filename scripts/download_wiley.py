@@ -158,18 +158,11 @@ def run(dry_run: bool = False) -> None:
                     if pdf_bytes:
                         break  # Got the PDF — exit retry loop
 
-                    # Check if Cloudflare CAPTCHA is on screen
+                    # Check if Cloudflare CAPTCHA is on screen — skip and move on
                     content = page.content().lower()
                     if "challenge" in content or "verify you are human" in content or "captcha" in content:
-                        print(f"\n  ⚠️  CAPTCHA detected on paper [{idx}/{total}]")
-                        print(f"  Please solve the CAPTCHA in the browser window.")
-                        print(f"  Press ENTER here once the PDF has loaded in the browser...")
-                        input()
-                        # After user solves CAPTCHA, try to grab the already-loaded PDF
-                        # by navigating again — Cloudflare sets a cookie so it won't re-challenge
-                        continue
-                    else:
-                        break  # No CAPTCHA but no PDF either — give up
+                        logger.warning("CAPTCHA detected — skipping: %s", pdf_url[:70])
+                    break  # No PDF captured — move to next paper regardless
 
                 if pdf_bytes:
                     dest.write_bytes(pdf_bytes[0])
