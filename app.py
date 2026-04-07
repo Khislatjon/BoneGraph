@@ -91,7 +91,7 @@ def search(query: str, top_k: int, source_filter: str) -> str:
         if r["year"]:
             meta_parts.append(str(r["year"]))
         if r["venue"]:
-            meta_parts.append(f"<em>{r['venue']}</em>")
+            meta_parts.append(f"<em style='color:#000000'>{r['venue']}</em>")
         if r["page_number"]:
             meta_parts.append(f"p.&nbsp;{r['page_number']}")
         meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
