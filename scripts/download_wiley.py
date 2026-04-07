@@ -34,7 +34,7 @@ from pathlib import Path
 
 import requests
 
-from config.settings import PAPERS_DB_PATH, RAW_PAPERS_DIR
+from config.settings import PAPERS_DB_PATH, RAW_PAPERS_DIR, WILEY_TDM_TOKEN
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,14 +48,10 @@ _WILEY_PREFIXES = [
     "https://anatomypubs.onlinelibrary.wiley.com",
 ]
 
-# Wiley TDM (Text & Data Mining) token — allows programmatic PDF access
-# for research purposes without Cloudflare bot detection.
-_WILEY_TDM_TOKEN = "fe54a895-0139-4120-a0f5-866eeca0f767"
-
 _WILEY_TDM_BASE = "https://api.wiley.com/onlinelibrary/tdm/v1/articles"
 
 _HEADERS = {
-    "Wiley-TDM-Client-Token": _WILEY_TDM_TOKEN,
+    "Wiley-TDM-Client-Token": WILEY_TDM_TOKEN,
     "Accept": "application/pdf,*/*",
 }
 

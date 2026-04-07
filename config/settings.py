@@ -63,6 +63,10 @@ for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR):
 # Set this in your .env file as: UNPAYWALL_EMAIL=you@example.com
 UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "")
 
+# Wiley TDM (Text & Data Mining) token for programmatic PDF access.
+# Request at: https://tdm.wiley.com
+WILEY_TDM_TOKEN = os.getenv("WILEY_TDM_TOKEN", "")
+
 
 # ── OpenAlex API ───────────────────────────────────────────────────────────────
 
