@@ -44,6 +44,7 @@ from ingestion.papers.downloader import download_all_open_access
 from ingestion.papers.keywords import ALL_KEYWORDS, KEYWORD_GROUPS
 from ingestion.papers.semantic_scholar import SemanticScholarClient
 from ingestion.papers.storage import PaperStore
+from config.settings import DEFAULT_YEAR_RANGE
 
 # Configure logging to print timestamped, levelled messages to the console.
 # Format: "09:14:22  INFO      ingestion.papers.pipeline  Starting 133 keyword queries."
@@ -166,10 +167,11 @@ Examples:
 
     # --year: restrict results to a publication year range.
     # S2 format: "YYYY-YYYY" (range), "YYYY-" (from year), or "-YYYY" (up to year).
+    # Defaults to DEFAULT_YEAR_RANGE (1970-2026) — covers modern bone science literature.
     parser.add_argument(
         "--year",
-        default=None,
-        help="Year range filter, e.g. 2015-2024 or 2020-.",
+        default=DEFAULT_YEAR_RANGE,
+        help=f"Year range filter (default: {DEFAULT_YEAR_RANGE}).",
     )
 
     # --max: cap the number of papers retrieved per keyword.
