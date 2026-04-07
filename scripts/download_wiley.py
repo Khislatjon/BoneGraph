@@ -122,10 +122,6 @@ def run(dry_run: bool = False) -> None:
             logger.info("[%d/%d] %s", idx, total, pdf_url[:80])
 
             try:
-                # Intercept all network responses and grab the one that is a PDF.
-                # Wiley's page never reaches networkidle (background requests keep
-                # running), so we listen for any response with content-type=pdf
-                # rather than waiting for full page load.
                 pdf_bytes: list[bytes] = []
 
                 def handle_response(resp):
@@ -138,16 +134,34 @@ def run(dry_run: bool = False) -> None:
                     except Exception:
                         pass
 
-                page.on("response", handle_response)
+                # Retry loop — allows re-attempting after CAPTCHA is solved.
+                for attempt in range(3):
+                    pdf_bytes.clear()
+                    page.on("response", handle_response)
 
-                try:
-                    page.goto(pdf_url, wait_until="domcontentloaded", timeout=_DOWNLOAD_TIMEOUT)
-                except PlaywrightTimeout:
-                    pass  # page may timeout but PDF response may already be captured
+                    try:
+                        page.goto(pdf_url, wait_until="domcontentloaded", timeout=_DOWNLOAD_TIMEOUT)
+                    except PlaywrightTimeout:
+                        pass
 
-                # Give background requests a moment to complete
-                page.wait_for_timeout(3000)
-                page.remove_listener("response", handle_response)
+                    page.wait_for_timeout(3000)
+                    page.remove_listener("response", handle_response)
+
+                    if pdf_bytes:
+                        break  # Got the PDF — exit retry loop
+
+                    # Check if Cloudflare CAPTCHA is on screen
+                    content = page.content().lower()
+                    if "challenge" in content or "verify you are human" in content or "captcha" in content:
+                        print(f"\n  ⚠️  CAPTCHA detected on paper [{idx}/{total}]")
+                        print(f"  Please solve the CAPTCHA in the browser window.")
+                        print(f"  Press ENTER here once the PDF has loaded in the browser...")
+                        input()
+                        # After user solves CAPTCHA, try to grab the already-loaded PDF
+                        # by navigating again — Cloudflare sets a cookie so it won't re-challenge
+                        continue
+                    else:
+                        break  # No CAPTCHA but no PDF either — give up
 
                 if pdf_bytes:
                     dest.write_bytes(pdf_bytes[0])
