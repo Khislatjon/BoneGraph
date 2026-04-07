@@ -54,7 +54,7 @@ from urllib.parse import quote
 
 import requests
 
-from config.settings import REQUEST_DELAY_SECONDS, UNPAYWALL_EMAIL
+from config.settings import REQUEST_DELAY_SECONDS, UNPAYWALL_EMAIL, WILEY_TDM_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -559,6 +559,19 @@ def resolve_pdf_url(
     str | None
         The best direct PDF URL found, or None if all tiers exhausted.
     """
+    # ── Wiley TDM: intercept Wiley URLs and rewrite to TDM API endpoint ───────
+    # Wiley's regular URLs are blocked by Cloudflare. The TDM API endpoint
+    # at api.wiley.com bypasses this with a token — no Cloudflare involved.
+    _wiley_prefixes = (
+        "https://onlinelibrary.wiley.com",
+        "https://anatomypubs.onlinelibrary.wiley.com",
+    )
+    if stored_url and any(stored_url.startswith(p) for p in _wiley_prefixes):
+        if doi and WILEY_TDM_TOKEN:
+            tdm_url = f"https://api.wiley.com/onlinelibrary/tdm/v1/articles/{doi}"
+            logger.debug("[%s] Wiley TDM: rewriting to %s", paper_id, tdm_url)
+            return tdm_url
+
     # ── Tier 1: check if what we already have is a direct PDF link ────────────
     if stored_url and is_direct_pdf(stored_url):
         logger.debug("[%s] Tier 1: direct PDF link confirmed", paper_id)

@@ -5,6 +5,8 @@ Standalone PDF downloader — runs Pass 1 and Pass 2 without re-fetching
 metadata from OpenAlex.
 
 Pass 1 — papers with an open-access PDF URL from OpenAlex (has_pdf=1)
+          Uses 3-tier resolver: direct link → publisher transform → Unpaywall
+          Wiley URLs are automatically rewritten to the TDM API endpoint.
 Pass 2 — papers with no PDF URL but a DOI, tried via Unpaywall
 
 Usage

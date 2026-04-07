@@ -41,7 +41,7 @@ from pathlib import Path
 
 import requests
 
-from config.settings import RAW_PAPERS_DIR, REQUEST_DELAY_SECONDS
+from config.settings import RAW_PAPERS_DIR, REQUEST_DELAY_SECONDS, WILEY_TDM_TOKEN
 from ingestion.papers.resolvers import resolve_pdf_url, resolve_via_unpaywall
 from ingestion.papers.storage import PaperStore
 
@@ -59,6 +59,24 @@ _HEADERS = {
     "Accept": "application/pdf,*/*",
     "Accept-Encoding": "gzip,deflate,br",
 }
+
+# Wiley TDM API base — bypasses Cloudflare with token authentication.
+_WILEY_TDM_BASE = "https://api.wiley.com/onlinelibrary/tdm/v1/articles"
+_WILEY_PREFIXES = (
+    "https://onlinelibrary.wiley.com",
+    "https://anatomypubs.onlinelibrary.wiley.com",
+)
+
+
+def _is_wiley(url: str) -> bool:
+    return any(url.startswith(p) for p in _WILEY_PREFIXES)
+
+
+def _wiley_tdm_headers() -> dict:
+    return {
+        "Wiley-TDM-Client-Token": WILEY_TDM_TOKEN,
+        "Accept": "application/pdf,*/*",
+    }
 
 
 def _pdf_path(paper_id: str, year: int | None) -> Path:
@@ -119,8 +137,11 @@ def download_pdf(url: str, dest: Path, timeout: int = 60) -> bool:
         False if any error occurred or the response was not a PDF.
     """
     try:
+        # Wiley TDM API URLs need the token header; all others use browser headers.
+        actual_headers = _wiley_tdm_headers() if "api.wiley.com" in url else _HEADERS
+
         # stream=True — download the body in chunks, not all at once.
-        response = requests.get(url, headers=_HEADERS, stream=True, timeout=timeout)
+        response = requests.get(url, headers=actual_headers, stream=True, timeout=timeout)
         response.raise_for_status()
 
         content_type = response.headers.get("Content-Type", "").lower()
