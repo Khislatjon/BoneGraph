@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
+from playwright_stealth import Stealth
 
 from config.settings import PAPERS_DB_PATH, RAW_PAPERS_DIR
 
@@ -53,8 +54,9 @@ _WILEY_PREFIXES = [
 # How long to wait for a PDF to start downloading (ms)
 _DOWNLOAD_TIMEOUT = 30_000
 
-# Polite delay between downloads (seconds)
-_DELAY = 1.5
+# Polite delay between downloads (seconds).
+# Longer delay reduces Cloudflare re-challenge frequency.
+_DELAY = 3.0
 
 
 def _pdf_path(paper_id: str, year: int | None) -> Path:
@@ -96,32 +98,17 @@ def run(dry_run: bool = False) -> None:
     total = len(rows)
 
     with sync_playwright() as p:
-        # headless=False — visible browser window required for Cloudflare.
-        # Extra args disable Chrome's automation indicators.
-        browser = p.chromium.launch(
-            headless=False,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-            ],
-        )
+        # Use Firefox — Cloudflare's Chromium fingerprint detection is much
+        # stricter than Firefox. Firefox also has no webdriver flag issues.
+        browser = p.firefox.launch(headless=False)
         context = browser.new_context(
             accept_downloads=True,
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
             viewport={"width": 1280, "height": 800},
         )
-        # Patch navigator.webdriver to undefined before every page load.
-        # This is what Cloudflare checks — if it's true, you're flagged as a bot.
-        context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-        """)
         page = context.new_page()
+        # Apply full stealth evasions — patches dozens of automation indicators
+        # that Cloudflare checks (navigator.webdriver, plugins, languages, etc.)
+        Stealth().apply_stealth_sync(page)
 
         for idx, row in enumerate(rows, start=1):
             paper_id = row["paper_id"]
