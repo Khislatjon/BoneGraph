@@ -170,6 +170,14 @@ class PaperStore:
             # S2 occasionally returns partial records without an ID — skip them.
             return False
 
+        # Skip papers that S2 explicitly identifies as non-English.
+        # Many papers have language=None (S2 didn't detect it) — we keep those
+        # because they are usually English; our post-extraction filter handles them.
+        s2_language = paper.get("language")
+        if s2_language and s2_language.lower() != "en":
+            logger.debug("Skipping non-English paper %s (language=%s)", pid, s2_language)
+            return False
+
         # Extract the open-access PDF URL if one exists.
         # The S2 field is either {"url": "https://..."} or None.
         open_pdf = paper.get("openAccessPdf") or {}

@@ -95,6 +95,8 @@ PAPER_FIELDS = [
     "openAccessPdf",    # Dict with {"url": "..."} if a free legal PDF exists, else null
     "fieldsOfStudy",    # High-level field tags, e.g. ["Medicine", "Biology"]
     "s2FieldsOfStudy",  # More granular S2-specific field tags with confidence scores
+    "language",         # ISO 639-1 language code detected by S2 (e.g. "en", "de")
+                        # NULL for many papers — only set when S2 is confident
 ]
 
 # ── Year & language defaults ──────────────────────────────────────────────────
