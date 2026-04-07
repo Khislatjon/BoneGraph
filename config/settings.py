@@ -143,6 +143,17 @@ TEXTBOOKS_DB_PATH = DB_DIR / "textbooks.db"
 # databases fast and browsable.
 CHUNKS_DB_PATH = DB_DIR / "chunks.db"
 
+# ── Embedding ────────────────────────────────────────────────────────────────
+
+# Local SPECTER model — trained by Allen AI on 146M Semantic Scholar paper
+# citations, making it ideal for scientific text retrieval.
+# Downloaded automatically by sentence-transformers on first use (~440 MB).
+EMBEDDING_MODEL = "allenai-specter"
+
+# Number of chunks to embed in one batch.  Larger batches are faster but use
+# more RAM.  64 is a safe default for a machine without a GPU.
+EMBEDDING_BATCH_SIZE = 64
+
 # ── Chunking ──────────────────────────────────────────────────────────────────
 
 # Target chunk size in characters. 512 tokens * ~4 chars/token ≈ 2048 chars.
