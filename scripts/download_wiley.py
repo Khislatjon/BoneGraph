@@ -120,16 +120,7 @@ def run(dry_run: bool = False) -> None:
         logger.info("[%d/%d] %s", idx, total, tdm_url[:80])
 
         try:
-            # Retry up to 3 times on 500 errors with increasing backoff
-            response = None
-            for attempt in range(3):
-                response = session.get(tdm_url, stream=True, timeout=60)
-                if response.status_code == 500:
-                    wait = 30 * (attempt + 1)
-                    logger.warning("500 on attempt %d — waiting %ds before retry", attempt + 1, wait)
-                    time.sleep(wait)
-                    continue
-                break
+            response = session.get(tdm_url, stream=True, timeout=60)
             response.raise_for_status()
 
             content_type = response.headers.get("Content-Type", "").lower()
