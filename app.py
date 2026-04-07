@@ -9,15 +9,47 @@ Run with:
 Opens automatically in your browser at http://localhost:7860
 """
 
+import sqlite3
 import time
 import gradio as gr
 from retrieval.retriever import BoneLogicRetriever
+from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 
-# ── Load retriever once at startup ────────────────────────────────────────────
+
+def _load_stats() -> dict:
+    """Read live corpus stats from the databases."""
+    stats = {}
+
+    conn = sqlite3.connect(PAPERS_DB_PATH)
+    stats["pdfs_downloaded"] = conn.execute(
+        "SELECT COUNT(*) FROM papers WHERE pdf_local_path IS NOT NULL"
+    ).fetchone()[0]
+    stats["papers_total"] = conn.execute(
+        "SELECT COUNT(*) FROM papers"
+    ).fetchone()[0]
+    conn.close()
+
+    conn = sqlite3.connect(TEXTBOOKS_DB_PATH)
+    stats["textbooks"] = conn.execute(
+        "SELECT COUNT(*) FROM textbooks"
+    ).fetchone()[0]
+    conn.close()
+
+    conn = sqlite3.connect(CHUNKS_DB_PATH)
+    stats["chunks"] = conn.execute(
+        "SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL"
+    ).fetchone()[0]
+    conn.close()
+
+    return stats
+
+
+# ── Load retriever and stats once at startup ──────────────────────────────────
 print("Loading BoneLogic retriever...")
 retriever = BoneLogicRetriever()
 retriever.load()
-print("Retriever ready.")
+STATS = _load_stats()
+print(f"Retriever ready. {STATS['pdfs_downloaded']:,} papers | {STATS['textbooks']} textbooks | {STATS['chunks']:,} chunks")
 
 
 # ── Query function ────────────────────────────────────────────────────────────
@@ -102,9 +134,9 @@ def search(query: str, top_k: int, source_filter: str) -> str:
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
 
-    gr.Markdown("""
+    gr.Markdown(f"""
     # 🦴 BoneLogic — Bone Science Knowledge Retrieval
-    Search across **55,277 peer-reviewed papers** and **16 textbooks** using semantic similarity (SPECTER).
+    Search across **{STATS['pdfs_downloaded']:,} downloaded papers** and **{STATS['textbooks']} textbooks** using semantic similarity (SPECTER).
     Results are ranked by relevance to your query.
     """)
 
@@ -161,9 +193,9 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
         outputs=results_box,
     )
 
-    gr.Markdown("""
+    gr.Markdown(f"""
     ---
-    **Corpus:** 55,277 papers · 16 textbooks · 200,757 chunks · SPECTER 768-dim embeddings
+    **Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · {STATS['papers_total']:,} papers (metadata) · {STATS['textbooks']} textbooks · {STATS['chunks']:,} chunks · SPECTER 768-dim embeddings
     """)
 
 
