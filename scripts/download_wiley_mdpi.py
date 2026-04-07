@@ -1,22 +1,21 @@
 """
 scripts/download_wiley_mdpi.py
 ===============================
-Downloads PDFs specifically for Wiley and MDPI papers using a browser
-User-Agent to bypass publisher 403 blocks.
+Downloads PDFs from publishers that block bot User-Agents, using a realistic
+Chrome browser User-Agent to bypass 403 responses.
 
-Why a separate script?
-----------------------
-Wiley and MDPI return 403 Forbidden when the request User-Agent looks like
-a bot. The main downloader uses "BoneLogic-Research-Bot/..." which both
-publishers block. This script uses a realistic Chrome browser User-Agent
-which these publishers accept.
+Publishers covered
+------------------
+- Wiley Online Library     (onlinelibrary.wiley.com)
+- Wiley Anatomy sub-domain (anatomypubs.onlinelibrary.wiley.com)
+- MDPI                     (www.mdpi.com)
+- Cell Press               (www.cell.com)
+- AJNR                     (www.ajnr.org)
+- Brieflands               (brieflands.com)
 
 Safe to run in parallel with the main downloader — this script only touches
-papers with Wiley or MDPI PDF URLs, the main downloader skips those anyway
-since they already have pdf_url set.
-
-SQLite concurrent reads are safe. Both scripts only write to separate rows
-(different paper_ids), so there is no write conflict.
+papers whose pdf_url matches the above prefixes. Both scripts write to
+different paper_id rows so there is no SQLite write conflict.
 
 Usage
 -----
@@ -57,10 +56,15 @@ _BROWSER_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# URL prefixes that identify Wiley and MDPI papers.
+# URL prefixes that identify publishers handled by this script.
+# All require a browser User-Agent to avoid 403 responses.
 _PUBLISHERS = {
-    "wiley": "https://onlinelibrary.wiley.com/doi/pdfdirect",
-    "mdpi":  "https://www.mdpi.com",
+    "Wiley":           "https://onlinelibrary.wiley.com/doi/pdfdirect",
+    "Wiley Anatomy":   "https://anatomypubs.onlinelibrary.wiley.com",
+    "MDPI":            "https://www.mdpi.com",
+    "Cell":            "http://www.cell.com",
+    "AJNR":            "http://www.ajnr.org/",
+    "Brieflands":      "https://brieflands.com",
 }
 
 # Seconds between downloads — be polite to publisher servers.
@@ -126,16 +130,18 @@ def run(dry_run: bool = False) -> None:
     rows = conn.execute(query).fetchall()
 
     # Count by publisher
-    wiley_count = sum(1 for r in rows if r["pdf_url"].startswith(_PUBLISHERS["wiley"]))
-    mdpi_count  = sum(1 for r in rows if r["pdf_url"].startswith(_PUBLISHERS["mdpi"]))
+    pub_counts = {}
+    for name, prefix in _PUBLISHERS.items():
+        pub_counts[name] = sum(1 for r in rows if r["pdf_url"].startswith(prefix))
 
-    logger.info("Papers to download — Wiley: %d  |  MDPI: %d  |  Total: %d",
-                wiley_count, mdpi_count, len(rows))
+    logger.info("Papers to download — %s  |  Total: %d",
+                "  |  ".join(f"{k}: {v}" for k, v in pub_counts.items()), len(rows))
 
     if dry_run:
-        print(f"\n  Wiley : {wiley_count:,}")
-        print(f"  MDPI  : {mdpi_count:,}")
-        print(f"  Total : {len(rows):,}")
+        print()
+        for name, count in pub_counts.items():
+            print(f"  {name:<20}: {count:,}")
+        print(f"  {'Total':<20}: {len(rows):,}")
         conn.close()
         return
 
@@ -162,7 +168,7 @@ def run(dry_run: bool = False) -> None:
             counts["skipped"] += 1
             continue
 
-        publisher = "Wiley" if "wiley" in pdf_url else "MDPI"
+        publisher = next((name for name, prefix in _PUBLISHERS.items() if pdf_url.startswith(prefix)), "Unknown")
         logger.info("[%d/%d] [%s] %s", idx, total, publisher, pdf_url[:70])
 
         success = _download_pdf(pdf_url, dest, session)
@@ -183,7 +189,7 @@ def run(dry_run: bool = False) -> None:
     conn.close()
 
     print("\n" + "=" * 50)
-    print("  Wiley + MDPI Download Complete")
+    print("  Publisher Download Complete")
     print("=" * 50)
     print(f"  Downloaded : {counts['downloaded']:,}")
     print(f"  Failed     : {counts['failed']:,}")
