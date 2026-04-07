@@ -96,10 +96,31 @@ def run(dry_run: bool = False) -> None:
     total = len(rows)
 
     with sync_playwright() as p:
-        # headless=False — visible browser window is required because Wiley uses
-        # Cloudflare Turnstile which detects and blocks headless browsers.
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context(accept_downloads=True)
+        # headless=False — visible browser window required for Cloudflare.
+        # Extra args disable Chrome's automation indicators.
+        browser = p.chromium.launch(
+            headless=False,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
+        context = browser.new_context(
+            accept_downloads=True,
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1280, "height": 800},
+        )
+        # Patch navigator.webdriver to undefined before every page load.
+        # This is what Cloudflare checks — if it's true, you're flagged as a bot.
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+        """)
         page = context.new_page()
 
         for idx, row in enumerate(rows, start=1):
