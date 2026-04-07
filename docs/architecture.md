@@ -103,19 +103,41 @@ Textbooks             →  raw PDF files
 
 ---
 
-### Phase 2 — RAG (Retrieval-Augmented Generation)
+### Phase 2 — Text Processing & RAG (Retrieval-Augmented Generation) 🔄 In Progress (April 2026)
 Chunk and embed the text corpus so the LLM can retrieve relevant passages at query time.
 
 ```
-Paper abstracts + PDF text  →  text chunks  →  embeddings  →  vector store
-                                                                     │
-User query  ──────────────────────────────────────────────────►  retrieve top-k
-                                                                     │
-                                                              LLM answers using
-                                                              retrieved context
+PDF text  →  extract_papers.py / extract_textbooks.py  →  .txt files
+                                                               │
+                                                          chunk_all.py
+                                                               │
+                                                         chunks.db (SQLite)
+                                                               │
+                                                           embed.py
+                                                               │
+                                                    768-dim SPECTER vectors
+                                                               │
+User query  ──────────────────────────────────────────►  retrieve top-k
+                                                               │
+                                                       LLM answers using
+                                                       retrieved context
 ```
 
+**Delivered so far:**
+
+| Item | Result |
+|---|---|
+| Papers extracted | **6,085** (40 scanned — no text layer) |
+| Textbooks extracted | **16 / 16** |
+| Total chunks | **200,757** (188,042 paper + 12,715 textbook) |
+| Chunk size | 2,048 chars (~512 tokens) with 200-char overlap |
+| Embedding model | SPECTER (`allenai-specter`) — trained on 146M S2 citations |
+| Embedding dimensions | 768 |
+| Embeddings | 🔄 Running now |
+
 **Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable (add new papers → re-embed) without changing the model.
+
+**Why SPECTER:** Trained by Allen AI specifically on Semantic Scholar paper citations — produces embeddings that capture scientific meaning, making it ideal for a corpus collected from Semantic Scholar.
 
 **Novel contribution here:** The retrieval is not generic — it is guided by a bone ontology. When a user asks about "femoral neck fracture", the ontology expands the query to related concepts (cortical thinning, reduced BMD, trabecular connectivity) before retrieval, improving coverage.
 
@@ -210,22 +232,29 @@ BoneLogic/
 │   │   ├── keywords.py          133 bone-domain search queries (17 groups)
 │   │   ├── semantic_scholar.py  S2 API client
 │   │   ├── storage.py           SQLite metadata store
-│   │   ├── resolvers.py         3-tier PDF URL resolver (added Mar 2026)
+│   │   ├── resolvers.py         3-tier PDF URL resolver
 │   │   ├── downloader.py        Open-access PDF downloader
 │   │   └── pipeline.py          CLI entrypoint
-│   └── textbooks/               Phase 1b: textbook loading (placeholder)
+│   └── textbooks/
+│       ├── storage.py           SQLite textbook store
+│       ├── scanner.py           Folder scanner + PyMuPDF metadata extraction
+│       └── pipeline.py          CLI entrypoint
 │
 ├── scripts/
 │   └── inspect_db.py            Database statistics + progress inspector
 │
-├── processing/                  Phase 2: text extraction and chunking
-│   └── (coming in Phase 2)
+├── processing/                  Phase 2: text extraction, chunking, embedding
+│   ├── extractor.py             PDF → plain text via PyMuPDF
+│   ├── extract_papers.py        Extract all paper PDFs → .txt files
+│   ├── extract_textbooks.py     Extract all textbook PDFs → .txt files
+│   ├── chunker.py               Page-aware sliding window chunker
+│   ├── chunk_all.py             Chunk all texts → chunks.db
+│   └── embed.py                 Embed chunks with SPECTER → chunks.db
 │
-├── retrieval/                   Phase 2: vector store and RAG
-│   └── (coming in Phase 2)
+├── retrieval/                   Phase 2: RAG query interface (coming next)
 │
 ├── models/                      Phases 2-4: LLM, VLM, LRM wrappers
-│   └── (coming in Phase 2)
+│   └── (coming in Phase 3)
 │
 ├── reasoning/                   Phase 4: ontology and LRM
 │   └── (coming in Phase 4)
@@ -235,9 +264,12 @@ BoneLogic/
 │
 ├── data/
 │   ├── raw/papers/              Downloaded PDFs (gitignored)
-│   ├── raw/textbooks/           Textbook files (gitignored)
-│   ├── processed/               Chunks, embeddings (gitignored)
-│   └── db/papers.db             SQLite metadata (gitignored)
+│   ├── raw/textbooks/           Textbook PDFs by source (gitignored)
+│   ├── processed/text/          Extracted .txt files (gitignored)
+│   └── db/
+│       ├── papers.db            Paper metadata (gitignored)
+│       ├── textbooks.db         Textbook metadata (gitignored)
+│       └── chunks.db            Text chunks + SPECTER embeddings (gitignored)
 │
 ├── docs/
 │   ├── architecture.md                      ← this file
