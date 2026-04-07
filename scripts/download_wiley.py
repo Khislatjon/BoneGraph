@@ -96,8 +96,9 @@ def run(dry_run: bool = False) -> None:
     total = len(rows)
 
     with sync_playwright() as p:
-        # Launch real Chromium — headless so no window appears.
-        browser = p.chromium.launch(headless=True)
+        # headless=False — visible browser window is required because Wiley uses
+        # Cloudflare Turnstile which detects and blocks headless browsers.
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
 
