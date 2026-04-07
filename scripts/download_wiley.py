@@ -106,6 +106,10 @@ def run(dry_run: bool = False) -> None:
 
         unpaywall_url = resolve_via_unpaywall(doi, session=session)
 
+        # Skip if Unpaywall just returns a Wiley URL — same 403 problem.
+        if unpaywall_url and "wiley.com" in unpaywall_url:
+            unpaywall_url = None
+
         if not unpaywall_url:
             counts["no_unpaywall"] += 1
             if idx % 100 == 0:
