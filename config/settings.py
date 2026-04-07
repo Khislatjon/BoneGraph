@@ -57,83 +57,73 @@ for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR):
 
 # ── Unpaywall API ──────────────────────────────────────────────────────────────
 
-# Your email address for the Unpaywall API.
+# Your email address for the Unpaywall API (also used as OpenAlex polite-pool ID).
 # Unpaywall is a free, legal index of open-access papers.
 # Given a DOI it returns a direct PDF URL.  No API key needed — just an email.
-# Sign up / info: https://unpaywall.org/products/api
-# Rate limit: 100,000 requests/day (very generous for a research project).
 # Set this in your .env file as: UNPAYWALL_EMAIL=you@example.com
 UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "")
 
 
-# ── Semantic Scholar API ───────────────────────────────────────────────────────
+# ── OpenAlex API ───────────────────────────────────────────────────────────────
 
-# Your personal API key, read from the .env file.
-# With a key the rate limit is 1 request/second.
-# Without a key (empty string) it falls back to 1 request/5s — much slower.
-SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "")
+# Base URL for the OpenAlex REST API.
+# No API key required — completely free and open.
+OPENALEX_BASE_URL = "https://api.openalex.org"
 
-# Base URL for the Semantic Scholar Graph API v1.
-# All endpoint paths (e.g. /paper/search) are appended to this.
-SEMANTIC_SCHOLAR_BASE_URL = "https://api.semanticscholar.org/graph/v1"
-
-# PAPER_FIELDS lists which data columns to request for each paper.
-# Requesting only what you need keeps responses small and fast.
-# Full list of available fields: https://api.semanticscholar.org/graph/v1#tag/Paper-Data
-PAPER_FIELDS = [
-    "paperId",          # Semantic Scholar's own stable identifier (SHA-like hash)
-    "externalIds",      # DOI, ArXiv ID, PubMed ID, etc. — useful for dedup & linking
-    "title",            # Full paper title
-    "abstract",         # Abstract text — primary input for Phase 1 RAG
-    "year",             # Publication year (integer)
-    "authors",          # List of {authorId, name} dicts
-    "venue",            # Journal or conference name
-    "publicationTypes", # E.g. ["JournalArticle"], ["Review"], ["Conference"]
-    "publicationDate",  # Full date string "YYYY-MM-DD" where available
-    "citationCount",    # How many papers have cited this one — proxy for impact
-    "referenceCount",   # How many papers this one cites
-    "openAccessPdf",    # Dict with {"url": "..."} if a free legal PDF exists, else null
-    "fieldsOfStudy",    # High-level field tags, e.g. ["Medicine", "Biology"]
-    "s2FieldsOfStudy",  # More granular S2-specific field tags with confidence scores
-    "language",         # ISO 639-1 language code detected by S2 (e.g. "en", "de")
-                        # NULL for many papers — only set when S2 is confident
+# Fields to request per Work object via the ?select= parameter.
+# Keeping this minimal reduces response size and speeds up pagination.
+OPENALEX_SELECT_FIELDS = [
+    "id",                       # OpenAlex ID, e.g. "https://openalex.org/W2741809807"
+    "doi",                      # DOI string, e.g. "https://doi.org/10.1016/j.bone.2022.01.001"
+    "title",                    # Full title
+    "abstract_inverted_index",  # Abstract stored as {word: [positions]} — must be reconstructed
+    "publication_year",         # Integer year
+    "publication_date",         # "YYYY-MM-DD" string
+    "authorships",              # List of {author: {display_name}, institutions: [...]}
+    "primary_location",         # {source: {display_name}, pdf_url, ...}
+    "open_access",              # {is_oa, oa_url, oa_status}
+    "cited_by_count",           # Citation count
+    "type",                     # "journal-article", "book-chapter", etc.
+    "language",                 # ISO 639-1 code, e.g. "en" — set natively by OpenAlex
 ]
 
 # ── Year & language defaults ──────────────────────────────────────────────────
 
-# Default publication-year range passed to the S2 search API.
+# Default publication-year range for OpenAlex filter.
 # Modern bone science literature starts around 1970; 2026 covers the present.
-# S2 format: "YYYY-YYYY" (inclusive on both ends).
+# OpenAlex format: "YYYY-YYYY" (inclusive on both ends).
 DEFAULT_YEAR_RANGE = "1970-2026"
+
+# Default language filter — only fetch English papers.
+# OpenAlex natively supports this filter (filter=language:en), so non-English
+# papers are excluded at query time, before they ever touch the database.
+DEFAULT_LANGUAGE = "en"
 
 
 # ── Rate limiting & retries ───────────────────────────────────────────────────
 
 # REQUEST_DELAY_SECONDS is the minimum wait between consecutive API calls.
-# Semantic Scholar enforces exactly 1 request/second for authenticated keys.
-# We use 1.1s to add a small safety buffer and avoid edge-case 429 errors.
-REQUEST_DELAY_SECONDS = 1.1
+# OpenAlex polite pool allows 10 requests/second — 0.15s gives a safe buffer.
+REQUEST_DELAY_SECONDS = 0.15
 
 # MAX_RETRIES — how many times to automatically retry a failed request before
 # giving up.  The requests library handles this via urllib3's Retry mechanism.
 MAX_RETRIES = 3
 
-# RETRY_BACKOFF_SECONDS — how long to wait after receiving a 429 (Too Many
-# Requests) response.  S2 often sends a Retry-After header; this is the
-# fallback if that header is missing.
-RETRY_BACKOFF_SECONDS = 60
+# RETRY_BACKOFF_SECONDS — seconds to wait after a 429 response if no
+# Retry-After header is present.
+RETRY_BACKOFF_SECONDS = 30
 
 
 # ── Pagination ────────────────────────────────────────────────────────────────
 
 # SEARCH_BATCH_SIZE — number of results to request per API call.
-# 100 is the hard maximum Semantic Scholar allows per request.
-SEARCH_BATCH_SIZE = 100
+# OpenAlex allows up to 200 results per page (vs S2's 100).
+SEARCH_BATCH_SIZE = 200
 
 # MAX_PAPERS_PER_QUERY — upper bound on how many papers to collect per keyword.
 # 500 is a good balance: enough for a rich corpus without excessive API time.
-# With ~133 keywords this yields ~15,000–30,000 unique papers after deduplication.
-# At 1 req/s and batch size 100, each keyword needs ~5 API calls → total ~11 min.
+# With ~133 keywords at 200/page, each keyword needs ~3 API calls.
 MAX_PAPERS_PER_QUERY = 500
 
 

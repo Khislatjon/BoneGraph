@@ -42,9 +42,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from ingestion.papers.downloader import download_all_open_access
 from ingestion.papers.keywords import ALL_KEYWORDS, KEYWORD_GROUPS
-from ingestion.papers.semantic_scholar import SemanticScholarClient
+from ingestion.papers.openalex import OpenAlexClient
 from ingestion.papers.storage import PaperStore
-from config.settings import DEFAULT_YEAR_RANGE
+from config.settings import DEFAULT_YEAR_RANGE, DEFAULT_LANGUAGE
 
 # Configure logging to print timestamped, levelled messages to the console.
 # Format: "09:14:22  INFO      ingestion.papers.pipeline  Starting 133 keyword queries."
@@ -60,6 +60,7 @@ def run(
     keywords: list[str],
     max_per_keyword: int,
     year_range: str | None,
+    language: str | None,
     download_pdfs: bool,
 ) -> None:
     """
@@ -76,8 +77,8 @@ def run(
     download_pdfs : bool
         If True, attempt to download open-access PDFs after metadata ingestion.
     """
-    # Instantiate the S2 API client — reads the API key from settings automatically.
-    client = SemanticScholarClient()
+    # Instantiate the OpenAlex client — no API key needed.
+    client = OpenAlexClient()
 
     # Open the database connection for the entire run.
     # The `with` statement guarantees the connection closes cleanly even on error.
@@ -95,6 +96,7 @@ def run(
                     keyword,
                     max_papers=max_per_keyword,
                     year_range=year_range,
+                    language=language,
                 )
             )
 
@@ -166,12 +168,20 @@ Examples:
     )
 
     # --year: restrict results to a publication year range.
-    # S2 format: "YYYY-YYYY" (range), "YYYY-" (from year), or "-YYYY" (up to year).
-    # Defaults to DEFAULT_YEAR_RANGE (1970-2026) — covers modern bone science literature.
+    # OpenAlex format: "YYYY-YYYY" (inclusive on both ends).
     parser.add_argument(
         "--year",
         default=DEFAULT_YEAR_RANGE,
         help=f"Year range filter (default: {DEFAULT_YEAR_RANGE}).",
+    )
+
+    # --language: ISO 639-1 language code to filter by.
+    # OpenAlex supports native language filtering — non-English papers are
+    # excluded at query time before they touch the database.
+    parser.add_argument(
+        "--language",
+        default=DEFAULT_LANGUAGE,
+        help=f"Language filter, ISO 639-1 code (default: {DEFAULT_LANGUAGE}). Pass '' to disable.",
     )
 
     # --max: cap the number of papers retrieved per keyword.
@@ -205,8 +215,10 @@ Examples:
     else:
         keywords = ALL_KEYWORDS
 
-    logger.info("Running %d keyword queries (max %d papers each).", len(keywords), args.max)
-    run(keywords, args.max, args.year, args.download)
+    lang = args.language or None  # convert empty string to None (disables filter)
+    logger.info("Running %d keyword queries (max %d papers each, lang=%s, years=%s).",
+                len(keywords), args.max, lang, args.year)
+    run(keywords, args.max, args.year, lang, args.download)
 
 
 # This block runs only when the script is executed directly, not when imported.
