@@ -121,43 +121,44 @@ def run(dry_run: bool = False) -> None:
             logger.info("[%d/%d] %s", idx, total, pdf_url[:80])
 
             try:
-                # Navigate and capture the response body directly.
-                # Wiley serves PDFs inline in the browser (not as a file download),
-                # so expect_download() never fires — we read the raw response instead.
-                response = page.goto(pdf_url, wait_until="networkidle", timeout=_DOWNLOAD_TIMEOUT)
+                # Intercept all network responses and grab the one that is a PDF.
+                # Wiley's page never reaches networkidle (background requests keep
+                # running), so we listen for any response with content-type=pdf
+                # rather than waiting for full page load.
+                pdf_bytes: list[bytes] = []
 
-                if response is None:
-                    logger.warning("No response for %s", pdf_url[:70])
+                def handle_response(resp):
+                    try:
+                        ct = resp.headers.get("content-type", "")
+                        if "application/pdf" in ct or "application/octet-stream" in ct:
+                            data = resp.body()
+                            if data.startswith(b"%PDF"):
+                                pdf_bytes.append(data)
+                    except Exception:
+                        pass
+
+                page.on("response", handle_response)
+
+                try:
+                    page.goto(pdf_url, wait_until="domcontentloaded", timeout=_DOWNLOAD_TIMEOUT)
+                except PlaywrightTimeout:
+                    pass  # page may timeout but PDF response may already be captured
+
+                # Give background requests a moment to complete
+                page.wait_for_timeout(3000)
+                page.remove_listener("response", handle_response)
+
+                if pdf_bytes:
+                    dest.write_bytes(pdf_bytes[0])
+                    conn.execute(
+                        "UPDATE papers SET pdf_local_path = ? WHERE paper_id = ?",
+                        (str(dest), paper_id),
+                    )
+                    conn.commit()
+                    counts["downloaded"] += 1
+                else:
+                    logger.warning("No PDF response captured for %s", pdf_url[:70])
                     counts["failed"] += 1
-                    continue
-
-                if response.status != 200:
-                    logger.warning("HTTP %d for %s", response.status, pdf_url[:70])
-                    counts["failed"] += 1
-                    continue
-
-                body = response.body()
-
-                # Verify PDF magic number
-                if not body.startswith(b"%PDF"):
-                    logger.warning("Not a valid PDF (got %s...): %s",
-                                   body[:20], pdf_url[:70])
-                    counts["failed"] += 1
-                    continue
-
-                dest.write_bytes(body)
-                conn.execute(
-                    "UPDATE papers SET pdf_local_path = ? WHERE paper_id = ?",
-                    (str(dest), paper_id),
-                )
-                conn.commit()
-                counts["downloaded"] += 1
-
-            except PlaywrightTimeout:
-                logger.warning("Timeout for %s", pdf_url[:70])
-                if dest.exists():
-                    dest.unlink()
-                counts["failed"] += 1
 
             except Exception as exc:
                 logger.error("Failed %s: %s", pdf_url[:70], exc)
