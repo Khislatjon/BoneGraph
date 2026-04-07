@@ -48,10 +48,16 @@ from ingestion.papers.storage import PaperStore
 logger = logging.getLogger(__name__)
 
 # HTTP headers sent with every download request.
-# A descriptive User-Agent is good practice — it identifies the bot to server
-# admins and signals legitimate academic use.
+# A realistic browser User-Agent is required — many academic publishers
+# (Wiley, MDPI, Cell, AJNR, etc.) return 403 Forbidden for bot-like strings.
 _HEADERS = {
-    "User-Agent": "BoneLogic-Research-Bot/1.0 (academic; contact: bonelogic@research.org)"
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/pdf,*/*",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
 
