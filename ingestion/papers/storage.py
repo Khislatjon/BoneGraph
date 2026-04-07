@@ -349,6 +349,22 @@ class PaperStore:
         )
         return cur.fetchall()
 
+    def get_papers_doi_only(self) -> list[sqlite3.Row]:
+        """
+        Return papers that have no open-access PDF URL from OpenAlex but do
+        have a DOI in external_ids_json, and have not been downloaded yet.
+
+        These are papers OpenAlex didn't flag as open-access but which may
+        still be freely available via Unpaywall when looked up by DOI.
+        """
+        cur = self.conn.execute(
+            """SELECT * FROM papers
+               WHERE has_pdf = 0
+               AND pdf_local_path IS NULL
+               AND external_ids_json LIKE '%"DOI"%'"""
+        )
+        return cur.fetchall()
+
     def total_papers(self) -> int:
         """Return the total number of papers currently in the database."""
         cur = self.conn.execute("SELECT COUNT(*) FROM papers")
