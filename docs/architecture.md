@@ -133,11 +133,16 @@ User query  ──────────────────────�
 | Chunk size | 2,048 chars (~512 tokens) with 200-char overlap |
 | Embedding model | SPECTER (`allenai-specter`) — trained on 146M S2 citations |
 | Embedding dimensions | 768 |
-| Embeddings | 🔄 Running now |
+| Embeddings complete | **200,757 chunks** embedded (127 min, CPU-only) |
+| Language filtering | **763 non-English papers** removed (564 by abstract + 199 with English abstract but non-English body) |
+| English chunks remaining | **193,537** |
+| Retrieval interface | CLI (`python -m retrieval.query`) + Gradio web UI (`python app.py`) |
 
 **Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable (add new papers → re-embed) without changing the model.
 
 **Why SPECTER:** Trained by Allen AI specifically on Semantic Scholar paper citations — produces embeddings that capture scientific meaning, making it ideal for a corpus collected from Semantic Scholar.
+
+**Language filtering — two-pass approach:** Many papers in Semantic Scholar have English abstracts (translated for indexing) but non-English full text. A single abstract-based filter missed 199 such papers. The final implementation runs two passes: (1) detect from abstract/title for unprocessed papers; (2) re-detect from the first 2,000 characters of the extracted `.txt` file for any paper previously classified as English via abstract alone. This catches the abstract-English / body-foreign class of papers reliably.
 
 **Novel contribution here:** The retrieval is not generic — it is guided by a bone ontology. When a user asks about "femoral neck fracture", the ontology expands the query to related concepts (cortical thinning, reduced BMD, trabecular connectivity) before retrieval, improving coverage.
 
@@ -241,7 +246,8 @@ BoneLogic/
 │       └── pipeline.py          CLI entrypoint
 │
 ├── scripts/
-│   └── inspect_db.py            Database statistics + progress inspector
+│   ├── inspect_db.py            Database statistics + progress inspector
+│   └── filter_english.py        Two-pass language filter (abstract + text-file detection)
 │
 ├── processing/                  Phase 2: text extraction, chunking, embedding
 │   ├── extractor.py             PDF → plain text via PyMuPDF
@@ -251,7 +257,9 @@ BoneLogic/
 │   ├── chunk_all.py             Chunk all texts → chunks.db
 │   └── embed.py                 Embed chunks with SPECTER → chunks.db
 │
-├── retrieval/                   Phase 2: RAG query interface (coming next)
+├── retrieval/                   Phase 2: RAG retrieval engine + CLI query interface
+│   ├── retriever.py             BoneLogicRetriever — loads all embeddings, cosine search
+│   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
 ├── models/                      Phases 2-4: LLM, VLM, LRM wrappers
 │   └── (coming in Phase 3)
@@ -279,6 +287,7 @@ BoneLogic/
 ├── tests/
 │   └── test_ingestion.py
 │
+├── app.py                       Gradio web UI (http://localhost:7860)
 ├── .env                         Your API keys (gitignored — never commit)
 ├── .env.example                 Template showing which keys are needed
 └── requirements.txt
