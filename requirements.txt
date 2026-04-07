@@ -6,3 +6,4 @@ sentence-transformers>=2.7.0
 numpy<2
 gradio>=4.0.0
 langdetect>=1.0.9
+playwright>=1.40.0
