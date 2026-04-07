@@ -35,8 +35,6 @@ from pathlib import Path
 import requests
 
 from config.settings import PAPERS_DB_PATH, RAW_PAPERS_DIR
-from ingestion.papers.downloader import download_pdf
-from ingestion.papers.resolvers import resolve_via_unpaywall
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,7 +48,18 @@ _WILEY_PREFIXES = [
     "https://anatomypubs.onlinelibrary.wiley.com",
 ]
 
-_DELAY = 0.15  # Unpaywall allows generous rate limits
+# Wiley TDM (Text & Data Mining) token — allows programmatic PDF access
+# for research purposes without Cloudflare bot detection.
+_WILEY_TDM_TOKEN = "fe54a895-0139-4120-a0f5-866eeca0f767"
+
+_WILEY_TDM_BASE = "https://api.wiley.com/onlinelibrary/tdm/v1/articles"
+
+_HEADERS = {
+    "Wiley-TDM-Client-Token": _WILEY_TDM_TOKEN,
+    "Accept": "application/pdf,*/*",
+}
+
+_DELAY = 0.5
 
 
 def _pdf_path(paper_id: str, year: int | None) -> Path:
@@ -71,7 +80,7 @@ def run(dry_run: bool = False) -> None:
         AND ({placeholders})
     """).fetchall()
 
-    logger.info("Wiley papers to attempt via Unpaywall: %d", len(rows))
+    logger.info("Wiley papers to download via TDM token: %d", len(rows))
 
     if dry_run:
         print(f"\n  Wiley papers : {len(rows):,}")
@@ -79,7 +88,9 @@ def run(dry_run: bool = False) -> None:
         return
 
     session = requests.Session()
-    counts = {"downloaded": 0, "failed": 0, "no_unpaywall": 0, "skipped": 0}
+    session.headers.update(_HEADERS)
+
+    counts = {"downloaded": 0, "failed": 0, "skipped": 0}
     total = len(rows)
 
     for idx, row in enumerate(rows, start=1):
@@ -101,32 +112,45 @@ def run(dry_run: bool = False) -> None:
         doi = ext_ids.get("DOI")
 
         if not doi:
-            counts["no_unpaywall"] += 1
+            counts["failed"] += 1
             continue
 
-        unpaywall_url = resolve_via_unpaywall(doi, session=session)
+        # Use the Wiley TDM API — no Cloudflare, token-authenticated
+        tdm_url = f"{_WILEY_TDM_BASE}/{doi}"
+        logger.info("[%d/%d] %s", idx, total, tdm_url[:80])
 
-        # Skip if Unpaywall just returns a Wiley URL — same 403 problem.
-        if unpaywall_url and "wiley.com" in unpaywall_url:
-            unpaywall_url = None
+        try:
+            response = session.get(tdm_url, stream=True, timeout=60)
+            response.raise_for_status()
 
-        if not unpaywall_url:
-            counts["no_unpaywall"] += 1
-            if idx % 100 == 0:
-                logger.info("[%d/%d] progress — downloaded: %d  no_unpaywall: %d  failed: %d",
-                            idx, total, counts["downloaded"], counts["no_unpaywall"], counts["failed"])
-            time.sleep(_DELAY)
-            continue
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "text/html" in content_type:
+                logger.warning("Got HTML instead of PDF: %s", tdm_url[:70])
+                counts["failed"] += 1
+                time.sleep(_DELAY)
+                continue
 
-        logger.info("[%d/%d] %s → %s", idx, total, doi, unpaywall_url[:70])
-        success = download_pdf(unpaywall_url, dest)
+            with open(dest, "wb") as fh:
+                for chunk in response.iter_content(chunk_size=8192):
+                    fh.write(chunk)
 
-        if success:
-            conn.execute("UPDATE papers SET pdf_local_path = ? WHERE paper_id = ?",
-                         (str(dest), paper_id))
-            conn.commit()
-            counts["downloaded"] += 1
-        else:
+            with open(dest, "rb") as fh:
+                magic = fh.read(4)
+
+            if magic != b"%PDF":
+                logger.warning("Not a valid PDF: %s", tdm_url[:70])
+                dest.unlink()
+                counts["failed"] += 1
+            else:
+                conn.execute("UPDATE papers SET pdf_local_path = ? WHERE paper_id = ?",
+                             (str(dest), paper_id))
+                conn.commit()
+                counts["downloaded"] += 1
+
+        except requests.RequestException as exc:
+            logger.error("Failed %s: %s", tdm_url[:70], exc)
+            if dest.exists():
+                dest.unlink()
             counts["failed"] += 1
 
         time.sleep(_DELAY)
@@ -135,12 +159,11 @@ def run(dry_run: bool = False) -> None:
     conn.close()
 
     print("\n" + "=" * 50)
-    print("  Wiley via Unpaywall — Complete")
+    print("  Wiley TDM Download — Complete")
     print("=" * 50)
-    print(f"  Downloaded      : {counts['downloaded']:,}")
-    print(f"  Failed          : {counts['failed']:,}")
-    print(f"  No Unpaywall    : {counts['no_unpaywall']:,}  (no free copy found)")
-    print(f"  Skipped         : {counts['skipped']:,}  (already on disk)")
+    print(f"  Downloaded : {counts['downloaded']:,}")
+    print(f"  Failed     : {counts['failed']:,}")
+    print(f"  Skipped    : {counts['skipped']:,}  (already on disk)")
     print("=" * 50)
 
 
