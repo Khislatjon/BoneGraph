@@ -96,10 +96,8 @@ def search(query: str, top_k: int, source_filter: str) -> str:
             meta_parts.append(f"p.&nbsp;{r['page_number']}")
         meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
 
-        # Text preview
-        preview = r["text"][:500].strip().replace("\n", " ")
-        if len(r["text"]) > 500:
-            preview += "…"
+        # Full chunk text — no truncation
+        full_text = r["text"].strip().replace("\n", " ")
 
         html += f"""
         <div style="
@@ -116,15 +114,15 @@ def search(query: str, top_k: int, source_filter: str) -> str:
                     font-size:0.85em; font-weight:bold;
                     margin-right:8px;
                 ">{r['score']:.3f}</span>
-                <strong>{icon} {r['title']}</strong>
-                <span style="color:#999; font-size:0.8em; margin-left:8px">{source_label}</span>
+                <strong style="color:#000000;">{icon} {r['title']}</strong>
+                <span style="color:#555; font-size:0.8em; margin-left:8px">{source_label}</span>
             </div>
-            <div style="color:#555; font-size:0.87em; margin-bottom:8px">{meta_line}</div>
+            <div style="color:#000000; font-size:0.87em; margin-bottom:8px">{meta_line}</div>
             <div style="
                 background:white; border:1px solid #e0e0e0;
                 border-radius:4px; padding:10px 14px;
-                font-size:0.88em; line-height:1.6; color:#333;
-            ">{preview}</div>
+                font-size:0.88em; line-height:1.6; color:#000000;
+            ">{full_text}</div>
         </div>
         """
 
