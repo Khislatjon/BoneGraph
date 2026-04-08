@@ -1,99 +1,139 @@
 """
 processing/chunker.py
 ======================
-Core text chunking logic used by both paper and textbook chunking pipelines.
+Sentence-aware text chunking for the BoneLogic RAG pipeline.
 
-What is chunking?
------------------
-Embedding models have a maximum input length (typically 512 tokens).  A full
-paper is usually 5,000–15,000 tokens — far too long to embed as a single unit.
-Chunking splits the text into overlapping windows that fit within this limit.
+Strategy
+--------
+1. Split the full text on page boundaries (\\f separators written by extractor.py)
+   to preserve page numbers for citation tracking.
+2. Tokenize each page into sentences using NLTK's Punkt sentence tokenizer.
+3. Accumulate sentences until the chunk reaches CHUNK_TARGET_TOKENS (~400 tokens).
+   Token count is approximated as len(text) / CHARS_PER_TOKEN.
+4. When the target is reached, emit the chunk and start the next one seeded with
+   the last CHUNK_OVERLAP_SENTENCES sentences of the previous chunk as context.
+5. Chunks always end at a sentence boundary — no mid-sentence cuts.
 
-Each chunk is a self-contained passage that can be independently embedded and
-retrieved.  The overlap ensures that sentences near chunk boundaries appear in
-full in at least one chunk, so context is never lost at a split point.
+Why sentence-aware?
+-------------------
+Character/token sliding windows cut text arbitrarily, splitting sentences mid-way.
+This harms both retrieval quality (incomplete context) and embedding quality —
+SPECTER was trained on coherent scientific passages, not sentence fragments.
 
-Chunking strategy
------------------
-1. The text is first split on page boundaries (\f separator written by the
-   extractor).  This preserves page numbers, which are important for citations.
-2. Within each page, text is split into chunks of CHUNK_SIZE_CHARS characters
-   with CHUNK_OVERLAP_CHARS characters of overlap between consecutive chunks.
-3. Very short pages (e.g. cover pages, reference pages) that are smaller than
-   the chunk size are kept as a single chunk.
+Overlap strategy
+----------------
+Instead of a fixed character overlap, the last CHUNK_OVERLAP_SENTENCES sentences
+of each chunk are carried into the start of the next. This guarantees that content
+near a chunk boundary always appears in full in at least one chunk.
 
-Each chunk is returned as a dict with:
-    chunk_index  : sequential index within the document (0, 1, 2, ...)
-    page_number  : page number this chunk starts on (1-indexed)
-    text         : the chunk text
-    char_count   : length of the text in characters
+Token approximation
+-------------------
+Exact tokenization via a HuggingFace tokenizer would be ideal but adds latency
+at scale (~7,500 papers). We approximate 1 token ≈ CHARS_PER_TOKEN characters,
+which is conservative for English scientific text (long technical terms mean more
+characters per token than everyday prose). This keeps chunks safely under
+SPECTER's 512-token hard limit.
 """
 
 from __future__ import annotations
 
-from config.settings import CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS
+import logging
+
+import nltk
+
+from config.settings import CHUNK_TARGET_TOKENS, CHUNK_OVERLAP_SENTENCES, CHARS_PER_TOKEN
+
+logger = logging.getLogger(__name__)
+
+# Download the Punkt sentence tokenizer on first use.
+# One-time ~13 MB download stored in ~/nltk_data/.
+try:
+    nltk.data.find("tokenizers/punkt_tab")
+except LookupError:
+    logger.info("Downloading NLTK punkt_tab tokenizer...")
+    nltk.download("punkt_tab", quiet=True)
+
+
+def _approx_tokens(text: str) -> int:
+    """Approximate token count as character count divided by CHARS_PER_TOKEN."""
+    return len(text) // CHARS_PER_TOKEN
 
 
 def chunk_text(full_text: str) -> list[dict]:
     """
-    Split a full extracted text into overlapping chunks.
+    Split a full extracted text into sentence-aware overlapping chunks.
+
+    Pages are separated by the form-feed character \\f (written by extractor.py).
+    Sentences are never split across chunk boundaries.
 
     Parameters
     ----------
     full_text : str
-        The complete extracted text of a document.  Pages are separated
-        by the form-feed character \\f (written by extractor.py).
+        The complete extracted text of a document.
 
     Returns
     -------
     list of dicts, each with keys:
-        chunk_index  : int   — sequential position in the document
-        page_number  : int   — page this chunk starts on (1-indexed)
-        text         : str   — the chunk text
-        char_count   : int   — number of characters in this chunk
+        chunk_index  : int — sequential position in the document (0-based)
+        page_number  : int — page number where this chunk starts (1-indexed)
+        text         : str — chunk text, always ending at a sentence boundary
+        char_count   : int — number of characters in the chunk
     """
-    # Split on page boundaries to track page numbers.
+    # ── Step 1: collect all sentences tagged with their page number ────────────
     pages = full_text.split("\f")
-
-    chunks = []
-    chunk_index = 0
+    all_sentences: list[tuple[str, int]] = []  # (sentence_text, page_number)
 
     for page_num, page_text in enumerate(pages, start=1):
         page_text = page_text.strip()
-
-        # Skip blank pages (cover pages, blank separators, etc.)
         if not page_text:
             continue
+        for sent in nltk.sent_tokenize(page_text):
+            sent = sent.strip()
+            if sent:
+                all_sentences.append((sent, page_num))
 
-        # If the page fits within one chunk, keep it as-is.
-        if len(page_text) <= CHUNK_SIZE_CHARS:
-            chunks.append({
-                "chunk_index": chunk_index,
-                "page_number": page_num,
-                "text": page_text,
-                "char_count": len(page_text),
-            })
-            chunk_index += 1
-            continue
+    if not all_sentences:
+        return []
 
-        # Slide a window across the page text with overlap.
-        # start advances by (CHUNK_SIZE_CHARS - CHUNK_OVERLAP_CHARS) each step
-        # so the next chunk begins CHUNK_OVERLAP_CHARS chars before this one ended.
-        start = 0
-        while start < len(page_text):
-            end = start + CHUNK_SIZE_CHARS
-            chunk_text_str = page_text[start:end].strip()
+    # ── Step 2: accumulate sentences into token-bounded chunks ─────────────────
+    chunks: list[dict] = []
+    chunk_index = 0
 
-            if chunk_text_str:
-                chunks.append({
-                    "chunk_index": chunk_index,
-                    "page_number": page_num,
-                    "text": chunk_text_str,
-                    "char_count": len(chunk_text_str),
-                })
-                chunk_index += 1
+    # overlap_carry holds the last CHUNK_OVERLAP_SENTENCES sentences from the
+    # previous chunk. They seed the next chunk so context at boundaries is preserved.
+    overlap_carry: list[tuple[str, int]] = []
 
-            # Advance by chunk size minus overlap so next chunk overlaps.
-            start += CHUNK_SIZE_CHARS - CHUNK_OVERLAP_CHARS
+    i = 0
+    while i < len(all_sentences):
+
+        # Seed this chunk with the overlap carried from the previous one.
+        current: list[tuple[str, int]] = list(overlap_carry)
+        chunk_start_page = (
+            current[0][1] if current else all_sentences[i][1]
+        )
+
+        # Accumulate sentences until we hit the token target.
+        while i < len(all_sentences):
+            sent, page_num = all_sentences[i]
+            current.append((sent, page_num))
+            i += 1
+
+            if _approx_tokens(" ".join(s for s, _ in current)) >= CHUNK_TARGET_TOKENS:
+                break
+
+        if not current:
+            break
+
+        text = " ".join(s for s, _ in current)
+        chunks.append({
+            "chunk_index": chunk_index,
+            "page_number": chunk_start_page,
+            "text": text,
+            "char_count": len(text),
+        })
+        chunk_index += 1
+
+        # Carry the last N sentences into the next chunk as overlap.
+        overlap_carry = current[-CHUNK_OVERLAP_SENTENCES:]
 
     return chunks

@@ -146,23 +146,35 @@ CHUNKS_DB_PATH = DB_DIR / "chunks.db"
 
 # ── Embedding ────────────────────────────────────────────────────────────────
 
-# Local SPECTER model — trained by Allen AI on 146M Semantic Scholar paper
-# citations, making it ideal for scientific text retrieval.
-# Downloaded automatically by sentence-transformers on first use (~440 MB).
-EMBEDDING_MODEL = "allenai-specter"
+# SPECTER2 base model — Allen AI's 2023 successor to SPECTER.
+# Better retrieval accuracy on scientific text, same 768-dim output.
+# Downloaded automatically by HuggingFace on first use (~440 MB).
+SPECTER2_BASE_MODEL = "allenai/specter2_base"
 
-# Number of chunks to embed in one batch.  Larger batches are faster but use
-# more RAM.  64 is a safe default for a machine without a GPU.
+# Task-specific adapter for document embedding (proximity).
+# SPECTER2 uses separate adapters for documents vs queries:
+#   - allenai/specter2        → document embedding (used here, for chunked papers)
+#   - allenai/specter2_adhoc_query → query embedding (used at retrieval time)
+SPECTER2_ADAPTER = "allenai/specter2"
+
+# Number of chunks to embed in one batch.
+# 64 is a safe default for CPU (adjust up if you have more RAM).
 EMBEDDING_BATCH_SIZE = 64
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
 
-# Target chunk size in characters. 512 tokens * ~4 chars/token ≈ 2048 chars.
-# Keeping chunks at roughly 512 tokens is standard for RAG — large enough to
-# carry meaningful context, small enough for embedding models to handle well.
-CHUNK_SIZE_CHARS = 2048
+# Target chunk size in tokens. SPECTER's hard limit is 512 tokens; we target
+# 400 to leave ~100 tokens of headroom so no chunk ever gets silently truncated.
+CHUNK_TARGET_TOKENS = 400
 
-# Overlap between consecutive chunks in characters (~50 tokens * 4 chars).
-# Overlap ensures that sentences split across chunk boundaries are still
-# represented in at least one complete chunk.
-CHUNK_OVERLAP_CHARS = 200
+# Number of sentences carried from the end of one chunk into the start of the
+# next. Sentence-level overlap is cleaner than character overlap — it always
+# gives complete, readable context rather than a mid-sentence fragment.
+CHUNK_OVERLAP_SENTENCES = 2
+
+# Characters per token approximation for English scientific text.
+# Scientific text uses longer technical terms than everyday prose, so the
+# chars-per-token ratio is higher (~5) than general English (~4). Using 4
+# here is deliberately conservative — it slightly overestimates token count,
+# ensuring chunks stay safely under SPECTER's 512-token limit.
+CHARS_PER_TOKEN = 4

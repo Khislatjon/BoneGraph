@@ -48,7 +48,10 @@ def chunk_papers(store: ChunkStore, force: bool = False) -> dict:
     conn.row_factory = sqlite3.Row
 
     rows = conn.execute(
-        "SELECT paper_id, text_path FROM papers WHERE extraction_status = 'extracted'"
+        """SELECT paper_id, text_path FROM papers
+           WHERE extraction_status = 'extracted'
+           AND language = 'en'
+           AND (language_filtered = 0 OR language_filtered IS NULL)"""
     ).fetchall()
     conn.close()
 

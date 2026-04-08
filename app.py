@@ -134,7 +134,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
 
     gr.Markdown(f"""
     # 🦴 BoneLogic — Bone Science Knowledge Retrieval
-    Search across **{STATS['pdfs_downloaded']:,} downloaded papers** and **{STATS['textbooks']} textbooks** using semantic similarity (SPECTER).
+    Search across **{STATS['pdfs_downloaded']:,} downloaded papers** and **{STATS['textbooks']} textbooks** using semantic similarity (SPECTER2).
     Results are ranked by relevance to your query.
     """)
 
@@ -193,7 +193,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
 
     gr.Markdown(f"""
     ---
-    **Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · {STATS['papers_total']:,} papers (metadata) · {STATS['textbooks']} textbooks · {STATS['chunks']:,} chunks · SPECTER 768-dim embeddings
+    **Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · {STATS['papers_total']:,} papers (metadata) · {STATS['textbooks']} textbooks · {STATS['chunks']:,} chunks · SPECTER2 768-dim embeddings
     """)
 
 

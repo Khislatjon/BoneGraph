@@ -52,13 +52,16 @@ import time
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import torch
+from adapters import AutoAdapterModel
+from transformers import AutoTokenizer
 
 from config.settings import (
     CHUNKS_DB_PATH,
     PAPERS_DB_PATH,
     TEXTBOOKS_DB_PATH,
-    EMBEDDING_MODEL,
+    SPECTER2_BASE_MODEL,
+    SPECTER2_ADAPTER,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,7 +82,8 @@ class BoneLogicRetriever:
     """
 
     def __init__(self):
-        self._model: SentenceTransformer | None = None
+        self._tokenizer = None
+        self._model = None
         self._embeddings: np.ndarray | None = None  # shape (N, 768)
         self._chunk_ids: list[int] = []             # chunk DB ids in same order as rows
         self._metadata: dict[int, dict] = {}        # chunk_id → metadata dict
@@ -87,14 +91,25 @@ class BoneLogicRetriever:
 
     def load(self) -> None:
         """
-        Load SPECTER model and all chunk embeddings into memory.
+        Load SPECTER2 query model and all chunk embeddings into memory.
         Call this once before making any queries.
         """
         t0 = time.time()
 
-        # Load SPECTER model.
-        logger.info("Loading SPECTER model...")
-        self._model = SentenceTransformer(EMBEDDING_MODEL)
+        # Load SPECTER2 with the adhoc_query adapter for query encoding.
+        # Documents were embedded with the proximity adapter (allenai/specter2).
+        # Queries must use the adhoc_query adapter — this asymmetry is what
+        # makes SPECTER2 more accurate than SPECTER1.
+        logger.info("Loading SPECTER2 tokenizer...")
+        self._tokenizer = AutoTokenizer.from_pretrained(SPECTER2_BASE_MODEL)
+
+        logger.info("Loading SPECTER2 base model...")
+        self._model = AutoAdapterModel.from_pretrained(SPECTER2_BASE_MODEL)
+
+        query_adapter = "allenai/specter2_adhoc_query"
+        logger.info("Loading adhoc_query adapter: %s", query_adapter)
+        self._model.load_adapter(query_adapter, source="hf", load_as="specter2_query", set_active=True)
+        self._model.eval()
 
         # Load all embeddings from chunks.db into a numpy matrix.
         logger.info("Loading chunk embeddings from chunks.db...")
@@ -229,8 +244,17 @@ class BoneLogicRetriever:
         if not self._loaded:
             raise RuntimeError("Call retriever.load() before querying.")
 
-        # Embed the query with SPECTER.
-        query_vec = self._model.encode([query_text], convert_to_numpy=True)[0].astype(np.float32)
+        # Embed the query with SPECTER2 adhoc_query adapter.
+        inputs = self._tokenizer(
+            [query_text],
+            padding=True,
+            truncation=True,
+            max_length=512,
+            return_tensors="pt",
+        )
+        with torch.no_grad():
+            outputs = self._model(**inputs)
+        query_vec = outputs.last_hidden_state[:, 0, :].cpu().numpy()[0].astype(np.float32)
 
         # Normalise query vector.
         norm = np.linalg.norm(query_vec)
