@@ -34,6 +34,7 @@ Limitations
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -47,6 +48,31 @@ MIN_CHARS_PER_PAGE = 50
 # Minimum fraction of pages that must have text for the PDF to be considered
 # machine-readable (not a scanned document).
 MIN_TEXT_PAGE_FRACTION = 0.3
+
+# Regex that matches a references/bibliography section heading on its own line.
+# Requires the heading to occupy a line by itself (possibly with whitespace/
+# punctuation) so that mid-sentence occurrences of the word "references" are
+# not mistakenly treated as section markers.
+_REFERENCES_HEADING_RE = re.compile(
+    r"^\s*"
+    r"(references|bibliography|works cited|literature cited|reference list)"
+    r"[\s:]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _strip_references(text: str) -> str:
+    """
+    Remove everything from the references/bibliography heading onward.
+
+    Scans the text for the first line that is solely a references-section
+    heading and truncates there.  If no such heading is found the original
+    text is returned unchanged.
+    """
+    match = _REFERENCES_HEADING_RE.search(text)
+    if match:
+        return text[: match.start()].rstrip()
+    return text
 
 
 def extract_text_from_pdf(pdf_path: Path, out_path: Path) -> dict:
@@ -113,8 +139,8 @@ def extract_text_from_pdf(pdf_path: Path, out_path: Path) -> dict:
             result["status"] = "scanned"
             return result
 
-        # Join pages with form-feed separator and write to disk.
-        full_text = "\f".join(pages_text)
+        # Join pages with form-feed separator, then drop the references section.
+        full_text = _strip_references("\f".join(pages_text))
         result["char_count"] = len(full_text)
 
         out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -54,7 +54,7 @@ from pathlib import Path
 
 from langdetect import detect, LangDetectException
 
-from config.settings import PAPERS_DB_PATH, CHUNKS_DB_PATH
+from config.settings import PAPERS_DB_PATH
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,10 +63,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# How many characters to read from the extracted text file for detection.
-# ~2,000 chars is enough to get past any translated title/abstract preamble
-# and into the actual body language.
-TEXT_CHARS_TO_READ = 2000
+# Detection window: skip the first SKIP_CHARS characters (title + abstract
+# preamble which may be in English even when the body is not), then read
+# BODY_CHARS_TO_READ characters of actual body text.
+SKIP_CHARS = 1000
+BODY_CHARS_TO_READ = 4000
 
 # Minimum characters needed for a reliable langdetect result.
 MIN_TEXT_LENGTH = 50
@@ -109,8 +110,13 @@ def detect_language(text: str) -> str | None:
 
 def _read_text_file(text_path: str | None) -> str:
     """
-    Read the first TEXT_CHARS_TO_READ characters from a .txt file.
-    Returns an empty string if path is None, missing, or unreadable.
+    Read body text from a .txt file, skipping the opening preamble.
+
+    Skips the first SKIP_CHARS characters (title + abstract, which may be
+    in English even when the paper body is not), then reads BODY_CHARS_TO_READ
+    characters of actual body text.  If the file is shorter than SKIP_CHARS,
+    falls back to reading from the start so very short papers are not skipped
+    entirely.
     """
     if not text_path:
         return ""
@@ -119,7 +125,12 @@ def _read_text_file(text_path: str | None) -> str:
         if not p.exists():
             return ""
         with p.open("r", encoding="utf-8", errors="ignore") as fh:
-            return fh.read(TEXT_CHARS_TO_READ)
+            full = fh.read(SKIP_CHARS + BODY_CHARS_TO_READ)
+        body = full[SKIP_CHARS:]
+        # Fall back to full content if skipping leaves too little text.
+        if len(body.strip()) < MIN_TEXT_LENGTH:
+            body = full
+        return body
     except Exception:
         return ""
 
@@ -147,19 +158,6 @@ def _detect_best(row: sqlite3.Row) -> tuple[str, str]:
 
     return "unknown", "unknown"
 
-
-def _delete_chunks(non_english_ids: list, dry_run: bool) -> int:
-    """Delete chunks for non-English papers. Returns count of affected papers."""
-    if not non_english_ids or dry_run:
-        return 0
-    chunk_conn = sqlite3.connect(CHUNKS_DB_PATH)
-    chunk_conn.executemany(
-        "DELETE FROM chunks WHERE source_type = 'paper' AND source_id = ?",
-        [(pid,) for pid in non_english_ids],
-    )
-    chunk_conn.commit()
-    chunk_conn.close()
-    return len(non_english_ids)
 
 
 def run_pass_a(conn: sqlite3.Connection, dry_run: bool) -> dict:
@@ -293,13 +291,6 @@ def run(dry_run: bool = False, recheck_only: bool = False) -> None:
 
     conn.close()
 
-    # ── Delete chunks for all newly found non-English papers ─────────────────
-    if all_non_english_ids:
-        logger.info(
-            "Removing chunks for %d non-English papers...", len(all_non_english_ids)
-        )
-        _delete_chunks(all_non_english_ids, dry_run)
-
     # ── Summary ───────────────────────────────────────────────────────────────
     print("\n" + "=" * 60)
     print("  LANGUAGE FILTER" + ("  [DRY RUN]" if dry_run else "  COMPLETE"))
@@ -308,36 +299,32 @@ def run(dry_run: bool = False, recheck_only: bool = False) -> None:
     if not recheck_only:
         ca = result_a["counts"]
         print(f"\n  Pass A — new papers:")
-        print(f"    English         : {ca['en']:,}")
-        print(f"    Non-English     : {ca['non_en']:,}")
-        print(f"    Unknown         : {ca['unknown']:,}  (kept — too short)")
-        print(f"    Filtered out    : {len(result_a['non_english_ids']):,} papers")
+        print(f"    English     : {ca['en']:,}")
+        print(f"    Non-English : {ca['non_en']:,}")
+        print(f"    Unknown     : {ca['unknown']:,}  (kept — too short to detect)")
 
     cb = result_b["counts"]
     print(f"\n  Pass B — re-checked abstract-only 'en' papers:")
-    print(f"    Confirmed English    : {cb['confirmed_en']:,}")
-    print(f"    Reclassified non-en  : {cb['reclassified']:,}  ← papers with English abstract but non-English body")
-    print(f"    Filtered out         : {len(result_b['non_english_ids']):,} papers")
+    print(f"    Confirmed English   : {cb['confirmed_en']:,}")
+    print(f"    Reclassified non-en : {cb['reclassified']:,}  (English abstract, non-English body)")
 
-    print(f"\n  Total newly filtered : {len(all_non_english_ids):,} papers")
-    if not dry_run and all_non_english_ids:
-        print(f"  Chunks deleted from  : {len(all_non_english_ids):,} papers")
+    print(f"\n  Total non-English found : {len(all_non_english_ids):,} papers")
+    print(f"  Action taken            : flagged only (language_filtered = 1), nothing deleted")
     print("=" * 60)
 
-    # Sample non-English papers found in dry-run
-    if dry_run and all_non_english_ids:
-        print("\nSample non-English papers that would be filtered (Pass B):")
+    # Show non-English papers found (up to 30)
+    if all_non_english_ids:
         conn2 = sqlite3.connect(PAPERS_DB_PATH)
         conn2.row_factory = sqlite3.Row
-        sample_ids = result_b["non_english_ids"][:10]
-        if sample_ids:
-            placeholders = ",".join("?" * len(sample_ids))
-            samples = conn2.execute(
-                f"SELECT title, language, language_source FROM papers WHERE paper_id IN ({placeholders})",
-                sample_ids,
-            ).fetchall()
-            for s in samples:
-                print(f"  [{s['language']} via {s['language_source']}] {s['title']}")
+        sample_ids = all_non_english_ids[:30]
+        placeholders = ",".join("?" * len(sample_ids))
+        samples = conn2.execute(
+            f"SELECT title, language, language_source FROM papers WHERE paper_id IN ({placeholders})",
+            sample_ids,
+        ).fetchall()
+        print(f"\n  Non-English papers (showing {len(samples)} of {len(all_non_english_ids)}):")
+        for s in samples:
+            print(f"    [{s['language']} via {s['language_source']}] {s['title']}")
         conn2.close()
 
 
