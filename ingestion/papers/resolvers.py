@@ -54,28 +54,31 @@ from urllib.parse import quote
 
 import requests
 
-from config.settings import REQUEST_DELAY_SECONDS, UNPAYWALL_EMAIL, WILEY_TDM_TOKEN
+from config.settings import REQUEST_DELAY_SECONDS, CROSSREF_EMAIL, WILEY_TDM_TOKEN
 
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-# Unpaywall REST API base URL.
-# Documentation: https://unpaywall.org/products/api
-_UNPAYWALL_BASE = "https://api.unpaywall.org/v2"
+# CrossRef REST API base URL.
+# Documentation: https://api.crossref.org
+_CROSSREF_BASE = "https://api.crossref.org/works"
 
-# Browser-like User-Agent so academic servers don't block us.
+# Headers for CrossRef API requests.
+# Explicitly set Accept: application/json to override any session-level
+# Accept header (downloader sessions use application/pdf,*/* which breaks
+# JSON APIs).
 _HEADERS = {
     "User-Agent": (
         "BoneLogic-Research-Bot/1.0 "
-        "(PhD research project; academic use only; "
-        "contact: bonelogic@research.org)"
-    )
+        f"(PhD research project; academic use only; mailto:{CROSSREF_EMAIL})"
+    ),
+    "Accept": "application/json",
+    "Accept-Encoding": "gzip, deflate",  # no brotli — requests doesn't support it by default
 }
 
-# Small courtesy delay between Unpaywall requests.
-# Unpaywall allows 100,000 req/day, so 50 ms is plenty.
-_UNPAYWALL_DELAY = 0.05
+# Small courtesy delay between CrossRef requests.
+_CROSSREF_DELAY = 0.05
 
 
 # ── Tier 1: Direct PDF detection ──────────────────────────────────────────────
@@ -423,97 +426,86 @@ def apply_publisher_transforms(url: str) -> str | None:
     return None
 
 
-# ── Tier 3: Unpaywall API ──────────────────────────────────────────────────────
+# ── Tier 3: CrossRef API ───────────────────────────────────────────────────────
 
-def resolve_via_unpaywall(
+def resolve_via_crossref(
     doi: str,
     session: requests.Session | None = None,
 ) -> str | None:
     """
-    Ask the Unpaywall API for a direct open-access PDF URL for a given DOI.
+    Ask the CrossRef API for a direct PDF URL for a given DOI.
 
-    Unpaywall (https://unpaywall.org) is a free, legal index of open-access
-    scholarly papers. Given a DOI it returns the best legal free PDF URL
-    available, sourced from PubMed Central, institutional repositories,
-    preprint servers, and publisher open-access pages.
+    CrossRef (https://api.crossref.org) is a free DOI registration agency API.
+    The `message.link` array in the response contains PDF URLs provided by
+    publishers. We pick the first entry with content-type "application/pdf".
 
-    No API key is required — just provide your email address in the
-    UNPAYWALL_EMAIL setting so Unpaywall can contact you about usage.
-    Rate limit is 100,000 requests/day, so this is very generous for
-    a research project.
+    No API key required. Adding your email to the User-Agent header opts into
+    the polite pool with higher rate limits.
 
-    API documentation: https://unpaywall.org/products/api
+    API documentation: https://api.crossref.org
 
     Response structure we care about:
     {
-        "is_oa": true,
-        "best_oa_location": {
-            "url_for_pdf": "https://pmc.ncbi.nlm.nih.gov/.../pdf/",  ← we want this
-            "url": "https://europepmc.org/articles/PMC123456",        ← fallback
-            ...
+        "message": {
+            "link": [
+                {
+                    "URL": "https://example.com/article.pdf",
+                    "content-type": "application/pdf",
+                    ...
+                }
+            ]
         }
     }
 
     Parameters
     ----------
     doi : str
-        The paper's DOI, e.g. "10.1016/j.bone.2020.115369"
+        The paper's DOI, e.g. "10.1242/dev.117.2.409"
     session : requests.Session | None
         Optional persistent HTTP session. If None, a one-shot request is made.
 
     Returns
     -------
     str | None
-        Direct PDF URL from Unpaywall if found.
-        None if:
-        - UNPAYWALL_EMAIL is not set in .env
-        - The DOI was not found in Unpaywall
-        - The paper is not open access
-        - The API returned an error
+        Direct PDF URL if found in the CrossRef link array, else None.
     """
-    # UNPAYWALL_EMAIL must be set — this is the only "credential" Unpaywall needs
-    if not UNPAYWALL_EMAIL:
-        logger.debug("UNPAYWALL_EMAIL not configured — skipping Unpaywall lookup")
-        return None
-
     if not doi:
         return None
 
-    # URL-encode the DOI so characters like "/" don't break the URL path
     encoded_doi = quote(doi, safe="")
-    endpoint = f"{_UNPAYWALL_BASE}/{encoded_doi}?email={UNPAYWALL_EMAIL}"
+    endpoint = f"{_CROSSREF_BASE}/{encoded_doi}"
 
     try:
         requester = session if session is not None else requests
         response  = requester.get(endpoint, headers=_HEADERS, timeout=15)
 
-        # 404 means the DOI is not in Unpaywall — not an error, just no record
+        # 404 means DOI not registered with CrossRef
         if response.status_code == 404:
-            logger.debug("DOI not in Unpaywall: %s", doi)
+            logger.debug("DOI not found in CrossRef: %s", doi)
             return None
 
         response.raise_for_status()
-        data = response.json()
 
-        # is_oa=False means no open-access version is known to Unpaywall
-        if not data.get("is_oa"):
-            logger.debug("Not OA according to Unpaywall: %s", doi)
+        if not response.content:
+            logger.warning("CrossRef returned empty body for DOI %s", doi)
             return None
 
-        best = data.get("best_oa_location") or {}
+        data = response.json()
+        links = data.get("message", {}).get("link", [])
 
-        # url_for_pdf is a direct, downloadable PDF URL — exactly what we need
-        pdf_url = best.get("url_for_pdf")
-        if pdf_url:
-            logger.debug("Unpaywall resolved %s → %s", doi, pdf_url[:60])
-            return pdf_url
+        # Pick the first link explicitly marked as application/pdf
+        for link in links:
+            if link.get("content-type") == "application/pdf":
+                pdf_url = link.get("URL")
+                if pdf_url:
+                    logger.debug("CrossRef resolved %s → %s", doi, pdf_url[:60])
+                    return pdf_url
 
-        # url is typically an HTML landing page — not directly downloadable
-        # We don't use it here because download_pdf() would receive HTML
+        logger.debug("No PDF link in CrossRef response for DOI %s", doi)
         return None
 
     except requests.RequestException as exc:
-        logger.warning("Unpaywall API error for DOI %s: %s", doi, exc)
+        logger.warning("CrossRef API error for DOI %s: %s", doi, exc)
         return None
 
 
@@ -584,13 +576,19 @@ def resolve_pdf_url(
             logger.debug("[%s] Tier 2: publisher transform applied", paper_id)
             return transformed
 
-    # ── Tier 3: Unpaywall API lookup ──────────────────────────────────────────
+    # ── Tier 3: CrossRef API lookup ───────────────────────────────────────────
     if doi:
-        time.sleep(_UNPAYWALL_DELAY)   # polite delay before API call
-        unpaywall_url = resolve_via_unpaywall(doi, session=session)
-        if unpaywall_url:
-            logger.debug("[%s] Tier 3: Unpaywall resolved PDF", paper_id)
-            return unpaywall_url
+        time.sleep(_CROSSREF_DELAY)   # polite delay before API call
+        crossref_url = resolve_via_crossref(doi, session=session)
+        if crossref_url:
+            # If CrossRef returned any Wiley URL (regular or TDM), rewrite it
+            # to the TDM endpoint using the clean unencoded DOI. The TDM API
+            # rejects URL-encoded DOIs (%2F instead of /).
+            _wiley_domains = ("wiley.com",)
+            if any(d in crossref_url for d in _wiley_domains) and WILEY_TDM_TOKEN:
+                crossref_url = f"https://api.wiley.com/onlinelibrary/tdm/v1/articles/{doi}"
+            logger.debug("[%s] Tier 3: CrossRef resolved PDF", paper_id)
+            return crossref_url
 
     # All tiers exhausted — no downloadable PDF found
     logger.debug(

@@ -55,13 +55,11 @@ for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR):
     _dir.mkdir(parents=True, exist_ok=True)
 
 
-# ── Unpaywall API ──────────────────────────────────────────────────────────────
+# ── CrossRef API ───────────────────────────────────────────────────────────────
 
-# Your email address for the Unpaywall API (also used as OpenAlex polite-pool ID).
-# Unpaywall is a free, legal index of open-access papers.
-# Given a DOI it returns a direct PDF URL.  No API key needed — just an email.
-# Set this in your .env file as: UNPAYWALL_EMAIL=you@example.com
-UNPAYWALL_EMAIL = os.getenv("UNPAYWALL_EMAIL", "")
+# Email for CrossRef polite pool — increases rate limit from 50 to ~150 req/s.
+# No API key needed. Set in .env as: CROSSREF_EMAIL=you@example.com
+CROSSREF_EMAIL = os.getenv("CROSSREF_EMAIL", os.getenv("UNPAYWALL_EMAIL", ""))
 
 # Wiley TDM (Text & Data Mining) token for programmatic PDF access.
 # Request at: https://tdm.wiley.com

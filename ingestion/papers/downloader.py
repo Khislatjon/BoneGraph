@@ -42,7 +42,7 @@ from pathlib import Path
 import requests
 
 from config.settings import RAW_PAPERS_DIR, REQUEST_DELAY_SECONDS, WILEY_TDM_TOKEN
-from ingestion.papers.resolvers import resolve_pdf_url, resolve_via_unpaywall
+from ingestion.papers.resolvers import resolve_pdf_url, resolve_via_crossref
 from ingestion.papers.storage import PaperStore
 
 logger = logging.getLogger(__name__)
@@ -183,44 +183,33 @@ def download_pdf(url: str, dest: Path, timeout: int = 60) -> bool:
         return False
 
 
-def download_all_open_access(
+def _make_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update(_HEADERS)
+    return session
+
+
+def _log_counts(label: str, counts: dict) -> None:
+    logger.info(
+        "%s — downloaded: %d  |  failed: %d  |  unresolvable: %d  |  skipped: %d",
+        label,
+        counts["downloaded"], counts["failed"],
+        counts["unresolvable"], counts["skipped"],
+    )
+
+
+def download_pass1(
     store: PaperStore,
     delay: float = REQUEST_DELAY_SECONDS,
-    try_doi_fallback: bool = True,
 ) -> dict[str, int]:
     """
-    Download PDFs for every paper in the store that has an open-access URL
-    but no local file recorded yet.
+    Pass 1 — papers with an open-access PDF URL from OpenAlex (has_pdf=1).
 
-    Steps for each paper
-    --------------------
-    1. Query the DB for papers with has_pdf=1 AND pdf_local_path IS NULL.
-    2. Run the stored URL through the 3-tier resolver (resolvers.py) to get
-       a direct, downloadable PDF URL:
-         Tier 1 — URL is already a direct PDF link → use as-is
-         Tier 2 — Rewrite using publisher-specific URL patterns
-         Tier 3 — Query Unpaywall API with the paper's DOI
-    3. Call download_pdf() to stream the file to disk.
-    4. Verify the downloaded file starts with the PDF magic number (%PDF).
-    5. Write the local path back to the DB with set_local_pdf_path().
-    6. Wait `delay` seconds between downloads to be polite to servers.
-
-    Parameters
-    ----------
-    store : PaperStore
-        An open PaperStore connection (must be inside a with-block or
-        after connect()).
-    delay : float
-        Seconds to sleep between consecutive downloads.  Defaults to the
-        same delay used for API calls (1.1 s).
-
-    Returns
-    -------
-    dict with keys:
-        "downloaded"   — PDFs successfully fetched and verified
-        "failed"       — URLs that returned errors or non-PDF content
-        "unresolvable" — papers where no direct PDF URL could be found
-        "skipped"      — papers already downloaded in a previous run
+    For each paper:
+      1. Run the stored URL through the 3-tier resolver to get a direct PDF URL.
+      2. Download and verify the PDF (%PDF magic number).
+      3. On failure, try Unpaywall as a last-resort fallback (if paper has a DOI).
+      4. Record the local path in the DB.
     """
     import json
 
@@ -229,73 +218,50 @@ def download_all_open_access(
 
     logger.info("Pass 1: %d papers with open-access PDF URLs.", len(papers))
 
-    logger.info("Found %d papers with open-access PDF URLs to download.", len(papers))
+    session = _make_session()
+    total = len(papers)
 
-    # Reuse a single HTTP session for all Unpaywall requests —
-    # this is more efficient than creating a new connection per request.
-    session = requests.Session()
-    session.headers.update(_HEADERS)
-
-    total   = len(papers)
     for idx, row in enumerate(papers, start=1):
-        paper_id  = row["paper_id"]
-        pdf_url   = row["pdf_url"]   # may be a doi.org link or landing page
-        year      = row["year"]
+        paper_id = row["paper_id"]
+        pdf_url  = row["pdf_url"]
+        year     = row["year"]
 
-        # Extract the DOI from the stored external_ids_json column.
-        # The DOI is needed for Tier 3 (Unpaywall) resolution.
         try:
             ext_ids = json.loads(row["external_ids_json"] or "{}")
         except (json.JSONDecodeError, TypeError):
             ext_ids = {}
         doi = ext_ids.get("DOI")
 
-        # ── Skip if already downloaded ────────────────────────────────────────
         dest = _pdf_path(paper_id, year)
         if dest.exists():
             store.set_local_pdf_path(paper_id, str(dest))
             counts["skipped"] += 1
             continue
 
-        # ── Resolve to a direct PDF URL (3-tier chain) ────────────────────────
         resolved_url = resolve_pdf_url(
-            paper_id   = paper_id,
-            stored_url = pdf_url,
-            doi        = doi,
-            session    = session,
+            paper_id=paper_id,
+            stored_url=pdf_url,
+            doi=doi,
+            session=session,
         )
 
         if not resolved_url:
-            # All resolution tiers failed — no downloadable PDF found.
             logger.info(
                 "[%d/%d] No resolvable PDF for paper %s (stored_url=%s)",
-                idx, total, paper_id, pdf_url
+                idx, total, paper_id, pdf_url,
             )
             counts["unresolvable"] += 1
             continue
 
-        # ── Download the PDF ──────────────────────────────────────────────────
-        logger.info(
-            "[%d/%d] Downloading %s → %s",
-            idx, total, resolved_url[:70], dest.name
-        )
+        logger.info("[%d/%d] Downloading %s → %s", idx, total, resolved_url[:70], dest.name)
         success = download_pdf(resolved_url, dest)
 
-        # ── Unpaywall fallback on failure ─────────────────────────────────────
-        # If Tier 1 or Tier 2 resolved a URL but the download failed, try
-        # Unpaywall via DOI as a last resort. This catches papers where the
-        # publisher URL was stale, paywalled, or returned HTML — but a legal
-        # open-access copy exists elsewhere (e.g. PubMed Central, a preprint).
-        # Guard: skip if the resolved URL already came from Unpaywall (Tier 3)
-        # to avoid re-requesting the same URL that just failed.
+        # CrossRef fallback on failure (only if not already resolved via CrossRef)
         if not success and doi:
-            unpaywall_url = resolve_via_unpaywall(doi, session=session)
-            if unpaywall_url and unpaywall_url != resolved_url:
-                logger.info(
-                    "[%d/%d] Tier 3 fallback → %s",
-                    idx, total, unpaywall_url[:70],
-                )
-                success = download_pdf(unpaywall_url, dest)
+            crossref_url = resolve_via_crossref(doi, session=session)
+            if crossref_url and crossref_url != resolved_url:
+                logger.info("[%d/%d] Tier 3 fallback → %s", idx, total, crossref_url[:70])
+                success = download_pdf(crossref_url, dest)
 
         if success:
             store.set_local_pdf_path(paper_id, str(dest))
@@ -303,56 +269,63 @@ def download_all_open_access(
         else:
             counts["failed"] += 1
 
-        # Pause between downloads — polite to servers and avoids bans.
         time.sleep(delay)
 
-    # ── Pass 2: DOI-only papers (no OpenAlex PDF URL) ────────────────────────
-    # Many papers have a DOI but were not flagged as open-access by OpenAlex.
-    # Unpaywall often finds freely available PDFs for these — e.g. preprints,
-    # institutional repositories, or publisher open-access pages OpenAlex missed.
-    if try_doi_fallback:
-        doi_papers = store.get_papers_doi_only()
-        logger.info(
-            "Pass 2: %d papers with DOI but no PDF URL — trying Unpaywall.",
-            len(doi_papers),
+    session.close()
+    _log_counts("Pass 1 complete", counts)
+    return counts
+
+
+def download_pass2(
+    store: PaperStore,
+    delay: float = REQUEST_DELAY_SECONDS,
+) -> dict[str, int]:
+    """
+    Pass 2 — papers with a DOI but no open-access PDF URL from OpenAlex.
+
+    Tries Unpaywall for each paper to find a freely available PDF that
+    OpenAlex didn't flag (e.g. preprints, institutional repositories).
+    """
+    import json
+
+    doi_papers = store.get_papers_doi_only()
+    counts = {"downloaded": 0, "failed": 0, "unresolvable": 0, "skipped": 0}
+
+    logger.info("Pass 2: %d papers with DOI but no PDF URL — trying Unpaywall.", len(doi_papers))
+
+    session = _make_session()
+    total_doi = len(doi_papers)
+
+    for idx, row in enumerate(doi_papers, start=1):
+        paper_id = row["paper_id"]
+        year     = row["year"]
+
+        try:
+            ext_ids = json.loads(row["external_ids_json"] or "{}")
+        except (json.JSONDecodeError, TypeError):
+            ext_ids = {}
+        doi = ext_ids.get("DOI")
+
+        if not doi:
+            continue
+
+        dest = _pdf_path(paper_id, year)
+        if dest.exists():
+            store.set_local_pdf_path(paper_id, str(dest))
+            counts["skipped"] += 1
+            continue
+
+        resolved_url = resolve_pdf_url(
+            paper_id=paper_id,
+            stored_url=None,
+            doi=doi,
+            session=session,
         )
 
-        total_doi = len(doi_papers)
-        for idx, row in enumerate(doi_papers, start=1):
-            paper_id = row["paper_id"]
-            year     = row["year"]
-
-            try:
-                ext_ids = json.loads(row["external_ids_json"] or "{}")
-            except (json.JSONDecodeError, TypeError):
-                ext_ids = {}
-            doi = ext_ids.get("DOI")
-
-            if not doi:
-                continue
-
-            dest = _pdf_path(paper_id, year)
-            if dest.exists():
-                store.set_local_pdf_path(paper_id, str(dest))
-                counts["skipped"] += 1
-                continue
-
-            # No stored_url → resolver skips Tiers 1 & 2 and goes straight to Unpaywall.
-            resolved_url = resolve_pdf_url(
-                paper_id   = paper_id,
-                stored_url = None,
-                doi        = doi,
-                session    = session,
-            )
-
-            if not resolved_url:
-                counts["unresolvable"] += 1
-                continue
-
-            logger.info(
-                "[P2 %d/%d] Downloading %s → %s",
-                idx, total_doi, resolved_url[:70], dest.name,
-            )
+        if not resolved_url:
+            counts["unresolvable"] += 1
+        else:
+            logger.info("[P2 %d/%d] Downloading %s → %s", idx, total_doi, resolved_url[:70], dest.name)
             success = download_pdf(resolved_url, dest)
 
             if success:
@@ -363,12 +336,28 @@ def download_all_open_access(
 
             time.sleep(delay)
 
-    session.close()
+        if idx % 500 == 0:
+            logger.info(
+                "Pass 2 progress [%d/%d] — downloaded: %d  failed: %d  unresolvable: %d  skipped: %d",
+                idx, total_doi,
+                counts["downloaded"], counts["failed"],
+                counts["unresolvable"], counts["skipped"],
+            )
 
-    logger.info(
-        "Download complete — downloaded: %d  |  failed: %d  "
-        "|  unresolvable: %d  |  skipped: %d",
-        counts["downloaded"], counts["failed"],
-        counts["unresolvable"], counts["skipped"],
-    )
+    session.close()
+    _log_counts("Pass 2 complete", counts)
+    return counts
+
+
+def download_all_open_access(
+    store: PaperStore,
+    delay: float = REQUEST_DELAY_SECONDS,
+    try_doi_fallback: bool = True,
+) -> dict[str, int]:
+    """Run Pass 1 then optionally Pass 2. Returns combined counts."""
+    counts = download_pass1(store, delay=delay)
+    if try_doi_fallback:
+        p2 = download_pass2(store, delay=delay)
+        for k in counts:
+            counts[k] += p2[k]
     return counts
