@@ -109,6 +109,16 @@ class BoneLogicRetriever:
         query_adapter = "allenai/specter2_adhoc_query"
         logger.info("Loading adhoc_query adapter: %s", query_adapter)
         self._model.load_adapter(query_adapter, source="hf", load_as="specter2_query", set_active=True)
+
+        # Use MPS if available for faster query encoding.
+        if torch.backends.mps.is_available():
+            self._device = torch.device("mps")
+            logger.info("Query device: MPS")
+        else:
+            self._device = torch.device("cpu")
+            logger.info("Query device: CPU")
+
+        self._model.to(self._device)
         self._model.eval()
 
         # Load all embeddings from chunks.db into a numpy matrix.
@@ -252,6 +262,7 @@ class BoneLogicRetriever:
             max_length=512,
             return_tensors="pt",
         )
+        inputs = {k: v.to(self._device) for k, v in inputs.items()}
         with torch.no_grad():
             outputs = self._model(**inputs)
         query_vec = outputs.last_hidden_state[:, 0, :].cpu().numpy()[0].astype(np.float32)

@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sqlite3
 import time
 
@@ -69,14 +70,27 @@ logger = logging.getLogger(__name__)
 EMBEDDING_DIM = 768
 
 
+def _get_device() -> torch.device:
+    """Use CPU — the adapters library has incomplete MPS support which causes
+    MPS fallback overhead to make inference slower than pure CPU."""
+    # Maximise CPU throughput by using all available cores.
+    num_threads = os.cpu_count() or 4
+    torch.set_num_threads(num_threads)
+    torch.set_num_interop_threads(max(1, num_threads // 2))
+    logger.info("Device: CPU  (%d threads)", num_threads)
+    return torch.device("cpu")
+
+
 def _load_model() -> tuple:
     """
     Load the SPECTER2 base model and attach the proximity adapter.
 
     Returns
     -------
-    (tokenizer, model) — both ready for inference.
+    (tokenizer, model, device) — all ready for inference.
     """
+    device = _get_device()
+
     logger.info("Loading tokenizer: %s", SPECTER2_BASE_MODEL)
     tokenizer = AutoTokenizer.from_pretrained(SPECTER2_BASE_MODEL)
 
@@ -86,12 +100,13 @@ def _load_model() -> tuple:
     logger.info("Loading adapter: %s", SPECTER2_ADAPTER)
     model.load_adapter(SPECTER2_ADAPTER, source="hf", load_as="specter2", set_active=True)
 
+    model.to(device)
     model.eval()
-    logger.info("SPECTER2 ready — embedding dim: %d", EMBEDDING_DIM)
-    return tokenizer, model
+    logger.info("SPECTER2 ready — embedding dim: %d  device: %s", EMBEDDING_DIM, device)
+    return tokenizer, model, device
 
 
-def _encode_batch(texts: list[str], tokenizer, model) -> np.ndarray:
+def _encode_batch(texts: list[str], tokenizer, model, device: torch.device) -> np.ndarray:
     """
     Encode a batch of texts into 768-dim embeddings.
 
@@ -109,6 +124,7 @@ def _encode_batch(texts: list[str], tokenizer, model) -> np.ndarray:
         max_length=512,
         return_tensors="pt",
     )
+    inputs = {k: v.to(device) for k, v in inputs.items()}
     with torch.no_grad():
         outputs = model(**inputs)
 
@@ -136,7 +152,7 @@ def run(force: bool = False) -> None:
     force : bool
         If True, re-embed chunks that already have embeddings.
     """
-    tokenizer, model = _load_model()
+    tokenizer, model, device = _load_model()
 
     conn = sqlite3.connect(CHUNKS_DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -166,7 +182,7 @@ def run(force: bool = False) -> None:
         ids = [r["id"] for r in batch]
         texts = [r["text"] for r in batch]
 
-        embeddings = _encode_batch(texts, tokenizer, model)
+        embeddings = _encode_batch(texts, tokenizer, model, device)
 
         conn.executemany(
             "UPDATE chunks SET embedding = ? WHERE id = ?",
@@ -176,7 +192,7 @@ def run(force: bool = False) -> None:
 
         embedded += len(batch)
 
-        if embedded % 1000 == 0 or embedded == total:
+        if embedded % 1024 == 0 or embedded == total:
             elapsed = time.time() - start_time
             rate = embedded / elapsed if elapsed > 0 else 0
             remaining = (total - embedded) / rate if rate > 0 else 0

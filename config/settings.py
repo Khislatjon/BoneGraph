@@ -158,8 +158,8 @@ SPECTER2_BASE_MODEL = "allenai/specter2_base"
 SPECTER2_ADAPTER = "allenai/specter2"
 
 # Number of chunks to embed in one batch.
-# 64 is a safe default for CPU (adjust up if you have more RAM).
-EMBEDDING_BATCH_SIZE = 64
+# 256 is optimal for MPS (Apple Silicon GPU). Drop to 64 if you hit OOM.
+EMBEDDING_BATCH_SIZE = 256
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
 
