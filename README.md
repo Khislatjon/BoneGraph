@@ -21,12 +21,13 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 
 | Phase | Status | Key results |
 |---|---|---|
-| Phase 1 — Paper ingestion | ✅ Complete | 55,277 papers, 6,125 PDFs downloaded |
-| Phase 1b — Textbook ingestion | ✅ Complete | 16 textbooks, 7,203 pages |
-| Phase 2 — Text extraction | ✅ Complete | 6,085 papers + 16 textbooks extracted |
-| Phase 2 — Chunking | ✅ Complete | 200,757 chunks (2,048 chars, 200 overlap) |
-| Phase 2 — Embedding | 🔄 Running | SPECTER 768-dim vectors |
-| Phase 2 — RAG retrieval | ⏳ Next | |
+| Phase 1 — Paper ingestion | ✅ Complete | 54,634 papers · 7,674 PDFs downloaded |
+| Phase 1b — Textbook ingestion | ✅ Complete | 16 textbooks |
+| Phase 2 — Text extraction | ✅ Complete | 7,433 English papers + 16 textbooks extracted |
+| Phase 2 — Language filtering | ✅ Complete | 336 non-English papers flagged |
+| Phase 2 — Chunking | ✅ Complete | 248,629 chunks (sentence-aware · ~400 tokens · 2-sentence overlap) |
+| Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
+| Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI |
 | Phase 3 — VLM integration | ⏳ Planned | |
 | Phase 4 — LRM reasoning | ⏳ Planned | |
 
@@ -41,7 +42,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Add your SEMANTIC_SCHOLAR_API_KEY and UNPAYWALL_EMAIL to .env
+# Add CROSSREF_EMAIL and WILEY_TDM_TOKEN to .env
 ```
 
 ### Run paper ingestion
@@ -81,20 +82,41 @@ python scripts/inspect_db.py
 ### Extract text from PDFs
 
 ```bash
-python -m processing.extract_papers       # Extract all paper PDFs
+python -m processing.extract_papers       # Extract all paper PDFs (strips reference sections)
 python -m processing.extract_textbooks    # Extract all textbook PDFs
+```
+
+### Filter non-English papers
+
+```bash
+python -m scripts.filter_english --dry-run   # Preview — no changes written
+python -m scripts.filter_english             # Run both passes
 ```
 
 ### Chunk extracted text
 
 ```bash
-python -m processing.chunk_all
+python -m processing.chunk_all    # English papers only · sentence-aware · resumable
 ```
 
-### Embed chunks with SPECTER
+### Embed chunks with SPECTER2
 
 ```bash
-python -m processing.embed    # Runs for ~1-2 hours on CPU
+python -m processing.embed        # Resumes from last embedded chunk if interrupted
+python -m processing.embed --force  # Re-embed everything from scratch
+```
+
+### Query the corpus
+
+```bash
+# CLI — single query
+python -m retrieval.query "cortical bone fracture toughness"
+
+# CLI — interactive mode (embeddings loaded once, fast repeated queries)
+python -m retrieval.query --interactive
+
+# Gradio web UI
+python app.py    # Opens automatically at http://localhost:7860
 ```
 
 ---
@@ -105,19 +127,21 @@ python -m processing.embed    # Runs for ~1-2 hours on CPU
 BoneLogic/
 ├── config/                  # Central settings (paths, model names, constants)
 ├── ingestion/
-│   ├── papers/              # Semantic Scholar API client, storage, downloader
+│   ├── papers/              # OpenAlex API client, storage, downloader
 │   └── textbooks/           # Textbook scanner and storage
 ├── processing/              # Text extraction, chunking, embedding
-├── retrieval/               # RAG query interface (coming next)
+├── retrieval/               # RAG retrieval engine + CLI/web query interface
+├── scripts/                 # Utilities: DB inspector, language filter
 ├── data/
 │   ├── raw/papers/          # Downloaded paper PDFs (gitignored)
 │   ├── raw/textbooks/       # Textbook PDFs by source (gitignored)
 │   ├── processed/text/      # Extracted .txt files (gitignored)
 │   └── db/                  # SQLite databases (gitignored)
-│       ├── papers.db
-│       ├── textbooks.db
-│       └── chunks.db
+│       ├── papers.db        # 54,634 paper metadata rows
+│       ├── textbooks.db     # 16 textbook metadata rows
+│       └── chunks.db        # 248,629 chunks + SPECTER2 embeddings
 ├── docs/                    # Detailed documentation per phase
+├── app.py                   # Gradio web UI
 ├── mypaper/                 # Paper draft (gitignored)
 └── tests/
 ```

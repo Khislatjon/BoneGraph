@@ -80,69 +80,77 @@ The system is built incrementally. Each phase delivers a working product, and th
 Collect the knowledge base that will ground the LLM and LRM.
 
 ```
-Semantic Scholar API  →  paper metadata (SQLite)  →  URL resolver  →  PDF downloads
-Textbooks             →  raw PDF files
+OpenAlex API  →  paper metadata (SQLite)  →  URL resolver  →  PDF downloads
+Textbooks     →  raw PDF files
 ```
 
 **Delivered:**
 
 | Item | Result |
 |---|---|
-| Papers collected | **55,277** unique papers |
-| Open-access PDF URLs | 21,571 (39% of corpus) |
-| PDFs downloaded | **6,125** out of 21,571 (rest require institutional access) |
-| Year range | 1900–2025 |
+| Papers collected | **54,634** unique English papers (1970–2026) |
+| PDFs downloaded | **7,674** (Pass 1: OpenAlex OA URLs + CrossRef · Pass 2: DOI → CrossRef) |
+| Year range | 1970–2026 |
 | Search keywords | 133 across 17 topic groups |
-| Top journal | *Bone* — 2,452 papers |
-| PDF resolution | 3-tier chain: direct link → publisher transform → Unpaywall API |
-| PDF coverage | ~56% resolved without any API call; ~100% with Unpaywall |
+| PDF sources | OpenAlex OA URLs · EuropePMC · PMC · PLOS · Frontiers · Springer · MDPI · Wiley TDM |
 | Database | SQLite at `data/db/papers.db` — browsable with PyCharm or DB Browser |
 | Inspection tool | `scripts/inspect_db.py` — stats + progress bar |
 
-**Novel engineering decision here:** Rather than accepting Semantic Scholar's mixed bag of direct links, DOI redirects, and viewer pages, we built a publisher-specific URL resolver (`resolvers.py`) that transforms 7 known publisher URL patterns to direct PDF links before download, and falls back to the free Unpaywall API for DOI-based lookup. This significantly increases the actual downloadable PDF yield compared to a naive download attempt.
+**Source switch — Semantic Scholar → OpenAlex:** The original pipeline used Semantic Scholar, but the API key expired mid-project. We switched to OpenAlex — completely free, no API key required, and richer open-access metadata. CrossRef replaced Unpaywall for PDF resolution (more reliable direct PDF links).
+
+**Novel engineering decision here:** A 2-pass PDF download pipeline. Pass 1 uses OpenAlex OA URLs and publisher-specific URL transforms plus CrossRef as a fallback. Pass 2 re-attempts DOI-based CrossRef lookup for any paper that failed Pass 1. The Wiley TDM API (token-based) bypasses Cloudflare for Wiley journals. This layered approach maximises download yield without institutional access.
 
 ---
 
-### Phase 2 — Text Processing & RAG (Retrieval-Augmented Generation) 🔄 In Progress (April 2026)
+### Phase 2 — Text Processing & RAG (Retrieval-Augmented Generation) ✅ Complete (April 2026)
 Chunk and embed the text corpus so the LLM can retrieve relevant passages at query time.
 
 ```
-PDF text  →  extract_papers.py / extract_textbooks.py  →  .txt files
+PDF text  →  extract_papers.py / extract_textbooks.py  →  .txt files (refs stripped)
+                                                               │
+                                                     filter_english.py (2-pass)
                                                                │
                                                           chunk_all.py
+                                                     (English only · sentence-aware)
                                                                │
                                                          chunks.db (SQLite)
                                                                │
                                                            embed.py
+                                                     (SPECTER2 · proximity adapter)
                                                                │
-                                                    768-dim SPECTER vectors
+                                                    768-dim SPECTER2 vectors
                                                                │
 User query  ──────────────────────────────────────────►  retrieve top-k
+                                                    (SPECTER2 · adhoc_query adapter)
                                                                │
                                                        LLM answers using
                                                        retrieved context
 ```
 
-**Delivered so far:**
+**Delivered:**
 
 | Item | Result |
 |---|---|
-| Papers extracted | **6,085** (40 scanned — no text layer) |
+| Papers extracted | **7,433** English papers (28 scanned — no text layer) |
 | Textbooks extracted | **16 / 16** |
-| Total chunks | **200,757** (188,042 paper + 12,715 textbook) |
-| Chunk size | 2,048 chars (~512 tokens) with 200-char overlap |
-| Embedding model | SPECTER (`allenai-specter`) — trained on 146M S2 citations |
+| Non-English flagged | **336 papers** (detected via 2-pass body-text analysis) |
+| Reference sections | Stripped at extraction — not included in any chunk |
+| Total chunks | **248,629** (246,646 paper + 1,983 textbook) |
+| Chunk strategy | Sentence-aware · target 400 tokens · 2-sentence overlap · never cuts mid-sentence |
+| Embedding model | SPECTER2 (`allenai/specter2_base`) — trained on 164M citation relationships |
+| Adapter (documents) | `allenai/specter2` (proximity) — used at embedding time |
+| Adapter (queries) | `allenai/specter2_adhoc_query` — used at retrieval time |
 | Embedding dimensions | 768 |
-| Embeddings complete | **200,757 chunks** embedded (127 min, CPU-only) |
-| Language filtering | **763 non-English papers** removed (564 by abstract + 199 with English abstract but non-English body) |
-| English chunks remaining | **193,537** |
+| Embeddings complete | **248,629 / 248,629** chunks embedded |
 | Retrieval interface | CLI (`python -m retrieval.query`) + Gradio web UI (`python app.py`) |
 
-**Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable (add new papers → re-embed) without changing the model.
+**Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable — add new papers, re-embed, done.
 
-**Why SPECTER:** Trained by Allen AI specifically on Semantic Scholar paper citations — produces embeddings that capture scientific meaning, making it ideal for a corpus collected from Semantic Scholar.
+**Why SPECTER2:** Allen AI's 2023 successor to SPECTER, trained on 164M citation relationships. Key advantage over SPECTER1: asymmetric encoding — documents and queries use different task-specific adapters (proximity vs adhoc_query), improving retrieval precision on scientific text.
 
-**Language filtering — two-pass approach:** Many papers in Semantic Scholar have English abstracts (translated for indexing) but non-English full text. A single abstract-based filter missed 199 such papers. The final implementation runs two passes: (1) detect from abstract/title for unprocessed papers; (2) re-detect from the first 2,000 characters of the extracted `.txt` file for any paper previously classified as English via abstract alone. This catches the abstract-English / body-foreign class of papers reliably.
+**Sentence-aware chunking:** The original implementation used a character-based sliding window that cut text arbitrarily. The final implementation uses NLTK sentence tokenisation — chunks always end at a sentence boundary, with the last 2 sentences of each chunk carried into the next as overlap. This produces cleaner, more semantically coherent passages for embedding.
+
+**Language filtering — two-pass approach:** Many papers have English abstracts (translated for indexing) but non-English body text. The filter skips the first 1,000 characters (title/abstract) and detects language from the next 4,000 characters of body text, catching the abstract-English / body-foreign class reliably. Pass A processes all new papers; Pass B re-checks any previously abstract-classified English papers that now have an extracted text file.
 
 **Novel contribution here:** The retrieval is not generic — it is guided by a bone ontology. When a user asks about "femoral neck fracture", the ontology expands the query to related concepts (cortical thinning, reduced BMD, trabecular connectivity) before retrieval, improving coverage.
 
@@ -235,10 +243,9 @@ BoneLogic/
 ├── ingestion/                   Phase 1: data collection
 │   ├── papers/
 │   │   ├── keywords.py          133 bone-domain search queries (17 groups)
-│   │   ├── semantic_scholar.py  S2 API client
+│   │   ├── openalex.py          OpenAlex API client (free, no key required)
 │   │   ├── storage.py           SQLite metadata store
-│   │   ├── resolvers.py         3-tier PDF URL resolver
-│   │   ├── downloader.py        Open-access PDF downloader
+│   │   ├── downloader.py        2-pass PDF downloader (OpenAlex + CrossRef + Wiley TDM)
 │   │   └── pipeline.py          CLI entrypoint
 │   └── textbooks/
 │       ├── storage.py           SQLite textbook store
@@ -247,21 +254,24 @@ BoneLogic/
 │
 ├── scripts/
 │   ├── inspect_db.py            Database statistics + progress inspector
-│   └── filter_english.py        Two-pass language filter (abstract + text-file detection)
+│   ├── download_pass1.py        Pass 1: OpenAlex OA URLs + CrossRef
+│   ├── download_pass2.py        Pass 2: DOI → CrossRef retry
+│   └── filter_english.py        Two-pass language filter (body-text detection, skips abstract)
 │
 ├── processing/                  Phase 2: text extraction, chunking, embedding
-│   ├── extractor.py             PDF → plain text via PyMuPDF
+│   ├── extractor.py             PDF → plain text via PyMuPDF (strips reference sections)
 │   ├── extract_papers.py        Extract all paper PDFs → .txt files
 │   ├── extract_textbooks.py     Extract all textbook PDFs → .txt files
-│   ├── chunker.py               Page-aware sliding window chunker
-│   ├── chunk_all.py             Chunk all texts → chunks.db
-│   └── embed.py                 Embed chunks with SPECTER → chunks.db
+│   ├── chunker.py               Sentence-aware chunker (NLTK · 400 tokens · 2-sentence overlap)
+│   ├── chunk_all.py             Chunk English papers + textbooks → chunks.db
+│   └── embed.py                 Embed chunks with SPECTER2 proximity adapter → chunks.db
 │
-├── retrieval/                   Phase 2: RAG retrieval engine + CLI query interface
+├── retrieval/                   Phase 2: RAG retrieval engine + CLI/web query interface
 │   ├── retriever.py             BoneLogicRetriever — loads all embeddings, cosine search
+│   │                            Query encoding uses SPECTER2 adhoc_query adapter
 │   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
-├── models/                      Phases 2-4: LLM, VLM, LRM wrappers
+├── models/                      Phases 3-4: LLM, VLM, LRM wrappers
 │   └── (coming in Phase 3)
 │
 ├── reasoning/                   Phase 4: ontology and LRM
@@ -271,13 +281,13 @@ BoneLogic/
 │   └── (coming in Phase 5)
 │
 ├── data/
-│   ├── raw/papers/              Downloaded PDFs (gitignored)
+│   ├── raw/papers/              Downloaded PDFs — 7,674 files (gitignored)
 │   ├── raw/textbooks/           Textbook PDFs by source (gitignored)
 │   ├── processed/text/          Extracted .txt files (gitignored)
 │   └── db/
-│       ├── papers.db            Paper metadata (gitignored)
-│       ├── textbooks.db         Textbook metadata (gitignored)
-│       └── chunks.db            Text chunks + SPECTER embeddings (gitignored)
+│       ├── papers.db            54,634 paper metadata rows (gitignored)
+│       ├── textbooks.db         16 textbook metadata rows (gitignored)
+│       └── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
 │
 ├── docs/
 │   ├── architecture.md                      ← this file
