@@ -27,7 +27,8 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Language filtering | ✅ Complete | 336 non-English papers flagged |
 | Phase 2 — Chunking | ✅ Complete | 248,629 chunks (sentence-aware · ~400 tokens · 2-sentence overlap) |
 | Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
-| Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI |
+| Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI (Ask + Search tabs) |
+| Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama · streaming RAG answers |
 | Phase 3 — VLM integration | ⏳ Planned | |
 | Phase 4 — LRM reasoning | ⏳ Planned | |
 
@@ -115,9 +116,18 @@ python -m retrieval.query "cortical bone fracture toughness"
 # CLI — interactive mode (embeddings loaded once, fast repeated queries)
 python -m retrieval.query --interactive
 
-# Gradio web UI
+# Gradio web UI (two tabs: Ask BoneLogic + Search Corpus)
 python app.py    # Opens automatically at http://localhost:7860
 ```
+
+**Ask BoneLogic tab** requires Ollama running with the fine-tuned model:
+
+```bash
+ollama serve          # start the server (separate terminal if not running as a service)
+ollama run huatuogpt-bone
+```
+
+**Search Corpus tab** works without Ollama — pure semantic retrieval only.
 
 ---
 
