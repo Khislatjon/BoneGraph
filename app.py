@@ -4,14 +4,18 @@ app.py
 BoneLogic — Gradio web UI.
 
 Tab 1  Ask BoneLogic   Query → retrieve top-k chunks → stream HuatuoGPT-o1-8B answer
-Tab 2  Search Corpus   Raw semantic search (chunks ranked by cosine similarity)
+Tab 2  Analyse Image   Upload X-ray/MRI → LLaVA report → cross-modal retrieval → LLM answer
+Tab 3  Search Corpus   Raw semantic search (chunks ranked by cosine similarity)
 
 Run with:
     python app.py
 
 Opens automatically at http://localhost:7860
-Requires Ollama running with the huatuogpt-bone model:
+Requires Ollama running:
     ollama serve   (in a separate terminal, if not already running as a service)
+Models needed:
+    huatuogpt-bone   (Tab 1 + Tab 2 LLM answers)
+    llava:13b        (Tab 2 image description)
 """
 
 import json
@@ -26,6 +30,19 @@ from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 # ── Ollama config ─────────────────────────────────────────────────────────────
 OLLAMA_URL   = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "huatuogpt-bone"
+VLM_MODEL    = "llava:13b"
+
+VLM_PROMPT = (
+    "You are a radiologist specialised in musculoskeletal and bone imaging. "
+    "Describe this image systematically:\n"
+    "1. Modality and body part\n"
+    "2. Cortical bone: thickness, continuity, any thinning or breaks\n"
+    "3. Trabecular bone: density and pattern\n"
+    "4. Joint spaces if visible\n"
+    "5. Any fractures, lesions, or pathological changes\n"
+    "6. Overall impression in one sentence\n"
+    "Use precise radiological terminology."
+)
 
 SYSTEM_PROMPT = """You are BoneLogic, an expert AI assistant specialised in bone science.
 You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
@@ -364,7 +381,106 @@ def ask(question: str, top_k: int):
         yield f"⚠️ **Unexpected error:** {e}", sources_html
 
 
-# ── Tab 2: Search Corpus (raw retrieval) ──────────────────────────────────────
+# ── Tab 2: Analyse Image (VLM → cross-modal retrieval → LLM) ─────────────────
+def _describe_image(image_path: str) -> str:
+    """
+    Send an image to LLaVA via Ollama and return the radiological report.
+    Streams internally but returns the full text.
+    """
+    import base64
+    with open(image_path, "rb") as f:
+        img_b64 = base64.b64encode(f.read()).decode()
+
+    resp = requests.post(
+        OLLAMA_URL,
+        json={
+            "model": VLM_MODEL,
+            "messages": [{"role": "user", "content": VLM_PROMPT, "images": [img_b64]}],
+            "stream": True,
+        },
+        stream=True,
+        timeout=120,
+    )
+    resp.raise_for_status()
+
+    report = ""
+    for line in resp.iter_lines():
+        if line:
+            data = json.loads(line)
+            if not data.get("done"):
+                report += data["message"]["content"]
+    return report
+
+
+def analyse_image(image_path: str, question: str, top_k: int):
+    """
+    Generator for Tab 2.
+    Yields (vlm_report, answer_so_far, sources_html) tuples.
+
+    Pipeline:
+      image → LLaVA report → SPECTER2 embed report → retrieve chunks
+            → HuatuoGPT streams answer grounded in report + literature
+    """
+    if image_path is None:
+        yield "_Upload an image first._", "", "<p style='color:#888'>No image uploaded.</p>"
+        return
+
+    question = (question or "").strip() or \
+        "Describe the findings and their clinical significance for bone health."
+
+    # Step 1 — VLM: describe the image
+    yield "_Analysing image…_", "", "<p style='color:#888'>Running VLM…</p>"
+    try:
+        report = _describe_image(image_path)
+    except requests.ConnectionError:
+        yield (
+            "⚠️ **Could not connect to Ollama.**\n\nRun `ollama serve` first.",
+            "", "",
+        )
+        return
+    except Exception as e:
+        yield f"⚠️ **VLM error:** {e}", "", ""
+        return
+
+    vlm_md = f"**VLM Report (LLaVA)**\n\n{report}"
+
+    # Step 2 — Cross-modal retrieval: embed the report and search chunks
+    yield vlm_md, "_Retrieving relevant literature…_", "<p style='color:#888'>Retrieving…</p>"
+    results = retriever.query(report, top_k=int(top_k))
+    sources_html = _build_sources_html(results, collapsible=True)
+
+    yield vlm_md, "_Thinking…_", sources_html
+
+    # Step 3 — LLM: answer grounded in report + retrieved context
+    context = _build_context(results)
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": (
+                f"The following is a radiological report generated from an uploaded bone image:\n\n"
+                f"{report}\n\n"
+                f"Context passages from the bone science literature:\n\n{context}\n\n---\n\n"
+                f"Question: {question}"
+            ),
+        },
+    ]
+
+    answer = ""
+    try:
+        for token in _stream_ollama(messages):
+            answer += token
+            yield vlm_md, answer, sources_html
+        linked = _inject_ref_links(answer, results)
+        if linked != answer:
+            yield vlm_md, linked, sources_html
+    except requests.ConnectionError:
+        yield vlm_md, "⚠️ **Could not connect to Ollama.**", sources_html
+    except Exception as e:
+        yield vlm_md, f"⚠️ **Unexpected error:** {e}", sources_html
+
+
+# ── Tab 3: Search Corpus (raw retrieval) ──────────────────────────────────────
 def search(query: str, top_k: int, source_filter: str) -> str:
     if not query.strip():
         return "<p style='color:#888'>Enter a query above and press Search.</p>"
@@ -470,6 +586,58 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
         )
 
     # ── Tab 2 ──────────────────────────────────────────────────────────────────
+    with gr.Tab("Analyse Image"):
+        gr.Markdown(
+            "Upload a bone X-ray or MRI. "
+            "LLaVA describes the image, the system retrieves relevant literature, "
+            "and HuatuoGPT streams a grounded answer."
+        )
+
+        with gr.Row():
+            with gr.Column(scale=1):
+                img_upload = gr.Image(
+                    type="filepath",
+                    label="Upload X-ray / MRI",
+                )
+            with gr.Column(scale=2):
+                img_question = gr.Textbox(
+                    placeholder="Optional — e.g. What is the fracture risk? (leave blank for general description)",
+                    label="Question",
+                    lines=3,
+                )
+                img_top_k = gr.Slider(
+                    minimum=3, maximum=20, value=8, step=1,
+                    label="Passages retrieved (top-k)",
+                )
+                img_btn = gr.Button("🔬 Analyse", variant="primary")
+
+        with gr.Row():
+            vlm_report_md = gr.Markdown(
+                value="_Upload an image and press Analyse._",
+                label="VLM Report",
+                elem_classes=["answer-markdown"],
+            )
+
+        with gr.Row():
+            with gr.Column(scale=3):
+                img_answer_md = gr.Markdown(
+                    value="",
+                    label="Answer",
+                    elem_classes=["answer-markdown"],
+                )
+            with gr.Column(scale=2):
+                img_sources_html = gr.HTML(
+                    value="<p style='color:#888'>Retrieved passages will appear here.</p>",
+                    label="Retrieved passages",
+                )
+
+        img_btn.click(
+            fn=analyse_image,
+            inputs=[img_upload, img_question, img_top_k],
+            outputs=[vlm_report_md, img_answer_md, img_sources_html],
+        )
+
+    # ── Tab 3 ──────────────────────────────────────────────────────────────────
     with gr.Tab("Search Corpus"):
         gr.Markdown(
             "Raw semantic search — returns the top-k passages ranked by cosine similarity "
