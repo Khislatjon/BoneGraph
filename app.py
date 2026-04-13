@@ -63,7 +63,37 @@ RULES — follow exactly:
    synthesise the evidence; do not copy-paste large verbatim passages.
 
 10. REFERENCES SECTION. End every answer with a ## References section listing each cited
-    passage as: [N] Title — Authors (Year) · Venue"""
+    passage as: [N] Title — Authors (Year) · Venue
+
+---
+
+EXAMPLE OF A CORRECT RESPONSE:
+
+Question: How does denosumab affect cortical porosity, and why does that matter mechanically?
+
+Answer:
+
+Denosumab has been shown to decrease cortical porosity by inhibiting osteoclast-mediated
+remodelling [2]. This is clinically significant because cortical porosity is a major
+determinant of whole-bone stiffness and fracture resistance — greater porosity reduces
+the effective cross-sectional area available to resist bending loads [3].
+
+Biomechanical testing in mouse models confirms that cortical geometry and porosity
+together govern torsional and bending stiffness; torsion tests are particularly sensitive
+to changes in cortical organisation [3].
+
+## References
+[2] The effect of 8 or 5 years of denosumab treatment in postmenopausal women with osteoporosis — Papapoulos et al. (2015) · Osteoporosis International
+[3] Establishing Biomechanical Mechanisms in Mouse Models — Jepsen et al. (2015) · Journal of Bone and Mineral Research
+
+---
+
+CITATION RULES — enforced strictly:
+- Every sentence that states a fact MUST end with [N] before the full stop.
+- Use the passage number exactly as given in the context (the number in square brackets at the start of each passage).
+- Never cite a passage number that was not provided in the context.
+- If two passages support the same claim, cite both: [1][3].
+- The ## References section is mandatory, even for short answers."""
 
 
 # ── Startup: load retriever and corpus stats ──────────────────────────────────
