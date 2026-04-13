@@ -6,9 +6,11 @@ An intelligent reasoning system for bone science — morphology, mechanics, path
 
 | Document | Description |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | Full system architecture, all build phases, design principles |
-| [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Papers ingestion deep-dive: how data flows from API → SQLite → PDFs |
-| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Textbooks ingestion pipeline — 16 curated open-access books |
+| [docs/architecture.md](docs/architecture.md) | System overview, 2-layer architecture, phase summaries, design principles, repo layout |
+| [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Phase 1 — papers ingestion deep-dive: API → SQLite → PDFs |
+| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — textbooks ingestion: 16 curated open-access books |
+| [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — text extraction, chunking, embedding, RAG, LLM, evaluation |
+| [docs/phase3_vlm_plan.md](docs/phase3_vlm_plan.md) | Phase 3 — VLM integration plan: datasets, pipeline, cross-modal retrieval, UI |
 
 ## Architecture (summary)
 

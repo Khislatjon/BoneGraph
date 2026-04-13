@@ -74,172 +74,46 @@ BoneLogic is intentionally restricted to bone science. This is not a limitation 
 
 ## Build phases
 
-The system is built incrementally. Each phase delivers a working product, and the next phase extends it.
-
-### Phase 1 — Data ingestion ✅ Complete (March 2026)
-Collect the knowledge base that will ground the LLM and LRM.
-
-```
-OpenAlex API  →  paper metadata (SQLite)  →  URL resolver  →  PDF downloads
-Textbooks     →  raw PDF files
-```
-
-**Delivered:**
-
-| Item | Result |
-|---|---|
-| Papers collected | **54,634** unique English papers (1970–2026) |
-| PDFs downloaded | **7,674** (Pass 1: OpenAlex OA URLs + CrossRef · Pass 2: DOI → CrossRef) |
-| Year range | 1970–2026 |
-| Search keywords | 133 across 17 topic groups |
-| PDF sources | OpenAlex OA URLs · EuropePMC · PMC · PLOS · Frontiers · Springer · MDPI · Wiley TDM |
-| Database | SQLite at `data/db/papers.db` — browsable with PyCharm or DB Browser |
-| Inspection tool | `scripts/inspect_db.py` — stats + progress bar |
-
-**Source switch — Semantic Scholar → OpenAlex:** The original pipeline used Semantic Scholar, but the API key expired mid-project. We switched to OpenAlex — completely free, no API key required, and richer open-access metadata. CrossRef replaced Unpaywall for PDF resolution (more reliable direct PDF links).
-
-**Novel engineering decision here:** A 2-pass PDF download pipeline. Pass 1 uses OpenAlex OA URLs and publisher-specific URL transforms plus CrossRef as a fallback. Pass 2 re-attempts DOI-based CrossRef lookup for any paper that failed Pass 1. The Wiley TDM API (token-based) bypasses Cloudflare for Wiley journals. This layered approach maximises download yield without institutional access.
+| Phase | Status | Detail |
+|---|---|---|
+| Phase 1 — Paper ingestion | ✅ Complete (March 2026) | [papers_ingestion_pipeline.md](papers_ingestion_pipeline.md) |
+| Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
+| Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
+| Phase 3 — VLM integration | ⏳ Planned | [phase3_vlm_plan.md](phase3_vlm_plan.md) |
+| Phase 4 — LRM reasoning layer | ⏳ Planned | — |
+| Phase 5 — Feedback loop | ⏳ Planned | — |
 
 ---
 
-### Phase 2 — Text Processing & RAG (Retrieval-Augmented Generation) ✅ Complete (April 2026)
-Chunk and embed the text corpus so the LLM can retrieve relevant passages at query time.
+## Phase summaries
 
-```
-PDF text  →  extract_papers.py / extract_textbooks.py  →  .txt files (refs stripped)
-                                                               │
-                                                     filter_english.py (2-pass)
-                                                               │
-                                                          chunk_all.py
-                                                     (English only · sentence-aware)
-                                                               │
-                                                         chunks.db (SQLite)
-                                                               │
-                                                           embed.py
-                                                     (SPECTER2 · proximity adapter)
-                                                               │
-                                                    768-dim SPECTER2 vectors
-                                                               │
-User query  ──────────────────────────────────────────►  retrieve top-k
-                                                    (SPECTER2 · adhoc_query adapter)
-                                                               │
-                                                       LLM answers using
-                                                       retrieved context
-```
+### Phase 1 — Data ingestion ✅
+Collect the knowledge base. 54,634 papers from OpenAlex · 7,674 PDFs · 16 textbooks. 2-pass PDF download pipeline (OpenAlex OA URLs + CrossRef + Wiley TDM).
 
-**Delivered:**
+### Phase 2 — Text processing & RAG ✅
+Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B answers via Ollama. Retrieval benchmark: MRR 0.928, Recall@5 1.000.
 
-| Item | Result |
-|---|---|
-| Papers extracted | **7,433** English papers (28 scanned — no text layer) |
-| Textbooks extracted | **16 / 16** |
-| Non-English flagged | **336 papers** (detected via 2-pass body-text analysis) |
-| Reference sections | Stripped at extraction — not included in any chunk |
-| Total chunks | **248,629** (246,646 paper + 1,983 textbook) |
-| Chunk strategy | Sentence-aware · target 400 tokens · 2-sentence overlap · never cuts mid-sentence |
-| Embedding model | SPECTER2 (`allenai/specter2_base`) — trained on 164M citation relationships |
-| Adapter (documents) | `allenai/specter2` (proximity) — used at embedding time |
-| Adapter (queries) | `allenai/specter2_adhoc_query` — used at retrieval time |
-| Embedding dimensions | 768 |
-| Embeddings complete | **248,629 / 248,629** chunks embedded |
-| Retrieval interface | CLI (`python -m retrieval.query`) + Gradio web UI (`python app.py`) |
-| LLM | HuatuoGPT-o1-8B served via Ollama — streams grounded answers from retrieved context |
-| Web UI tabs | **Ask BoneLogic** (RAG + LLM streaming) · **Search Corpus** (raw retrieval, no LLM) |
+### Phase 3 — VLM integration ⏳
+Add image understanding for X-ray and MRI inputs. LLaVA 1.6 generates structured radiological reports; reports are embedded with SPECTER2 and used to retrieve relevant literature from the text corpus (cross-modal retrieval in a shared embedding space). New "Analyse Image" tab in the web UI.
 
-**Phase 2 polish — also complete:**
+### Phase 4 — LRM reasoning layer ⏳
+Move from retrieval to reasoning. A structured bone ontology (knowledge graph) connects concepts causally. The LRM traverses the ontology to construct reasoning chains and generate grounded hypotheses — not just summaries.
 
-| Item | Result |
-|---|---|
-| Retrieval benchmark | 30 questions · 7 domains (mechanics, morphology, pathology, biomaterials, simulation, imaging, mechanobiology) |
-| MRR | **0.928** |
-| Recall@3 | **1.000** — all 30 questions have a relevant chunk in top 3 |
-| Recall@5 | **1.000** — Phase 3 readiness threshold passed |
-| Citation behaviour | Few-shot example in system prompt · mandatory `[N]` inline citations · DOI links auto-injected into References section |
-| Reference formatting | Each `[N]` entry rendered on its own line with clickable Open paper link |
-| Eval script | `eval/run_eval.py` — rerun any time corpus or retriever changes |
-
-**Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable — add new papers, re-embed, done.
-
-**Why SPECTER2:** Allen AI's 2023 successor to SPECTER, trained on 164M citation relationships. Key advantage over SPECTER1: asymmetric encoding — documents and queries use different task-specific adapters (proximity vs adhoc_query), improving retrieval precision on scientific text.
-
-**Sentence-aware chunking:** The original implementation used a character-based sliding window that cut text arbitrarily. The final implementation uses NLTK sentence tokenisation — chunks always end at a sentence boundary, with the last 2 sentences of each chunk carried into the next as overlap. This produces cleaner, more semantically coherent passages for embedding.
-
-**Language filtering — two-pass approach:** Many papers have English abstracts (translated for indexing) but non-English body text. The filter skips the first 1,000 characters (title/abstract) and detects language from the next 4,000 characters of body text, catching the abstract-English / body-foreign class reliably. Pass A processes all new papers; Pass B re-checks any previously abstract-classified English papers that now have an extracted text file.
-
-**Novel contribution here:** The retrieval is not generic — it is guided by a bone ontology. When a user asks about "femoral neck fracture", the ontology expands the query to related concepts (cortical thinning, reduced BMD, trabecular connectivity) before retrieval, improving coverage.
-
----
-
-### Phase 3 — VLM integration
-Add image understanding for X-ray and MRI inputs.
-
-```
-X-ray / MRI image  →  VLM  →  structured visual report
-                                    │
-                              "cortical thinning at femoral neck,
-                               decreased trabecular density,
-                               consistent with Grade 2 osteoporosis"
-                                    │
-                              fed into Layer 2 reasoning
-```
-
-**Novel contribution here:** Cross-modal linking — the VLM output is mapped to the same bone ontology concepts as the text data, so a visual finding ("cortical thinning") automatically connects to the mechanical literature on how cortical thickness affects fracture risk.
-
----
-
-### Phase 4 — LRM reasoning layer
-Move from retrieval to reasoning.
-
-```
-Retrieved context + visual report + user question
-        │
-        ▼
-  Bone Ontology Graph
-  (structured relationships between concepts)
-        │
-        ▼
-  LRM: causal reasoning, hypothesis generation
-        │
-        ▼
-  Response: answer + (optionally) new hypothesis + confidence
-```
-
-**Novel contribution here:** The LRM does not just retrieve and summarise. It traverses the ontology to construct reasoning chains:
-
-> "Cortical thinning at the femoral neck → reduced cross-sectional moment of inertia → lower bending stiffness → increased fracture risk under hip loading. Novel hypothesis: a graded periosteal coating (inspired by the calcified cartilage interface in bone) could restore stiffness without adding bulk."
-
----
-
-### Phase 5 — Feedback loop
-Make the system improve with use.
-
-```
-User provides feedback on a response
-        │
-        ▼
-  Feedback classifier: correction / confirmation / new fact
-        │
-        ▼
-  Ontology updater: add / modify / weight knowledge graph nodes
-        │
-        ▼
-  Updated retrieval and reasoning in subsequent queries
-```
-
-This is what distinguishes BoneLogic from a static RAG system. Each interaction is a data point that refines the system's bone knowledge model.
+### Phase 5 — Feedback loop ⏳
+Make the system improve with use. User feedback (corrections, confirmations) updates the ontology, refining retrieval and reasoning in subsequent queries.
 
 ---
 
 ## Key design principles
 
 **1. Papers are never shown by default.**
-Responses should read like a knowledgeable colleague, not a literature search. References are surfaced only when explicitly requested. The LRM answers from internalised knowledge, backed by retrieved evidence behind the scenes.
+Responses should read like a knowledgeable colleague, not a literature search. References are surfaced only when explicitly requested.
 
 **2. Hypothesis generation, not just recall.**
 Every response has the potential to contain a hypothesis marker — a structured claim that goes beyond the training data, flagged as speculative but grounded in the ontology.
 
 **3. Domain boundary enforcement.**
-Queries outside bone science are politely redirected. This is not a limitation — it is what makes the system authoritative within its domain.
+Queries outside bone science are politely redirected. This is what makes the system authoritative within its domain.
 
 **4. Modular, replaceable components.**
 The LLM, VLM, and LRM are separate modules with defined interfaces. Each can be upgraded independently as better models become available.
@@ -282,17 +156,16 @@ BoneLogic/
 │
 ├── retrieval/                   Phase 2: RAG retrieval engine + CLI/web query interface
 │   ├── retriever.py             BoneLogicRetriever — loads all embeddings, cosine search
-│   │                            Query encoding uses SPECTER2 adhoc_query adapter
 │   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
-├── models/                      Phases 3-4: LLM, VLM, LRM wrappers
-│   └── (coming in Phase 3)
+├── eval/                        Retrieval quality benchmarks
+│   ├── benchmark.json           30 questions across 7 domains with expected keywords
+│   ├── run_eval.py              Computes MRR and Recall@k · saves results.json
+│   └── results.json             Latest benchmark results
 │
-├── reasoning/                   Phase 4: ontology and LRM
-│   └── (coming in Phase 4)
-│
-├── api/                         Phase 5: user-facing interface
-│   └── (coming in Phase 5)
+├── models/                      Phases 3-4: LLM, VLM, LRM wrappers (coming in Phase 3)
+├── reasoning/                   Phase 4: ontology and LRM (coming in Phase 4)
+├── api/                         Phase 5: user-facing interface (coming in Phase 5)
 │
 ├── data/
 │   ├── raw/papers/              Downloaded PDFs — 7,674 files (gitignored)
@@ -304,15 +177,17 @@ BoneLogic/
 │       └── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
 │
 ├── docs/
-│   ├── architecture.md                      ← this file
-│   ├── papers_ingestion_pipeline.md         Detailed walkthrough of papers ingestion
-│   └── textbooks_ingestion_pipeline.md      Detailed walkthrough of textbooks ingestion
+│   ├── architecture.md                    ← this file (high-level overview)
+│   ├── papers_ingestion_pipeline.md       Phase 1 — papers ingestion deep-dive
+│   ├── textbooks_ingestion_pipeline.md    Phase 1b — textbooks ingestion deep-dive
+│   ├── phase2_rag_pipeline.md             Phase 2 — text processing, RAG, evaluation
+│   └── phase3_vlm_plan.md                 Phase 3 — VLM integration plan
 │
 ├── tests/
 │   └── test_ingestion.py
 │
 ├── app.py                       Gradio web UI (http://localhost:7860)
-├── .env                         Your API keys (gitignored — never commit)
+├── .env                         API keys (gitignored — never commit)
 ├── .env.example                 Template showing which keys are needed
 └── requirements.txt
 ```
