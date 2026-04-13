@@ -382,14 +382,21 @@ def ask(question: str, top_k: int):
 
 
 # ── Tab 2: Analyse Image (VLM → cross-modal retrieval → LLM) ─────────────────
-def _describe_image(image_path: str) -> str:
+def _describe_image(image_array) -> str:
     """
-    Send an image to LLaVA via Ollama and return the radiological report.
-    Streams internally but returns the full text.
+    Send an image (numpy H×W×3 array from gr.Image) to LLaVA via Ollama
+    and return the radiological report. Streams internally, returns full text.
     """
     import base64
-    with open(image_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode()
+    import io
+    from PIL import Image as PILImage
+    import numpy as np
+
+    # Convert numpy array → PNG bytes → base64
+    pil_img = PILImage.fromarray(image_array.astype(np.uint8))
+    buf = io.BytesIO()
+    pil_img.save(buf, format="PNG")
+    img_b64 = base64.b64encode(buf.getvalue()).decode()
 
     resp = requests.post(
         OLLAMA_URL,
@@ -412,7 +419,7 @@ def _describe_image(image_path: str) -> str:
     return report
 
 
-def analyse_image(image_path: str, question: str, top_k: int):
+def analyse_image(image_array, question: str, top_k: int):
     """
     Generator for Tab 2.
     Yields (vlm_report, answer_so_far, sources_html) tuples.
@@ -421,7 +428,7 @@ def analyse_image(image_path: str, question: str, top_k: int):
       image → LLaVA report → SPECTER2 embed report → retrieve chunks
             → HuatuoGPT streams answer grounded in report + literature
     """
-    if image_path is None:
+    if image_array is None:
         yield "_Upload an image first._", "", "<p style='color:#888'>No image uploaded.</p>"
         return
 
@@ -431,7 +438,7 @@ def analyse_image(image_path: str, question: str, top_k: int):
     # Step 1 — VLM: describe the image
     yield "_Analysing image…_", "", "<p style='color:#888'>Running VLM…</p>"
     try:
-        report = _describe_image(image_path)
+        report = _describe_image(image_array)
     except requests.ConnectionError:
         yield (
             "⚠️ **Could not connect to Ollama.**\n\nRun `ollama serve` first.",
@@ -596,7 +603,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
         with gr.Row():
             with gr.Column(scale=1):
                 img_upload = gr.Image(
-                    type="filepath",
+                    type="numpy",
                     label="Upload X-ray / MRI",
                 )
             with gr.Column(scale=2):
