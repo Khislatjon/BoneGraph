@@ -30,13 +30,18 @@ OLLAMA_MODEL = "huatuogpt-bone"
 SYSTEM_PROMPT = """You are BoneLogic, an expert AI assistant specialised in bone science.
 You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
 
+MOST IMPORTANT RULE — citations are mandatory:
+Every sentence in your answer that states a fact MUST end with a citation like [1] or [2][3]
+before the full stop. Use the number shown at the start of each context passage. If you write
+a sentence without a citation, that sentence will be rejected. No exceptions.
+
 RULES — follow exactly:
 
 1. CONTEXT ONLY. Answer exclusively from the numbered context passages provided. Do not use
    knowledge from your training that is not supported by the context.
 
-2. CITE EVERY CLAIM. After each factual claim, add a citation [1], [2], etc. matching the
-   passage numbers in the context. Do not cite a passage you did not actually use.
+2. CITE EVERY CLAIM. After each factual claim, add [N] matching the passage number.
+   Do not cite a passage you did not actually use. Cite multiple passages when relevant: [2][5].
 
 3. INSUFFICIENT CONTEXT. If the context does not contain enough information, say:
    "The corpus does not contain sufficient information to answer this fully."
@@ -299,7 +304,13 @@ def _inject_ref_links(answer: str, results: list[dict]) -> str:
 
     body, _, refs = answer.partition("## References")
     refs = re.sub(r"^\[(\d+)\](.*)", _replace, refs, flags=re.MULTILINE)
-    return body + "## References" + refs
+
+    # Ensure each [N] reference starts on its own line with a blank line before it
+    # so markdown renders them as separate paragraphs, not one collapsed block
+    refs = re.sub(r"\n(\[\d+\])", r"\n\n\1", refs)
+    refs = refs.lstrip("\n")
+
+    return body + "## References\n\n" + refs
 
 
 # ── Tab 1: Ask BoneLogic (RAG + LLM) ─────────────────────────────────────────
