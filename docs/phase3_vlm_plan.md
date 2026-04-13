@@ -34,21 +34,241 @@ Image upload (X-ray / MRI)
 
 ## Step 1 — Collect image datasets
 
-| Dataset | Modality | Content | Size | Access |
+### Overview
+
+| Dataset | Modality | Content | Images | Disk | Priority |
+|---|---|---|---|---|---|
+| **MURA** | X-ray | 7 upper extremity parts · normal/abnormal | 40,561 | ~6 GB | ⭐ Start here |
+| **RSNA Bone Age** | Hand X-ray | Paediatric bone age · Greulich-Pyle graded | 12,611 | ~4 GB | ⭐ Start here |
+| **OAI** | X-ray + MRI | Knee osteoarthritis · longitudinal | ~10M images | Very large | Later |
+| **VerSe** | CT | Vertebral labelling + segmentation | ~300 scans | ~15 GB | Later |
+| **Osteoporosis X-ray** | Spine/hip X-ray | Osteoporosis graded | ~4,800 | ~1 GB | Later |
+| **TCIA — TCGA-SARC** | MRI / CT | Bone sarcoma | ~2,200 series | ~50 GB | Later |
+
+---
+
+### Dataset 1 — MURA (Stanford)
+
+**What it contains:** 40,561 X-rays of 7 upper extremity body parts — shoulder, clavicle, elbow, finger, forearm, humerus, wrist. Each study is labelled normal or abnormal by radiologists.
+
+**Why useful for BoneLogic:** Covers cortical bone abnormalities, fractures, and structural changes across multiple bone types with radiologist-validated labels.
+
+**How to get it:**
+
+1. Go to the Stanford ML Group MURA page (search "Stanford MURA dataset")
+2. Fill in the short registration form (name, institution, intended use) — approval is immediate
+3. You receive a download link by email, typically within minutes
+4. Download the archive (~6 GB zip) and extract it
+
+**File structure after extraction:**
+```
+MURA-v1.1/
+├── train/
+│   ├── XR_SHOULDER/
+│   │   ├── patient00001/
+│   │   │   └── study1_positive/     ← abnormal
+│   │   │       ├── image1.png
+│   │   │       └── image2.png
+│   │   └── patient00002/
+│   │       └── study1_negative/     ← normal
+│   ├── XR_ELBOW/
+│   ├── XR_FINGER/
+│   ├── XR_FOREARM/
+│   ├── XR_HUMERUS/
+│   ├── XR_WRIST/
+│   └── XR_HAND/
+├── valid/
+│   └── ... (same structure)
+├── train_labeled_studies.csv        ← path, label (0=normal, 1=abnormal)
+└── valid_labeled_studies.csv
+```
+
+**Labels:** The CSV files map each study folder to a binary label. `study1_positive` = abnormal, `study1_negative` = normal. The folder name is the ground truth.
+
+**Place in BoneLogic:**
+```
+data/raw/images/MURA/train/XR_SHOULDER/patient00001/...
+data/raw/images/MURA/valid/XR_SHOULDER/...
+```
+
+---
+
+### Dataset 2 — RSNA Bone Age Challenge
+
+**What it contains:** 12,611 hand X-rays of children aged 1–18, each labelled with bone age in months by radiologists. Sourced from the Radiological Society of North America 2017 challenge.
+
+**Why useful for BoneLogic:** Hand X-rays show cortical thickness, bone density, growth plate status, and skeletal maturity — all relevant to bone morphology understanding.
+
+**How to get it:**
+
+1. Create a free Kaggle account if you don't have one (kaggle.com)
+2. Search for "RSNA Bone Age" on Kaggle — the competition dataset is publicly available
+3. Accept the competition rules (one click)
+4. Download via the Kaggle web UI, or install the Kaggle CLI:
+
+```bash
+pip install kaggle
+# Place your kaggle.json API token in ~/.kaggle/kaggle.json
+kaggle competitions download -c rsna-bone-age
+unzip rsna-bone-age.zip -d data/raw/images/RSNA_BoneAge/
+```
+
+**File structure after extraction:**
+```
+RSNA_BoneAge/
+├── boneage-training-dataset/
+│   ├── 1377.png
+│   ├── 1378.png
+│   └── ...                          ← filenames are image IDs
+├── boneage-test-dataset/
+│   └── ...
+├── train.csv                        ← id, boneage (months), male (bool)
+└── test.csv                         ← id only (labels withheld for competition)
+```
+
+**Labels:** `train.csv` has `id`, `boneage` (in months), and `male` (sex). Bone age in months is continuous — you can bin it: <120 months = child, 120–216 = adolescent.
+
+**Place in BoneLogic:**
+```
+data/raw/images/RSNA_BoneAge/
+```
+
+---
+
+### Dataset 3 — OAI (NIH Osteoarthritis Initiative) — for later
+
+**What it contains:** Longitudinal study of 4,796 subjects tracked over 8 years. Includes bilateral knee X-rays (posteroanterior and lateral), knee MRI (3T), and DXA scans at multiple time points.
+
+**Why useful for BoneLogic:** Best available public dataset for osteoarthritis progression, knee bone structure, and cartilage loss over time. KL grades (0–4) are provided for osteoarthritis severity.
+
+**How to get it:**
+
+1. Go to nda.nih.gov and create an account
+2. Search for "Osteoarthritis Initiative" — the dataset is under the NIMH Data Archive
+3. Submit a data access request — requires brief description of research use; typically approved within 1–2 weeks
+4. Download is managed through the NDA Download Manager (a Java tool they provide)
+
+**Important:** The full OAI dataset is very large (~several TB for all imaging). Download selectively:
+- Baseline knee X-rays only: ~20 GB, manageable
+- Baseline knee MRI: ~500 GB per time point — only download if you specifically need MRI
+
+**Labels available:** KL grade per knee per visit, BMI, age, sex, pain scores.
+
+---
+
+### Dataset 4 — VerSe (Vertebral Segmentation) — for later
+
+**What it contains:** 374 CT scans with manually annotated vertebral labels (C1–L5) and segmentation masks. From a Grand Challenge competition.
+
+**Why useful for BoneLogic:** Spine CT covers vertebral morphology, fracture detection, and bone density estimation — important for osteoporosis and spinal pathology.
+
+**How to get it:**
+
+1. Search "VerSe 2020 Grand Challenge" — the dataset is hosted on Zenodo and GitHub
+2. No registration required — direct download from Zenodo
+3. Files are in NIfTI format (`.nii.gz`) — requires nibabel or SimpleITK to read
+
+```bash
+pip install nibabel
+```
+
+**File format note:** CT NIfTI files are 3D volumes, not 2D images. You will need a slice extraction step to convert 3D CT volumes into 2D images for LLaVA:
+
+```python
+import nibabel as nib
+import numpy as np
+from PIL import Image
+
+img = nib.load("verse001.nii.gz")
+volume = img.get_fdata()
+# Extract axial slices
+for i in range(volume.shape[2]):
+    slice_2d = volume[:, :, i]
+    # Normalise to 0–255
+    slice_norm = ((slice_2d - slice_2d.min()) / (slice_2d.max() - slice_2d.min()) * 255).astype(np.uint8)
+    Image.fromarray(slice_norm).save(f"verse001_slice_{i:03d}.png")
+```
+
+---
+
+### Dataset 5 — Osteoporosis X-ray (Kaggle) — for later
+
+**What it contains:** Spine and hip X-rays graded for osteoporosis (normal, osteopenia, osteoporosis). Several versions exist on Kaggle under different competition names.
+
+**How to get it:**
+
+1. Search Kaggle for "osteoporosis x-ray classification"
+2. The most used version has ~4,800 images in 3 classes
+3. Download via Kaggle CLI:
+
+```bash
+kaggle datasets download -d <dataset-slug>   # check exact slug on Kaggle
+unzip <file>.zip -d data/raw/images/Osteoporosis_Xray/
+```
+
+---
+
+### Dataset 6 — TCIA (TCGA-SARC bone sarcoma) — for later
+
+**What it contains:** MRI and CT scans of bone sarcoma patients from The Cancer Imaging Archive. Includes pre- and post-treatment scans.
+
+**How to get it:**
+
+1. Go to cancerimagingarchive.net
+2. Search for "TCGA-SARC"
+3. Create a free account — no institutional approval needed
+4. Download via the TCIA Data Retriever desktop app (they provide it), or via their REST API
+
+**File format:** DICOM (`.dcm`). You will need `pydicom` to read them:
+
+```bash
+pip install pydicom
+```
+
+```python
+import pydicom
+import numpy as np
+from PIL import Image
+
+ds = pydicom.dcmread("CT000001.dcm")
+pixel_array = ds.pixel_array.astype(float)
+pixel_norm = ((pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255).astype(np.uint8)
+Image.fromarray(pixel_norm).save("CT000001.png")
+```
+
+---
+
+### Where to place all datasets
+
+```
+data/raw/images/
+├── MURA/
+│   ├── train/
+│   └── valid/
+├── RSNA_BoneAge/
+│   ├── boneage-training-dataset/
+│   └── boneage-test-dataset/
+├── OAI/                             ← add later
+├── VerSe/                           ← add later
+├── Osteoporosis_Xray/               ← add later
+└── TCIA_SARC/                       ← add later
+```
+
+All image data is gitignored — add to `.gitignore`:
+```
+data/raw/images/
+```
+
+---
+
+### What to capture per image (for images.db)
+
+| Field | MURA | RSNA Bone Age | OAI | VerSe |
 |---|---|---|---|---|
-| **MURA** (Stanford) | X-ray | 7 upper extremity parts · normal/abnormal labels | 40K images | Free — register at stanfordmlgroup.github.io |
-| **OAI** (NIH) | X-ray + MRI | Knee osteoarthritis · longitudinal cohort | 4,796 subjects | Free — register at nda.nih.gov |
-| **RSNA Bone Age** | Hand X-ray | Paediatric bone age · Greulich-Pyle graded | 12K images | Kaggle, free |
-| **VerSe** | CT | Vertebral labelling + segmentation | ~300 scans | GitHub, free |
-| **Osteoporosis X-ray** | Spine/hip X-ray | Osteoporosis graded | ~5K | Kaggle, free |
-| **TCIA — TCGA-SARC** | MRI / CT | Bone sarcoma | ~100 cases | Free — register at cancerimagingarchive.net |
-
-**Start with:** MURA + RSNA Bone Age. Both are on Kaggle, no institutional approval needed, and cover the most common bone X-ray findings.
-
-**Capture per image:**
-- File path, modality (xray / mri / ct), body part (femur, spine, hand, knee, wrist…)
-- Pathology labels if provided (normal, abnormal, osteoporosis, fracture)
-- Source dataset name, subject ID
+| `modality` | xray | xray | xray / mri | ct |
+| `body_part` | from folder name (XR_WRIST etc.) | hand | knee | spine |
+| `label` | normal / abnormal | bone_age_months | KL grade 0–4 | vertebra level |
+| `subject_id` | patient folder name | image ID from CSV | subject ID | scan filename |
 
 ---
 
