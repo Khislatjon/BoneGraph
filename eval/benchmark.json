@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "domain": "mechanics",
+    "question": "How does cortical porosity affect fracture toughness in bone?",
+    "expected_keywords": ["fracture toughness", "cortical porosity"]
+  },
+  {
+    "id": 2,
+    "domain": "mechanics",
+    "question": "What is the elastic modulus of cortical bone and how is it measured?",
+    "expected_keywords": ["elastic modulus", "cortical bone"]
+  },
+  {
+    "id": 3,
+    "domain": "mechanics",
+    "question": "How do cracks propagate in cortical bone under loading?",
+    "expected_keywords": ["crack", "cortical bone"]
+  },
+  {
+    "id": 4,
+    "domain": "mechanics",
+    "question": "How does fatigue damage accumulate in bone under cyclic loading?",
+    "expected_keywords": ["fatigue", "cyclic"]
+  },
+  {
+    "id": 5,
+    "domain": "mechanics",
+    "question": "How does bone mineral content influence stiffness and strength?",
+    "expected_keywords": ["mineral", "stiffness"]
+  },
+  {
+    "id": 6,
+    "domain": "morphology",
+    "question": "What is the structure of the Haversian system in cortical bone?",
+    "expected_keywords": ["Haversian", "osteon"]
+  },
+  {
+    "id": 7,
+    "domain": "morphology",
+    "question": "How is trabecular bone architecture organised and how does it vary by site?",
+    "expected_keywords": ["trabecular", "architecture"]
+  },
+  {
+    "id": 8,
+    "domain": "morphology",
+    "question": "What is the role of collagen fibril orientation in bone mechanical properties?",
+    "expected_keywords": ["collagen", "fibril"]
+  },
+  {
+    "id": 9,
+    "domain": "morphology",
+    "question": "How are osteocyte lacunar-canalicular networks organised in bone?",
+    "expected_keywords": ["osteocyte", "canalicular"]
+  },
+  {
+    "id": 10,
+    "domain": "morphology",
+    "question": "How does bone mineral density change with ageing?",
+    "expected_keywords": ["bone mineral density", "age"]
+  },
+  {
+    "id": 11,
+    "domain": "pathology",
+    "question": "How does osteoporosis alter trabecular microstructure?",
+    "expected_keywords": ["osteoporosis", "trabecular"]
+  },
+  {
+    "id": 12,
+    "domain": "pathology",
+    "question": "What are the biomechanical consequences of osteoporosis on fracture risk?",
+    "expected_keywords": ["osteoporosis", "fracture"]
+  },
+  {
+    "id": 13,
+    "domain": "pathology",
+    "question": "How does Paget's disease affect bone structure and mechanics?",
+    "expected_keywords": ["Paget"]
+  },
+  {
+    "id": 14,
+    "domain": "pathology",
+    "question": "What causes stress fractures and how do they develop?",
+    "expected_keywords": ["stress fracture", "fatigue"]
+  },
+  {
+    "id": 15,
+    "domain": "pathology",
+    "question": "How does osteogenesis imperfecta affect collagen and bone fragility?",
+    "expected_keywords": ["osteogenesis imperfecta", "collagen"]
+  },
+  {
+    "id": 16,
+    "domain": "biomaterials",
+    "question": "How is hydroxyapatite used in bone scaffold design?",
+    "expected_keywords": ["hydroxyapatite", "scaffold"]
+  },
+  {
+    "id": 17,
+    "domain": "biomaterials",
+    "question": "What mechanical and biological properties are required for bone substitutes?",
+    "expected_keywords": ["scaffold", "bone"]
+  },
+  {
+    "id": 18,
+    "domain": "biomaterials",
+    "question": "How does 3D printing improve bone tissue engineering scaffolds?",
+    "expected_keywords": ["scaffold", "tissue engineering"]
+  },
+  {
+    "id": 19,
+    "domain": "biomaterials",
+    "question": "What is the role of calcium phosphate in bone biomaterials?",
+    "expected_keywords": ["calcium phosphate", "bone"]
+  },
+  {
+    "id": 20,
+    "domain": "biomaterials",
+    "question": "How do bone grafts integrate with host bone tissue?",
+    "expected_keywords": ["bone graft", "integration"]
+  },
+  {
+    "id": 21,
+    "domain": "simulation",
+    "question": "How do finite element models simulate bone mechanical behaviour?",
+    "expected_keywords": ["finite element", "bone"]
+  },
+  {
+    "id": 22,
+    "domain": "simulation",
+    "question": "How are micro-CT images used to build subject-specific bone models?",
+    "expected_keywords": ["micro-CT"]
+  },
+  {
+    "id": 23,
+    "domain": "simulation",
+    "question": "How do multiscale models link nanoscale collagen-mineral structure to macroscale bone mechanics?",
+    "expected_keywords": ["collagen", "mineral", "mechanical"]
+  },
+  {
+    "id": 24,
+    "domain": "imaging",
+    "question": "How does DXA measure bone mineral density and what are its limitations?",
+    "expected_keywords": ["DXA", "bone mineral density"]
+  },
+  {
+    "id": 25,
+    "domain": "imaging",
+    "question": "How is micro-CT used to characterise trabecular bone microstructure?",
+    "expected_keywords": ["micro-CT", "trabecular"]
+  },
+  {
+    "id": 26,
+    "domain": "mechanobiology",
+    "question": "How do osteocytes sense mechanical loading in bone?",
+    "expected_keywords": ["osteocyte", "mechanosensing"]
+  },
+  {
+    "id": 27,
+    "domain": "mechanobiology",
+    "question": "How does bone remodelling respond to changes in mechanical loading?",
+    "expected_keywords": ["remodelling", "loading"]
+  },
+  {
+    "id": 28,
+    "domain": "mechanobiology",
+    "question": "What signals do osteocytes send to activate osteoclasts and osteoblasts?",
+    "expected_keywords": ["osteocyte", "osteoclast", "osteoblast"]
+  },
+  {
+    "id": 29,
+    "domain": "mechanobiology",
+    "question": "How does fluid flow in the lacuno-canalicular network drive bone adaptation?",
+    "expected_keywords": ["fluid flow", "canalicular"]
+  },
+  {
+    "id": 30,
+    "domain": "mechanobiology",
+    "question": "How does immobilisation or disuse lead to bone loss?",
+    "expected_keywords": ["disuse", "bone loss"]
+  }
+]

@@ -1,0 +1,486 @@
+{
+  "top_k": 10,
+  "n_questions": 30,
+  "aggregate": {
+    "mrr": 0.9278,
+    "recall@1": 0.8667,
+    "recall@3": 1.0,
+    "recall@5": 1.0,
+    "recall@10": 1.0
+  },
+  "per_domain": {
+    "biomaterials": {
+      "mrr": 0.8667
+    },
+    "imaging": {
+      "mrr": 1.0
+    },
+    "mechanics": {
+      "mrr": 0.9
+    },
+    "mechanobiology": {
+      "mrr": 1.0
+    },
+    "morphology": {
+      "mrr": 1.0
+    },
+    "pathology": {
+      "mrr": 0.9
+    },
+    "simulation": {
+      "mrr": 0.8333
+    }
+  },
+  "questions": [
+    {
+      "id": 1,
+      "domain": "mechanics",
+      "question": "How does cortical porosity affect fracture toughness in bone?",
+      "expected_keywords": [
+        "fracture toughness",
+        "cortical porosity"
+      ],
+      "first_relevant_rank": 2,
+      "reciprocal_rank": 0.5,
+      "recall@1": false,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 2,
+      "domain": "mechanics",
+      "question": "What is the elastic modulus of cortical bone and how is it measured?",
+      "expected_keywords": [
+        "elastic modulus",
+        "cortical bone"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 3,
+      "domain": "mechanics",
+      "question": "How do cracks propagate in cortical bone under loading?",
+      "expected_keywords": [
+        "crack",
+        "cortical bone"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 4,
+      "domain": "mechanics",
+      "question": "How does fatigue damage accumulate in bone under cyclic loading?",
+      "expected_keywords": [
+        "fatigue",
+        "cyclic"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 5,
+      "domain": "mechanics",
+      "question": "How does bone mineral content influence stiffness and strength?",
+      "expected_keywords": [
+        "mineral",
+        "stiffness"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 6,
+      "domain": "morphology",
+      "question": "What is the structure of the Haversian system in cortical bone?",
+      "expected_keywords": [
+        "Haversian",
+        "osteon"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 7,
+      "domain": "morphology",
+      "question": "How is trabecular bone architecture organised and how does it vary by site?",
+      "expected_keywords": [
+        "trabecular",
+        "architecture"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 8,
+      "domain": "morphology",
+      "question": "What is the role of collagen fibril orientation in bone mechanical properties?",
+      "expected_keywords": [
+        "collagen",
+        "fibril"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 9,
+      "domain": "morphology",
+      "question": "How are osteocyte lacunar-canalicular networks organised in bone?",
+      "expected_keywords": [
+        "osteocyte",
+        "canalicular"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 10,
+      "domain": "morphology",
+      "question": "How does bone mineral density change with ageing?",
+      "expected_keywords": [
+        "bone mineral density",
+        "age"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 11,
+      "domain": "pathology",
+      "question": "How does osteoporosis alter trabecular microstructure?",
+      "expected_keywords": [
+        "osteoporosis",
+        "trabecular"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 12,
+      "domain": "pathology",
+      "question": "What are the biomechanical consequences of osteoporosis on fracture risk?",
+      "expected_keywords": [
+        "osteoporosis",
+        "fracture"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 13,
+      "domain": "pathology",
+      "question": "How does Paget's disease affect bone structure and mechanics?",
+      "expected_keywords": [
+        "Paget"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 14,
+      "domain": "pathology",
+      "question": "What causes stress fractures and how do they develop?",
+      "expected_keywords": [
+        "stress fracture",
+        "fatigue"
+      ],
+      "first_relevant_rank": 2,
+      "reciprocal_rank": 0.5,
+      "recall@1": false,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 15,
+      "domain": "pathology",
+      "question": "How does osteogenesis imperfecta affect collagen and bone fragility?",
+      "expected_keywords": [
+        "osteogenesis imperfecta",
+        "collagen"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 16,
+      "domain": "biomaterials",
+      "question": "How is hydroxyapatite used in bone scaffold design?",
+      "expected_keywords": [
+        "hydroxyapatite",
+        "scaffold"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 17,
+      "domain": "biomaterials",
+      "question": "What mechanical and biological properties are required for bone substitutes?",
+      "expected_keywords": [
+        "scaffold",
+        "bone"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 18,
+      "domain": "biomaterials",
+      "question": "How does 3D printing improve bone tissue engineering scaffolds?",
+      "expected_keywords": [
+        "scaffold",
+        "tissue engineering"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 19,
+      "domain": "biomaterials",
+      "question": "What is the role of calcium phosphate in bone biomaterials?",
+      "expected_keywords": [
+        "calcium phosphate",
+        "bone"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 20,
+      "domain": "biomaterials",
+      "question": "How do bone grafts integrate with host bone tissue?",
+      "expected_keywords": [
+        "bone graft",
+        "integration"
+      ],
+      "first_relevant_rank": 3,
+      "reciprocal_rank": 0.3333333333333333,
+      "recall@1": false,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 21,
+      "domain": "simulation",
+      "question": "How do finite element models simulate bone mechanical behaviour?",
+      "expected_keywords": [
+        "finite element",
+        "bone"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 22,
+      "domain": "simulation",
+      "question": "How are micro-CT images used to build subject-specific bone models?",
+      "expected_keywords": [
+        "micro-CT"
+      ],
+      "first_relevant_rank": 2,
+      "reciprocal_rank": 0.5,
+      "recall@1": false,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 23,
+      "domain": "simulation",
+      "question": "How do multiscale models link nanoscale collagen-mineral structure to macroscale bone mechanics?",
+      "expected_keywords": [
+        "collagen",
+        "mineral",
+        "mechanical"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 24,
+      "domain": "imaging",
+      "question": "How does DXA measure bone mineral density and what are its limitations?",
+      "expected_keywords": [
+        "DXA",
+        "bone mineral density"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 25,
+      "domain": "imaging",
+      "question": "How is micro-CT used to characterise trabecular bone microstructure?",
+      "expected_keywords": [
+        "micro-CT",
+        "trabecular"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 26,
+      "domain": "mechanobiology",
+      "question": "How do osteocytes sense mechanical loading in bone?",
+      "expected_keywords": [
+        "osteocyte",
+        "mechanosensing"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 27,
+      "domain": "mechanobiology",
+      "question": "How does bone remodelling respond to changes in mechanical loading?",
+      "expected_keywords": [
+        "remodelling",
+        "loading"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 28,
+      "domain": "mechanobiology",
+      "question": "What signals do osteocytes send to activate osteoclasts and osteoblasts?",
+      "expected_keywords": [
+        "osteocyte",
+        "osteoclast",
+        "osteoblast"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 29,
+      "domain": "mechanobiology",
+      "question": "How does fluid flow in the lacuno-canalicular network drive bone adaptation?",
+      "expected_keywords": [
+        "fluid flow",
+        "canalicular"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    },
+    {
+      "id": 30,
+      "domain": "mechanobiology",
+      "question": "How does immobilisation or disuse lead to bone loss?",
+      "expected_keywords": [
+        "disuse",
+        "bone loss"
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "recall@1": true,
+      "recall@3": true,
+      "recall@5": true,
+      "recall@10": true
+    }
+  ]
+}
