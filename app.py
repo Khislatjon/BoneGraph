@@ -1,38 +1,88 @@
 """
 app.py
 =======
-BoneLogic — Gradio web UI for querying the bone science corpus.
+BoneLogic — Gradio web UI.
+
+Tab 1  Ask BoneLogic   Query → retrieve top-k chunks → stream HuatuoGPT-o1-8B answer
+Tab 2  Search Corpus   Raw semantic search (chunks ranked by cosine similarity)
 
 Run with:
     python app.py
 
-Opens automatically in your browser at http://localhost:7860
+Opens automatically at http://localhost:7860
+Requires Ollama running with the huatuogpt-bone model:
+    ollama serve   (in a separate terminal, if not already running as a service)
 """
 
+import json
 import sqlite3
 import time
+import requests
 import gradio as gr
+
 from retrieval.retriever import BoneLogicRetriever
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 
+# ── Ollama config ─────────────────────────────────────────────────────────────
+OLLAMA_URL   = "http://localhost:11434/api/chat"
+OLLAMA_MODEL = "huatuogpt-bone"
+
+SYSTEM_PROMPT = """You are BoneLogic, an expert AI assistant specialised in bone science.
+You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
+
+RULES — follow exactly:
+
+1. CONTEXT ONLY. Answer exclusively from the numbered context passages provided. Do not use
+   knowledge from your training that is not supported by the context.
+
+2. CITE EVERY CLAIM. After each factual claim, add a citation [1], [2], etc. matching the
+   passage numbers in the context. Do not cite a passage you did not actually use.
+
+3. INSUFFICIENT CONTEXT. If the context does not contain enough information, say:
+   "The corpus does not contain sufficient information to answer this fully."
+   Then summarise the most relevant available context and suggest a more specific query.
+
+4. OUT-OF-DOMAIN. If the question is not about bone science (morphology, structure-function
+   relationships, mechanics, pathology, imaging, biomaterials, or simulation), respond:
+   "This question is outside BoneLogic's domain. I cover bone science only."
+
+5. HYPOTHESES. If you extend beyond direct evidence, mark it explicitly:
+   **Hypothesis:** [speculative claim]
+   Use this sparingly — only for well-grounded extrapolations, not speculation.
+
+6. EVIDENCE QUALITY. Distinguish study types where relevant: systematic reviews and RCTs
+   carry more weight than single studies; in vitro and animal data should be flagged as such.
+
+7. UNCERTAINTY. When evidence is limited, conflicting, or inconclusive, say so clearly.
+   Never overstate confidence.
+
+8. NO FABRICATION. Do not invent authors, titles, statistics, or any data not present in
+   the context passages.
+
+9. STRUCTURE. Use markdown headers and bullet points for multi-part answers. Be concise —
+   synthesise the evidence; do not copy-paste large verbatim passages.
+
+10. REFERENCES SECTION. End every answer with a ## References section listing each cited
+    passage as: [N] Title — Authors (Year) · Venue"""
+
+
+# ── Startup: load retriever and corpus stats ──────────────────────────────────
+print("Loading BoneLogic retriever...")
+retriever = BoneLogicRetriever()
+retriever.load()
+
 
 def _load_stats() -> dict:
-    """Read live corpus stats from the databases."""
     stats = {}
-
     conn = sqlite3.connect(PAPERS_DB_PATH)
+    stats["papers_total"]    = conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0]
     stats["pdfs_downloaded"] = conn.execute(
         "SELECT COUNT(*) FROM papers WHERE pdf_local_path IS NOT NULL"
-    ).fetchone()[0]
-    stats["papers_total"] = conn.execute(
-        "SELECT COUNT(*) FROM papers"
     ).fetchone()[0]
     conn.close()
 
     conn = sqlite3.connect(TEXTBOOKS_DB_PATH)
-    stats["textbooks"] = conn.execute(
-        "SELECT COUNT(*) FROM textbooks"
-    ).fetchone()[0]
+    stats["textbooks"] = conn.execute("SELECT COUNT(*) FROM textbooks").fetchone()[0]
     conn.close()
 
     conn = sqlite3.connect(CHUNKS_DB_PATH)
@@ -44,157 +94,330 @@ def _load_stats() -> dict:
     return stats
 
 
-# ── Load retriever and stats once at startup ──────────────────────────────────
-print("Loading BoneLogic retriever...")
-retriever = BoneLogicRetriever()
-retriever.load()
 STATS = _load_stats()
-print(f"Retriever ready. {STATS['pdfs_downloaded']:,} papers | {STATS['textbooks']} textbooks | {STATS['chunks']:,} chunks")
+print(
+    f"Ready — {STATS['pdfs_downloaded']:,} papers · "
+    f"{STATS['textbooks']} textbooks · "
+    f"{STATS['chunks']:,} chunks"
+)
 
 
-# ── Query function ────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def _build_context(results: list[dict]) -> str:
+    """Format retrieved chunks as a numbered context block for the LLM."""
+    parts = []
+    for r in results:
+        label = f"[{r['rank']}]"
+        if r["source_type"] == "paper":
+            authors = r["authors"] or "Unknown"
+            year    = r["year"] or ""
+            venue   = r["venue"] or ""
+            header  = f"{label} {r['title']} — {authors} ({year}) · {venue}"
+        else:
+            header = f"{label} {r['title']} [Textbook]"
+        parts.append(f"{header}\n{r['text'].strip()}")
+    return "\n\n".join(parts)
+
+
+def _build_sources_html(results: list[dict], collapsible: bool = False) -> str:
+    """
+    Render retrieved chunks as a styled HTML panel.
+
+    collapsible=True  →  show first 5 lines of text with a Read more / Show less toggle.
+                         Uses inline JS so it works inside Gradio's gr.HTML component.
+    collapsible=False →  show full text (used by Tab 2 / Search Corpus).
+    """
+    if not results:
+        return "<p style='color:#888'>No relevant passages found.</p>"
+
+    # Characters that roughly fill 3 lines inside the panel (~80 chars/line)
+    PREVIEW_CHARS = 240
+
+    html = ""
+    for r in results:
+        is_tb      = r["source_type"] == "textbook"
+        border     = "#2ca02c" if is_tb else "#1f77b4"
+        badge_bg   = border
+        icon       = "📚" if is_tb else "📄"
+        source_lbl = "Textbook" if is_tb else "Paper"
+
+        meta_parts = []
+        if r["authors"]:     meta_parts.append(r["authors"])
+        if r["year"]:        meta_parts.append(str(r["year"]))
+        if r["venue"]:       meta_parts.append(f"<em style='color:green'>{r['venue']}</em>")
+        if r["page_number"]: meta_parts.append(f"p.&nbsp;{r['page_number']}")
+        meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
+
+        text = r["text"].strip().replace("\n", " ")
+
+        if collapsible and len(text) > PREVIEW_CHARS:
+            uid      = f"bl_src_{r['rank']}"
+            preview  = text[:PREVIEW_CHARS].rsplit(" ", 1)[0] + "…"
+            text_block = f"""
+            <div style="background:white; border:1px solid #e0e0e0; border-radius:4px;
+                        padding:10px 14px; font-size:0.87em; line-height:1.6; color:#000000 !important;">
+                <span id="{uid}_short" style="color:#000000 !important;">{preview}</span>
+                <span id="{uid}_full" style="display:none; color:#000000 !important;">{text}</span>
+                <br>
+                <button id="{uid}_btn"
+                    onclick="
+                        var s=document.getElementById('{uid}_short');
+                        var f=document.getElementById('{uid}_full');
+                        var b=document.getElementById('{uid}_btn');
+                        if(f.style.display==='none'){{
+                            s.style.display='none'; f.style.display='inline'; b.textContent='Show less';
+                        }} else {{
+                            f.style.display='none'; s.style.display='inline'; b.textContent='Read more';
+                        }}"
+                    style="margin-top:6px; background:none; border:none; color:#1f77b4;
+                           font-size:0.85em; cursor:pointer; padding:0; font-weight:600;">
+                    Read more
+                </button>
+            </div>"""
+        else:
+            text_block = f"""
+            <div style="background:white; border:1px solid #e0e0e0; border-radius:4px;
+                        padding:10px 14px; font-size:0.87em; line-height:1.6;
+                        color:#000000 !important;">{text}</div>"""
+
+        html += f"""
+        <div style="border-left:4px solid {border}; background:#f8f9fa;
+                    border-radius:6px; padding:14px 18px; margin-bottom:12px;">
+            <div style="margin-bottom:4px">
+                <span style="background:{badge_bg}; color:white; border-radius:10px;
+                             padding:2px 8px; font-size:0.82em; font-weight:bold;
+                             margin-right:8px;">[{r['rank']}] {r['score']:.3f}</span>
+                <strong style="color:#000000;">{icon} {r['title']}</strong>
+                <span style="color:#666; font-size:0.8em; margin-left:8px">{source_lbl}</span>
+            </div>
+            <div style="color:green; font-size:0.85em; margin-bottom:8px">{meta_line}</div>
+            {text_block}
+        </div>
+        """
+    return html
+
+
+def _stream_ollama(messages: list[dict]):
+    """
+    Generator that streams tokens from Ollama.
+    Yields str tokens. Raises requests.ConnectionError if Ollama is not running.
+    """
+    resp = requests.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_MODEL, "messages": messages, "stream": True},
+        stream=True,
+        timeout=180,
+    )
+    resp.raise_for_status()
+    for line in resp.iter_lines():
+        if line:
+            data = json.loads(line)
+            if not data.get("done"):
+                yield data["message"]["content"]
+
+
+# ── Tab 1: Ask BoneLogic (RAG + LLM) ─────────────────────────────────────────
+def ask(question: str, top_k: int):
+    """
+    Generator for Gradio streaming.
+    Yields (answer_so_far: str, sources_html: str) tuples.
+    Sources are emitted immediately after retrieval; answer streams token by token.
+    """
+    question = question.strip()
+    if not question:
+        yield "", "<p style='color:#888'>Enter a question above and press Ask.</p>"
+        return
+
+    # Retrieve relevant chunks
+    results = retriever.query(question, top_k=int(top_k))
+    sources_html = _build_sources_html(results, collapsible=True)
+
+    # Show sources immediately, blank answer while LLM warms up
+    yield "_Thinking…_", sources_html
+
+    # Build LLM messages
+    context = _build_context(results)
+    messages = [
+        {"role": "system",  "content": SYSTEM_PROMPT},
+        {"role": "user",    "content": f"Context passages:\n\n{context}\n\n---\n\nQuestion: {question}"},
+    ]
+
+    # Stream answer
+    answer = ""
+    try:
+        for token in _stream_ollama(messages):
+            answer += token
+            yield answer, sources_html
+    except requests.ConnectionError:
+        yield (
+            "⚠️ **Could not connect to Ollama.**\n\n"
+            "Make sure the model is running:\n"
+            "```\nollama serve\n```\n"
+            "And the model is loaded:\n"
+            "```\nollama run huatuogpt-bone\n```",
+            sources_html,
+        )
+    except requests.HTTPError as e:
+        yield f"⚠️ **Ollama error:** {e}", sources_html
+    except Exception as e:
+        yield f"⚠️ **Unexpected error:** {e}", sources_html
+
+
+# ── Tab 2: Search Corpus (raw retrieval) ──────────────────────────────────────
 def search(query: str, top_k: int, source_filter: str) -> str:
-    """
-    Execute a query and return formatted HTML results.
-    Called by Gradio on every search button click or Enter press.
-    """
     if not query.strip():
         return "<p style='color:#888'>Enter a query above and press Search.</p>"
 
-    t0 = time.time()
+    t0      = time.time()
     results = retriever.query(query.strip(), top_k=int(top_k))
-    elapsed_ms = (time.time() - t0) * 1000
+    elapsed = (time.time() - t0) * 1000
 
-    # Apply source filter
     if source_filter == "Papers only":
         results = [r for r in results if r["source_type"] == "paper"]
     elif source_filter == "Textbooks only":
         results = [r for r in results if r["source_type"] == "textbook"]
 
     if not results:
-        return "<p style='color:#888'>No results found. Try changing the source filter.</p>"
+        return "<p style='color:#888'>No results. Try changing the source filter.</p>"
 
-    # Build HTML output
-    html = f"<p style='color:#555; margin-bottom:16px'><strong>{len(results)} results</strong> &nbsp;·&nbsp; {elapsed_ms:.0f}ms</p>"
-
-    for r in results:
-        is_textbook = r["source_type"] == "textbook"
-        border_color = "#2ca02c" if is_textbook else "#1f77b4"
-        badge_color  = "#2ca02c" if is_textbook else "#1f77b4"
-        icon         = "📚" if is_textbook else "📄"
-        source_label = "Textbook" if is_textbook else "Paper"
-
-        # Metadata line
-        meta_parts = []
-        if r["authors"]:
-            meta_parts.append(r["authors"])
-        if r["year"]:
-            meta_parts.append(str(r["year"]))
-        if r["venue"]:
-            meta_parts.append(f"<em style='color:#000000'>{r['venue']}</em>")
-        if r["page_number"]:
-            meta_parts.append(f"p.&nbsp;{r['page_number']}")
-        meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
-
-        # Full chunk text — no truncation
-        full_text = r["text"].strip().replace("\n", " ")
-
-        html += f"""
-        <div style="
-            border-left: 4px solid {border_color};
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 14px;
-        ">
-            <div style="margin-bottom:4px">
-                <span style="
-                    background:{badge_color}; color:white;
-                    border-radius:10px; padding:2px 10px;
-                    font-size:0.85em; font-weight:bold;
-                    margin-right:8px;
-                ">{r['score']:.3f}</span>
-                <strong style="color:#000000;">{icon} {r['title']}</strong>
-                <span style="color:#555; font-size:0.8em; margin-left:8px">{source_label}</span>
-            </div>
-            <div style="color:#000000; font-size:0.87em; margin-bottom:8px">{meta_line}</div>
-            <div style="
-                background:white; border:1px solid #e0e0e0;
-                border-radius:4px; padding:10px 14px;
-                font-size:0.88em; line-height:1.6; color:#000000;
-            ">{full_text}</div>
-        </div>
-        """
-
+    html = (
+        f"<p style='color:#555; margin-bottom:16px'>"
+        f"<strong>{len(results)} results</strong> &nbsp;·&nbsp; {elapsed:.0f}ms</p>"
+    )
+    html += _build_sources_html(results)
     return html
 
 
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
 
-    gr.Markdown(f"""
-    # 🦴 BoneLogic — Bone Science Knowledge Retrieval
-    Search across **{STATS['pdfs_downloaded']:,} downloaded papers** and **{STATS['textbooks']} textbooks** using semantic similarity (SPECTER2).
-    Results are ranked by relevance to your query.
-    """)
+    gr.Markdown(
+        f"# 🦴 BoneLogic\n"
+        f"Intelligent reasoning system for bone science · "
+        f"{STATS['pdfs_downloaded']:,} papers · "
+        f"{STATS['textbooks']} textbooks · "
+        f"{STATS['chunks']:,} chunks · SPECTER2 + HuatuoGPT-o1-8B"
+    )
 
-    with gr.Row():
-        with gr.Column(scale=4):
-            query_box = gr.Textbox(
-                placeholder="e.g. cortical bone fracture toughness, osteoporosis trabecular density...",
-                label="Query",
-                lines=1,
-            )
-        with gr.Column(scale=1):
-            search_btn = gr.Button("🔍 Search", variant="primary")
-
-    with gr.Row():
-        top_k_slider = gr.Slider(
-            minimum=3, maximum=30, value=10, step=1, label="Number of results"
-        )
-        source_filter = gr.Radio(
-            choices=["All", "Papers only", "Textbooks only"],
-            value="All",
-            label="Source filter",
+    # ── Tab 1 ──────────────────────────────────────────────────────────────────
+    with gr.Tab("Ask BoneLogic"):
+        gr.Markdown(
+            "Ask a question about bone science. "
+            "The system retrieves the most relevant passages from the corpus and "
+            "streams a reasoned answer grounded in that evidence."
         )
 
-    results_box = gr.HTML(
-        value="<p style='color:#888'>Enter a query above and press Search.</p>"
-    )
+        with gr.Row():
+            with gr.Column(scale=5):
+                q_box = gr.Textbox(
+                    placeholder="e.g. How does cortical porosity affect fracture toughness in osteoporotic bone?",
+                    label="Question",
+                    lines=2,
+                )
+            with gr.Column(scale=1, min_width=120):
+                ask_btn = gr.Button("🧠 Ask", variant="primary", scale=1)
 
-    # Example queries
-    gr.Markdown("#### Try an example:")
-    with gr.Row():
-        examples = [
-            "cortical bone fracture toughness",
-            "osteoporosis trabecular microstructure",
-            "bone scaffold hydroxyapatite tissue engineering",
-            "finite element model femur stress",
-            "osteoblast osteoclast bone remodelling",
-            "vertebral bone biomechanics spine",
-        ]
-        for example in examples:
-            gr.Button(f"🔎 {example}", size="sm").click(
-                fn=lambda q=example: (q, search(q, 10, "All")),
-                outputs=[query_box, results_box],
+        with gr.Row():
+            ask_top_k = gr.Slider(
+                minimum=3, maximum=20, value=8, step=1,
+                label="Passages retrieved (top-k)",
             )
 
-    # Wire up search button and Enter key
-    search_btn.click(
-        fn=search,
-        inputs=[query_box, top_k_slider, source_filter],
-        outputs=results_box,
-    )
-    query_box.submit(
-        fn=search,
-        inputs=[query_box, top_k_slider, source_filter],
-        outputs=results_box,
-    )
+        with gr.Row():
+            with gr.Column(scale=3):
+                answer_md = gr.Markdown(
+                    value="_Enter a question and press Ask._",
+                    label="Answer",
+                )
+            with gr.Column(scale=2):
+                sources_html = gr.HTML(
+                    value="<p style='color:#888'>Sources will appear here after retrieval.</p>",
+                    label="Retrieved passages",
+                )
 
-    gr.Markdown(f"""
-    ---
-    **Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · {STATS['papers_total']:,} papers (metadata) · {STATS['textbooks']} textbooks · {STATS['chunks']:,} chunks · SPECTER2 768-dim embeddings
-    """)
+        # Example questions
+        gr.Markdown("#### Example questions:")
+        with gr.Row():
+            ex_questions = [
+                "How does trabecular architecture change in osteoporosis?",
+                "What determines fracture toughness in cortical bone?",
+                "How does hydroxyapatite crystallinity affect scaffold performance?",
+                "What is the role of osteocytes in mechanosensing?",
+                "How does bone remodelling respond to fatigue loading?",
+            ]
+            for eq in ex_questions:
+                gr.Button(eq, size="sm").click(
+                    fn=lambda q=eq: q,
+                    outputs=q_box,
+                )
+
+        # Wire streaming
+        ask_btn.click(
+            fn=ask,
+            inputs=[q_box, ask_top_k],
+            outputs=[answer_md, sources_html],
+        )
+        q_box.submit(
+            fn=ask,
+            inputs=[q_box, ask_top_k],
+            outputs=[answer_md, sources_html],
+        )
+
+    # ── Tab 2 ──────────────────────────────────────────────────────────────────
+    with gr.Tab("Search Corpus"):
+        gr.Markdown(
+            "Raw semantic search — returns the top-k passages ranked by cosine similarity "
+            "to your query (SPECTER2 embeddings). No LLM involved."
+        )
+
+        with gr.Row():
+            with gr.Column(scale=4):
+                s_box = gr.Textbox(
+                    placeholder="e.g. cortical bone fracture toughness, osteoblast differentiation...",
+                    label="Query",
+                    lines=1,
+                )
+            with gr.Column(scale=1):
+                search_btn = gr.Button("🔍 Search", variant="primary")
+
+        with gr.Row():
+            s_top_k = gr.Slider(minimum=3, maximum=30, value=10, step=1,
+                                label="Number of results")
+            s_filter = gr.Radio(
+                choices=["All", "Papers only", "Textbooks only"],
+                value="All", label="Source filter",
+            )
+
+        s_results = gr.HTML(
+            value="<p style='color:#888'>Enter a query above and press Search.</p>"
+        )
+
+        with gr.Row():
+            s_examples = [
+                "cortical bone fracture toughness",
+                "osteoporosis trabecular microstructure",
+                "bone scaffold hydroxyapatite tissue engineering",
+                "finite element model femur stress",
+                "osteoblast osteoclast bone remodelling",
+                "vertebral biomechanics spine loading",
+            ]
+            for ex in s_examples:
+                gr.Button(f"🔎 {ex}", size="sm").click(
+                    fn=lambda q=ex: (q, search(q, 10, "All")),
+                    outputs=[s_box, s_results],
+                )
+
+        search_btn.click(fn=search, inputs=[s_box, s_top_k, s_filter], outputs=s_results)
+        s_box.submit(fn=search, inputs=[s_box, s_top_k, s_filter], outputs=s_results)
+
+    gr.Markdown(
+        f"---\n"
+        f"**Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · "
+        f"{STATS['papers_total']:,} papers (metadata) · "
+        f"{STATS['textbooks']} textbooks · "
+        f"{STATS['chunks']:,} chunks · "
+        f"SPECTER2 768-dim embeddings · HuatuoGPT-o1-8B via Ollama"
+    )
 
 
 if __name__ == "__main__":
