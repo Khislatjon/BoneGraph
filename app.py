@@ -144,7 +144,24 @@ def _build_sources_html(results: list[dict], collapsible: bool = False) -> str:
         meta_parts = []
         if r["authors"]:     meta_parts.append(r["authors"])
         if r["year"]:        meta_parts.append(str(r["year"]))
-        if r["venue"]:       meta_parts.append(f"<em style='color:green'>{r['venue']}</em>")
+        if r["venue"]:
+            venue = r["venue"]
+            # Deduplicate "Name/Name" patterns (exact or near-duplicate parts)
+            if "/" in venue:
+                parts = [p.strip() for p in venue.split("/")]
+                seen = [parts[0]]
+                for p in parts[1:]:
+                    # Skip if this part is contained in or contains an already-seen part
+                    norm = p.lower().replace("the ", "").strip()
+                    already = any(
+                        norm in s.lower().replace("the ", "").strip() or
+                        s.lower().replace("the ", "").strip() in norm
+                        for s in seen
+                    )
+                    if not already:
+                        seen.append(p)
+                venue = " / ".join(seen)
+            meta_parts.append(f"<em style='color:green'>{venue}</em>")
         if r["page_number"]: meta_parts.append(f"p.&nbsp;{r['page_number']}")
         meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
 
