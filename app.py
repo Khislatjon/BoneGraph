@@ -216,6 +216,45 @@ def _stream_ollama(messages: list[dict]):
                 yield data["message"]["content"]
 
 
+def _inject_ref_links(answer: str, results: list[dict]) -> str:
+    """
+    Post-process the completed LLM answer to append DOI/OpenAlex links
+    to each reference line in the ## References section.
+
+    Matches lines like:  [1] Title — Authors (Year) · Venue
+    and appends:         · [Open paper](https://doi.org/...)
+    """
+    import re
+    # Build rank → URL mapping (prefer DOI, fall back to OpenAlex)
+    ref_urls: dict[int, str] = {}
+    for r in results:
+        if r["source_type"] != "paper":
+            continue
+        if r["doi"]:
+            ref_urls[r["rank"]] = f"https://doi.org/{r['doi']}"
+        elif r["openalex_id"]:
+            ref_urls[r["rank"]] = f"https://openalex.org/{r['openalex_id']}"
+
+    if not ref_urls:
+        return answer
+
+    def _replace(m: re.Match) -> str:
+        n = int(m.group(1))
+        rest = m.group(2)
+        url = ref_urls.get(n)
+        if url:
+            return f"[{n}]{rest} · [Open paper]({url})"
+        return m.group(0)
+
+    # Only modify lines inside the References section
+    if "## References" not in answer:
+        return answer
+
+    body, _, refs = answer.partition("## References")
+    refs = re.sub(r"^\[(\d+)\](.*)", _replace, refs, flags=re.MULTILINE)
+    return body + "## References" + refs
+
+
 # ── Tab 1: Ask BoneLogic (RAG + LLM) ─────────────────────────────────────────
 def ask(question: str, top_k: int):
     """
@@ -248,6 +287,10 @@ def ask(question: str, top_k: int):
         for token in _stream_ollama(messages):
             answer += token
             yield answer, sources_html
+        # Inject DOI links into references once streaming is complete
+        linked = _inject_ref_links(answer, results)
+        if linked != answer:
+            yield linked, sources_html
     except requests.ConnectionError:
         yield (
             "⚠️ **Could not connect to Ollama.**\n\n"
@@ -289,7 +332,11 @@ def search(query: str, top_k: int, source_filter: str) -> str:
 
 
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
-with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
+_CSS = """
+.answer-markdown { padding-top: 18px !important; }
+"""
+
+with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
 
     gr.Markdown(
         f"# 🦴 BoneLogic\n"
@@ -328,6 +375,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft()) as demo:
                 answer_md = gr.Markdown(
                     value="_Enter a question and press Ask._",
                     label="Answer",
+                    elem_classes=["answer-markdown"],
                 )
             with gr.Column(scale=2):
                 sources_html = gr.HTML(

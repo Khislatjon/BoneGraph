@@ -185,7 +185,7 @@ class BoneLogicRetriever:
             conn.row_factory = sqlite3.Row
             placeholders = ",".join("?" * len(paper_ids))
             rows = conn.execute(
-                f"SELECT paper_id, title, authors_json, year, venue FROM papers WHERE paper_id IN ({placeholders})",
+                f"SELECT paper_id, title, authors_json, year, venue, external_ids_json FROM papers WHERE paper_id IN ({placeholders})",
                 list(paper_ids),
             ).fetchall()
             conn.close()
@@ -198,11 +198,19 @@ class BoneLogicRetriever:
                         authors.append("et al.")
                 except Exception:
                     pass
+                doi = None
+                try:
+                    ext = json.loads(row["external_ids_json"] or "{}")
+                    doi = ext.get("DOI")
+                except Exception:
+                    pass
                 paper_meta[row["paper_id"]] = {
-                    "title":   row["title"] or "Unknown title",
-                    "authors": ", ".join(authors) if authors else "Unknown authors",
-                    "year":    row["year"],
-                    "venue":   row["venue"] or "",
+                    "title":        row["title"] or "Unknown title",
+                    "authors":      ", ".join(authors) if authors else "Unknown authors",
+                    "year":         row["year"],
+                    "venue":        row["venue"] or "",
+                    "doi":          doi,
+                    "openalex_id":  row["paper_id"],
                 }
 
         # Fetch textbook metadata.
@@ -218,10 +226,12 @@ class BoneLogicRetriever:
             conn.close()
             for row in rows:
                 textbook_meta[row["file_path"]] = {
-                    "title":   row["title"] or "Unknown textbook",
-                    "authors": "",
-                    "year":    None,
-                    "venue":   row["source"],
+                    "title":        row["title"] or "Unknown textbook",
+                    "authors":      "",
+                    "year":         None,
+                    "venue":        row["source"],
+                    "doi":          None,
+                    "openalex_id":  None,
                 }
 
         # Merge into chunk metadata.
@@ -297,6 +307,8 @@ class BoneLogicRetriever:
                 "authors":     meta["authors"],
                 "year":        meta["year"],
                 "venue":       meta["venue"],
+                "doi":         meta.get("doi"),
+                "openalex_id": meta.get("openalex_id"),
             })
 
         return results
