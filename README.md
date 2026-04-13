@@ -50,6 +50,28 @@ cp .env.example .env
 # Add CROSSREF_EMAIL and WILEY_TDM_TOKEN to .env
 ```
 
+#### Known issue — gradio_client crash on startup
+
+Some versions of `gradio_client` crash with `TypeError: argument of type 'bool' is not iterable` when building API info for components. If you see this error, apply the following two-line patch:
+
+**File:** `.venv/lib/python3.9/site-packages/gradio_client/utils.py`
+
+**Fix 1** — in `get_type()` (around line 862), add a guard at the top of the function:
+```python
+def get_type(schema: dict):
+    if not isinstance(schema, dict):   # ← add this line
+        return "unknown"
+    if "const" in schema:
+```
+
+**Fix 2** — in `_json_schema_to_python_type()` (around line 955), guard the `additionalProperties` branch:
+```python
+# change this:
+if "additionalProperties" in schema:
+# to this:
+if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
+```
+
 ### Run paper ingestion
 
 ```bash
