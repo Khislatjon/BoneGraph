@@ -29,6 +29,8 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
 | Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI (Ask + Search tabs) |
 | Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama · streaming RAG answers |
+| Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
+| Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links |
 | Phase 3 — VLM integration | ⏳ Planned | |
 | Phase 4 — LRM reasoning | ⏳ Planned | |
 
@@ -129,6 +131,22 @@ ollama run huatuogpt-bone
 
 **Search Corpus tab** works without Ollama — pure semantic retrieval only.
 
+### Run the retrieval benchmark
+
+```bash
+python eval/run_eval.py              # default top_k=10
+python eval/run_eval.py --top-k 20  # custom top_k
+```
+
+Results are saved to `eval/results.json`. Current scores (top_k=10):
+
+| Metric | Score |
+|---|---|
+| MRR | **0.928** |
+| Recall@1 | **0.867** (26/30) |
+| Recall@3 | **1.000** (30/30) |
+| Recall@5 | **1.000** (30/30) |
+
 ---
 
 ## Project structure
@@ -150,6 +168,10 @@ BoneLogic/
 │       ├── papers.db        # 54,634 paper metadata rows
 │       ├── textbooks.db     # 16 textbook metadata rows
 │       └── chunks.db        # 248,629 chunks + SPECTER2 embeddings
+├── eval/                    # Retrieval quality benchmark
+│   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
+│   ├── run_eval.py          # Eval script — computes MRR and Recall@k
+│   └── results.json         # Latest benchmark results
 ├── docs/                    # Detailed documentation per phase
 ├── app.py                   # Gradio web UI
 ├── mypaper/                 # Paper draft (gitignored)

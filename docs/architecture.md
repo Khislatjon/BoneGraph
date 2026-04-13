@@ -146,6 +146,18 @@ User query  ──────────────────────�
 | LLM | HuatuoGPT-o1-8B served via Ollama — streams grounded answers from retrieved context |
 | Web UI tabs | **Ask BoneLogic** (RAG + LLM streaming) · **Search Corpus** (raw retrieval, no LLM) |
 
+**Phase 2 polish — also complete:**
+
+| Item | Result |
+|---|---|
+| Retrieval benchmark | 30 questions · 7 domains (mechanics, morphology, pathology, biomaterials, simulation, imaging, mechanobiology) |
+| MRR | **0.928** |
+| Recall@3 | **1.000** — all 30 questions have a relevant chunk in top 3 |
+| Recall@5 | **1.000** — Phase 3 readiness threshold passed |
+| Citation behaviour | Few-shot example in system prompt · mandatory `[N]` inline citations · DOI links auto-injected into References section |
+| Reference formatting | Each `[N]` entry rendered on its own line with clickable Open paper link |
+| Eval script | `eval/run_eval.py` — rerun any time corpus or retriever changes |
+
 **Why RAG before fine-tuning:** RAG gives the LLM access to the entire corpus without retraining. It also makes the knowledge updatable — add new papers, re-embed, done.
 
 **Why SPECTER2:** Allen AI's 2023 successor to SPECTER, trained on 164M citation relationships. Key advantage over SPECTER1: asymmetric encoding — documents and queries use different task-specific adapters (proximity vs adhoc_query), improving retrieval precision on scientific text.
