@@ -381,7 +381,7 @@ def ask(question: str, top_k: int):
         yield f"⚠️ **Unexpected error:** {e}", sources_html
 
 
-# ── Tab 2: Analyse Image (VLM → cross-modal retrieval → LLM) ─────────────────
+# ── Tab 2: Analyse Image (VLM only) ──────────────────────────────────────────
 def _describe_image(image_array) -> str:
     """
     Send an image (numpy H×W×3 array from gr.Image) to LLaVA via Ollama
@@ -419,72 +419,23 @@ def _describe_image(image_array) -> str:
     return report
 
 
-def analyse_image(image_array, question: str, top_k: int):
-    """
-    Generator for Tab 2.
-    Yields (vlm_report, answer_so_far, sources_html) tuples.
-
-    Pipeline:
-      image → LLaVA report → SPECTER2 embed report → retrieve chunks
-            → HuatuoGPT streams answer grounded in report + literature
-    """
+def analyse_image(image_array):
+    """Generator for Tab 2 — yields VLM report text as it streams."""
     if image_array is None:
-        yield "_Upload an image first._", "", "<p style='color:#888'>No image uploaded.</p>"
+        yield "_Upload an image first._"
         return
 
-    question = (question or "").strip() or \
-        "Describe the findings and their clinical significance for bone health."
-
-    # Step 1 — VLM: describe the image
-    yield "_Analysing image…_", "", "<p style='color:#888'>Running VLM…</p>"
+    yield "_Analysing image…_"
     try:
         report = _describe_image(image_array)
     except requests.ConnectionError:
-        yield (
-            "⚠️ **Could not connect to Ollama.**\n\nRun `ollama serve` first.",
-            "", "",
-        )
+        yield "⚠️ **Could not connect to Ollama.**\n\nRun `ollama serve` and make sure `llava:13b` is pulled."
         return
     except Exception as e:
-        yield f"⚠️ **VLM error:** {e}", "", ""
+        yield f"⚠️ **VLM error:** {e}"
         return
 
-    vlm_md = f"**VLM Report (LLaVA)**\n\n{report}"
-
-    # Step 2 — Cross-modal retrieval: embed the report and search chunks
-    yield vlm_md, "_Retrieving relevant literature…_", "<p style='color:#888'>Retrieving…</p>"
-    results = retriever.query(report, top_k=int(top_k))
-    sources_html = _build_sources_html(results, collapsible=True)
-
-    yield vlm_md, "_Thinking…_", sources_html
-
-    # Step 3 — LLM: answer grounded in report + retrieved context
-    context = _build_context(results)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": (
-                f"The following is a radiological report generated from an uploaded bone image:\n\n"
-                f"{report}\n\n"
-                f"Context passages from the bone science literature:\n\n{context}\n\n---\n\n"
-                f"Question: {question}"
-            ),
-        },
-    ]
-
-    answer = ""
-    try:
-        for token in _stream_ollama(messages):
-            answer += token
-            yield vlm_md, answer, sources_html
-        linked = _inject_ref_links(answer, results)
-        if linked != answer:
-            yield vlm_md, linked, sources_html
-    except requests.ConnectionError:
-        yield vlm_md, "⚠️ **Could not connect to Ollama.**", sources_html
-    except Exception as e:
-        yield vlm_md, f"⚠️ **Unexpected error:** {e}", sources_html
+    yield report
 
 
 # ── Tab 3: Search Corpus (raw retrieval) ──────────────────────────────────────
@@ -596,8 +547,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
     with gr.Tab("Analyse Image"):
         gr.Markdown(
             "Upload a bone X-ray or MRI. "
-            "LLaVA describes the image, the system retrieves relevant literature, "
-            "and HuatuoGPT streams a grounded answer."
+            "LLaVA 13b describes the image findings."
         )
 
         with gr.Row():
@@ -606,42 +556,19 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
                     type="numpy",
                     label="Upload X-ray / MRI",
                 )
-            with gr.Column(scale=2):
-                img_question = gr.Textbox(
-                    placeholder="Optional — e.g. What is the fracture risk? (leave blank for general description)",
-                    label="Question",
-                    lines=3,
-                )
-                img_top_k = gr.Slider(
-                    minimum=3, maximum=20, value=8, step=1,
-                    label="Passages retrieved (top-k)",
-                )
+            with gr.Column(scale=1):
                 img_btn = gr.Button("🔬 Analyse", variant="primary")
 
-        with gr.Row():
-            vlm_report_md = gr.Markdown(
-                value="_Upload an image and press Analyse._",
-                label="VLM Report",
-                elem_classes=["answer-markdown"],
-            )
-
-        with gr.Row():
-            with gr.Column(scale=3):
-                img_answer_md = gr.Markdown(
-                    value="",
-                    label="Answer",
-                    elem_classes=["answer-markdown"],
-                )
-            with gr.Column(scale=2):
-                img_sources_html = gr.HTML(
-                    value="<p style='color:#888'>Retrieved passages will appear here.</p>",
-                    label="Retrieved passages",
-                )
+        vlm_report_md = gr.Markdown(
+            value="_Upload an image and press Analyse._",
+            label="VLM Report",
+            elem_classes=["answer-markdown"],
+        )
 
         img_btn.click(
             fn=analyse_image,
-            inputs=[img_upload, img_question, img_top_k],
-            outputs=[vlm_report_md, img_answer_md, img_sources_html],
+            inputs=[img_upload],
+            outputs=[vlm_report_md],
         )
 
     # ── Tab 3 ──────────────────────────────────────────────────────────────────
