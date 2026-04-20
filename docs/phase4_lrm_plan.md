@@ -577,7 +577,7 @@ Embeds the hypothesis with SPECTER2 adhoc_query adapter. Computes cosine similar
 | Raw triples extracted | 2,935 |
 | Unique nodes after deduplication | 3,001 |
 | Unique edges after deduplication | 2,339 |
-| Extraction speed | ~8.4 s/chunk (CPU-only, HuatuoGPT-bone) |
+| Extraction speed | ~8.4 s/chunk (CPU-only, huatuogpt-bone = HuatuoGPT-o1-8B + custom prompt) |
 
 ---
 

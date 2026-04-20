@@ -31,7 +31,7 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Chunking | ✅ Complete | 248,629 chunks (sentence-aware · ~400 tokens · 2-sentence overlap) |
 | Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
 | Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI (Ask + Search tabs) |
-| Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama · streaming RAG answers |
+| Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama (`huatuogpt-bone` — HuatuoGPT-o1-8B with custom bone science system prompt) · streaming RAG answers |
 | Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
 | Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links |
 | Phase 3 — VLM integration | 🔶 Partial | LLaVA 1.6 tab implemented · cross-modal retrieval pending |
@@ -151,7 +151,7 @@ python app.py    # Opens automatically at http://localhost:7860
 
 ```bash
 ollama serve          # start the server (separate terminal if not running as a service)
-ollama run huatuogpt-bone
+ollama run huatuogpt-bone  # HuatuoGPT-o1-8B with custom bone science system prompt
 ```
 
 **Search Corpus tab** works without Ollama — pure semantic retrieval only.

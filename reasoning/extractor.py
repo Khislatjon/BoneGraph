@@ -598,7 +598,7 @@ class ExtractionPipeline:
                     n_done += 1
 
                 # ── Progress log every 50 chunks ───────────────────────────
-                if i % 50 == 0 or i == total:
+                if i % 200 == 0 or i == total:
                     elapsed = time.time() - t_start
                     rate = i / elapsed if elapsed > 0 else 0
                     eta  = (total - i) / rate if rate > 0 else 0

@@ -91,7 +91,7 @@ BoneLogic is intentionally restricted to bone science. This is not a limitation 
 Collect the knowledge base. 54,634 papers from OpenAlex · 7,674 PDFs · 16 textbooks. 2-pass PDF download pipeline (OpenAlex OA URLs + CrossRef + Wiley TDM).
 
 ### Phase 2 — Text processing & RAG ✅
-Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B answers via Ollama. Retrieval benchmark: MRR 0.928, Recall@5 1.000.
+Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B (served locally via Ollama as `huatuogpt-bone` — HuatuoGPT-o1-8B with a custom bone science system prompt) answers questions. Retrieval benchmark: MRR 0.928, Recall@5 1.000.
 
 ### Phase 3 — VLM integration 🔶 Partial
 Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab is live in the Gradio UI — users can upload an image and receive a structured radiological report. Full cross-modal retrieval (reports embedded with SPECTER2 and used to search the text corpus) is planned but not yet implemented.
@@ -100,7 +100,7 @@ Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab 
 Move from retrieval to reasoning. Steps 4.1–4.6 are complete:
 
 - **4.1 — Seed ontology**: ~200 bone science concepts and ~80 hand-curated causal edges bootstrapped into `ontology.db`.
-- **4.2 — Triple extraction**: HuatuoGPT-bone (via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Textbook extraction complete: 1,983 chunks processed → 2,935 triples → 3,001 nodes, 2,339 edges. Paper extraction pending.
+- **4.2 — Triple extraction**: `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt, via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Textbook extraction complete: 1,983 chunks processed → 2,935 triples → 3,001 nodes, 2,339 edges. Paper extraction pending.
 - **4.3 — Physics engine** (`reasoning/physics.py`): 40 directional guard-rail rules covering core bone mechanics relationships. Rules act as IMPLAUSIBLE filters only — a chain containing a physically impossible edge is discarded entirely. Five numerical law implementations: Currey's modulus (E = 7·ρ²), Frost mechanostat (6 strain zones), Paris crack growth (da/dN = C·ΔK^m), beam bending stress (σ = Mc/I), stress concentration (Kt = 1 + 2√(a/ρ)).
 - **4.4 — LRM reasoning engine** (`reasoning/lrm.py`): Anchors natural-language queries to graph nodes via token matching, traverses all shortest paths between anchor pairs, scores chains by path length (50%) + mean edge weight (40%) + novelty bonus (10%). Physics is penalty-only: IMPLAUSIBLE chains score 0 and are filtered out; all other chains are scored without a physics reward.
 - **4.5 — Novelty classifier** (`reasoning/novelty.py`): Two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative (less novel) tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
@@ -172,7 +172,7 @@ BoneLogic/
 │   ├── ontology.py              Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
 │   ├── graph_db.py              SQLite-backed graph persistence + extraction progress tracking
 │   ├── seed.py                  ~200 seed concepts + ~80 hand-curated causal edges
-│   ├── extractor.py             LLM triple extraction from chunks.db (resumable, HuatuoGPT-bone)
+│   ├── extractor.py             LLM triple extraction from chunks.db (resumable, huatuogpt-bone = HuatuoGPT-o1-8B + custom prompt)
 │   ├── physics.py               Bone physics engine: 40 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
 │   ├── lrm.py                   Core reasoning engine: anchor → traverse → score → summarise
 │   └── novelty.py               Novelty classifier: keyword tier + SPECTER2 semantic tier
