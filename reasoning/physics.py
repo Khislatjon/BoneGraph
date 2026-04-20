@@ -297,14 +297,140 @@ _DIRECTIONAL_RULES: dict[
          "Age-related bone loss consistently reduces BMD — well established "
          "by DXA longitudinal studies."),
 
+    ("aging", "leads_to", "osteoporosis"):
+        ("PLAUSIBLE", "Bone aging",
+         "Cumulative age-related bone loss is the primary driver of osteoporosis."),
+
+    ("aging", "increases", "fracture"):
+        ("PLAUSIBLE", "Bone aging",
+         "Age is the single strongest risk factor for fragility fractures."),
+
+    ("aging", "leads_to", "fracture"):
+        ("PLAUSIBLE", "Bone aging",
+         "Age-related bone loss and microstructural deterioration elevate fracture risk."),
+
     ("osteoporosis", "increases", "fracture_risk"):
         ("PLAUSIBLE", "Osteoporosis epidemiology",
          "Osteoporosis is defined by low BMD and elevated fragility fracture "
          "risk — foundational clinical relationship."),
 
+    ("osteoporosis", "leads_to", "fracture"):
+        ("PLAUSIBLE", "Osteoporosis epidemiology",
+         "Osteoporosis is the leading cause of fragility fractures worldwide."),
+
+    ("osteoporosis", "increases", "fracture"):
+        ("PLAUSIBLE", "Osteoporosis epidemiology",
+         "Lower BMD in osteoporosis directly elevates fracture probability."),
+
     ("osteoporosis", "decreases", "fracture_risk"):
         ("IMPLAUSIBLE", "Osteoporosis epidemiology",
          "Osteoporosis is a risk factor for fracture, not a protective factor."),
+
+    ("osteoporosis", "decreases", "fracture"):
+        ("IMPLAUSIBLE", "Osteoporosis epidemiology",
+         "Osteoporosis increases, not decreases, fracture incidence."),
+
+    # ── BMD → strength / resistance (extracted node name variants) ────────────
+    ("bone_mineral_density", "increases", "fracture_resistance"):
+        ("PLAUSIBLE", "Currey's law",
+         "Higher BMD → higher apparent density → higher E and KIc → "
+         "greater resistance to fracture initiation."),
+
+    ("bone_mineral_density", "decreases", "fracture_resistance"):
+        ("IMPLAUSIBLE", "Currey's law",
+         "Lower BMD reduces mechanical competence; it cannot increase "
+         "fracture resistance."),
+
+    ("bone_mineral_density", "increases", "bone_strength"):
+        ("PLAUSIBLE", "Currey's law",
+         "BMD is the primary determinant of whole-bone strength; "
+         "higher BMD → higher failure load."),
+
+    ("bone_mineral_density", "decreases", "bone_strength"):
+        ("IMPLAUSIBLE", "Currey's law",
+         "Lower BMD means lower density → lower stiffness and strength."),
+
+    ("bone_mineral_density", "predicts", "fracture"):
+        ("PLAUSIBLE", "Osteoporosis epidemiology",
+         "BMD T-score is the clinical gold-standard predictor of fracture risk."),
+
+    # ── Porosity → strength / risk (extracted node name variants) ────────────
+    ("porosity", "increases", "fracture_risk"):
+        ("PLAUSIBLE", "Stress concentration + Currey's law",
+         "Higher porosity → lower density → lower E → lower KIc → "
+         "greater fracture risk."),
+
+    ("porosity", "decreases", "fracture_risk"):
+        ("IMPLAUSIBLE", "Currey's law",
+         "Porosity weakens bone; it cannot reduce fracture risk."),
+
+    ("porosity", "decreases", "bone_strength"):
+        ("PLAUSIBLE", "Currey's law",
+         "Porosity reduces apparent density → lower stiffness and failure load."),
+
+    ("porosity", "increases", "bone_strength"):
+        ("IMPLAUSIBLE", "Currey's law",
+         "Higher porosity means less material to bear load — strength decreases."),
+
+    ("porosity", "decreases", "fracture_resistance"):
+        ("PLAUSIBLE", "Stress concentration + Currey's law",
+         "Pores act as stress concentrators and reduce density — both reduce KIc."),
+
+    # ── Bone loss chain ───────────────────────────────────────────────────────
+    ("bone_loss", "leads_to", "fracture"):
+        ("PLAUSIBLE", "Bone aging",
+         "Progressive bone loss reduces mechanical competence → fracture."),
+
+    ("bone_loss", "increases", "fracture"):
+        ("PLAUSIBLE", "Bone aging",
+         "Less bone mass → lower failure load → higher fracture probability."),
+
+    ("bone_resorption", "leads_to", "bone_loss"):
+        ("PLAUSIBLE", "Bone cell biology",
+         "Osteoclast-mediated resorption exceeding formation → net bone loss."),
+
+    ("bone_resorption", "increases", "porosity"):
+        ("PLAUSIBLE", "Bone remodelling",
+         "Resorption cavities expand Haversian canals → increased cortical porosity."),
+
+    # ── Bone formation / remodelling ──────────────────────────────────────────
+    ("bone_formation", "increases", "bone_mineral_density"):
+        ("PLAUSIBLE", "Bone cell biology",
+         "Osteoblast mineralisation of osteoid directly increases BMD."),
+
+    ("bone_formation", "decreases", "porosity"):
+        ("PLAUSIBLE", "Bone remodelling",
+         "Infilling of resorption cavities by osteoblasts reduces porosity."),
+
+    ("remodelling", "maintains", "bone_mineral_density"):
+        ("PLAUSIBLE", "Bone remodelling",
+         "Balanced remodelling (formation = resorption) maintains BMD homeostasis."),
+
+    # ── Collagen / glycation variants ─────────────────────────────────────────
+    ("glycation", "decreases", "toughness"):
+        ("PLAUSIBLE", "AGE crosslink embrittlement",
+         "Non-enzymatic glycation (AGEs) embrittles collagen → lower KIc."),
+
+    ("glycation", "decreases", "fracture_resistance"):
+        ("PLAUSIBLE", "AGE crosslink embrittlement",
+         "AGE-mediated collagen embrittlement reduces post-yield energy absorption."),
+
+    ("non_enzymatic", "decreases", "toughness"):
+        ("PLAUSIBLE", "AGE crosslink embrittlement",
+         "Non-enzymatic crosslinks reduce collagen fibril sliding → brittle failure."),
+
+    # ── Mechanical loading ────────────────────────────────────────────────────
+    ("loading", "activates", "bone_formation"):
+        ("PLAUSIBLE", "Frost mechanostat",
+         "Mechanical loading in the mild overload window stimulates modelling."),
+
+    ("loading", "increases", "bone_mineral_density"):
+        ("PLAUSIBLE", "Frost mechanostat",
+         "Weight-bearing loading drives net bone apposition → higher BMD."),
+
+    ("loading", "decreases", "fracture_risk"):
+        ("PLAUSIBLE", "Frost mechanostat",
+         "Exercise-induced bone gain reduces fragility fracture risk."),
 
     # ── Stress concentration (Kt) ─────────────────────────────────────────────
     ("pore", "increases", "stress_concentration"):
@@ -326,6 +452,16 @@ _DIRECTIONAL_RULES: dict[
         ("IMPLAUSIBLE", "Beam theory",
          "Thicker cortex increases second moment of area → higher resistance "
          "to bending; it cannot decrease bending strength."),
+
+    ("cortical_thickness", "increases", "bone_strength"):
+        ("PLAUSIBLE", "Beam theory",
+         "Greater cortical thickness → larger cross-sectional area → "
+         "higher axial and bending strength."),
+
+    ("cortical_thickness", "decreases", "fracture_risk"):
+        ("IMPLAUSIBLE", "Beam theory",
+         "Thicker cortex increases structural strength — it reduces fracture risk, "
+         "not the other way round."),
 }
 
 
@@ -694,7 +830,7 @@ class PhysicsEngine:
 
         results = [self.validate_edge(src, rel, tgt) for src, rel, tgt in edges]
 
-        # Any IMPLAUSIBLE → whole chain fails
+        # Any IMPLAUSIBLE → whole chain fails immediately (one bad link breaks it)
         for r in results:
             if r.is_implausible:
                 return ValidationResult(
@@ -709,29 +845,37 @@ class PhysicsEngine:
                     edge=r.edge,
                 )
 
-        # All PLAUSIBLE?
-        if all(r.is_plausible for r in results):
-            laws = list(dict.fromkeys(r.law for r in results if r.law))
+        # Majority vote: if ≥ 50% of edges are PLAUSIBLE and none IMPLAUSIBLE
+        # → chain is PLAUSIBLE overall.
+        # This handles the common case where extracted node names don't exactly
+        # match rule fragments for every edge, but the majority of the chain
+        # is physically confirmed.
+        plausible = [r for r in results if r.is_plausible]
+        uncertain = [r for r in results if r.status == "UNCERTAIN"]
+        laws = list(dict.fromkeys(r.law for r in plausible if r.law))
+
+        if len(plausible) >= len(results) / 2:
+            confidence = len(plausible) / len(results)
             return ValidationResult(
                 status="PLAUSIBLE",
                 law=", ".join(laws) if laws else "directional rules",
-                confidence=1.0,
+                confidence=round(confidence, 2),
                 explanation=(
-                    f"All {len(edges)} edges consistent with bone physics. "
-                    f"Laws applied: {', '.join(laws) if laws else 'directional rules'}."
+                    f"{len(plausible)}/{len(edges)} edges confirmed by physics rules"
+                    f"{f' ({len(uncertain)} unmatched)' if uncertain else ''}. "
+                    f"Laws: {', '.join(laws) if laws else 'directional rules'}."
                 ),
             )
 
-        # Mixed PLAUSIBLE + UNCERTAIN
-        uncertain = [r for r in results if r.status == "UNCERTAIN"]
+        # Fewer than half matched → UNCERTAIN
         return ValidationResult(
             status="UNCERTAIN",
             law="",
             confidence=0.5,
             explanation=(
-                f"{len(edges) - len(uncertain)}/{len(edges)} edges confirmed. "
-                f"{len(uncertain)} edge(s) have no physics rule — "
-                "chain is possibly valid but cannot be fully confirmed."
+                f"Only {len(plausible)}/{len(edges)} edges matched physics rules — "
+                "insufficient coverage to confirm. Chain may be valid but "
+                "cannot be physically verified with current rule set."
             ),
         )
 
