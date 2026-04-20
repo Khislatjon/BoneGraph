@@ -435,35 +435,71 @@ class NoveltyClassifier:
 
     def _embed_text(self, text: str) -> np.ndarray | None:
         """
-        Encode text using the SPECTER2 query adapter.
+        Encode text using the SPECTER2 query adapter (allenai/specter2_adhoc_query).
+
+        Matches exactly the encoding used by retrieval/retriever.py so that
+        cosine similarity against stored chunk embeddings is meaningful.
 
         Returns L2-normalised (768,) float32 array, or None on failure.
+        Model is loaded once and cached on self._model / self._tokenizer.
         """
+        # Return cached result immediately if model already loaded
+        if not hasattr(self, "_model") or self._model is None:
+            try:
+                import torch
+                from adapters import AutoAdapterModel
+                from transformers import AutoTokenizer
+
+                logger.info("Loading SPECTER2 query adapter for novelty scoring…")
+                tokenizer = AutoTokenizer.from_pretrained("allenai/specter2_base")
+                model     = AutoAdapterModel.from_pretrained("allenai/specter2_base")
+                model.load_adapter(
+                    "allenai/specter2_adhoc_query",
+                    source="hf",
+                    load_as="specter2_query",
+                    set_active=True,
+                )
+                model.set_active_adapters("specter2_query")
+                # Use MPS on Apple Silicon if available
+                if torch.backends.mps.is_available():
+                    device = torch.device("mps")
+                elif torch.cuda.is_available():
+                    device = torch.device("cuda")
+                else:
+                    device = torch.device("cpu")
+                model.to(device)
+                model.eval()
+
+                self._tokenizer = tokenizer
+                self._model     = model
+                self._device    = device
+                logger.info("SPECTER2 query adapter loaded on %s.", device)
+
+            except Exception as exc:
+                logger.warning(
+                    "SPECTER2 load failed (%s) — Tier 2 unavailable.", exc
+                )
+                self._model = None
+                return None
+
         try:
-            from transformers import AutoTokenizer
-            from adapters import AutoAdapterModel
-
-            model_name   = "allenai/specter2_base"
-            adapter_name = "allenai/specter2_adhoc_query"
-
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model     = AutoAdapterModel.from_pretrained(model_name)
-            model.load_adapter(adapter_name, source="hf", set_active=True)
-            model.eval()
-
-            inputs  = tokenizer(
-                text, return_tensors="pt",
-                max_length=512, truncation=True, padding=True,
-            )
             import torch
+            inputs = self._tokenizer(
+                text,
+                return_tensors="pt",
+                max_length=512,
+                truncation=True,
+                padding=True,
+            )
+            inputs = {k: v.to(self._device) for k, v in inputs.items()}
             with torch.no_grad():
-                out = model(**inputs)
-            vec = out.last_hidden_state[:, 0, :].squeeze().numpy().astype(np.float32)
+                out = self._model(**inputs)
+            vec  = out.last_hidden_state[:, 0, :].squeeze().cpu().numpy().astype(np.float32)
             norm = np.linalg.norm(vec)
             return vec / norm if norm > 0 else vec
 
         except Exception as exc:
-            logger.debug("SPECTER2 encoding failed (%s) — skipping Tier 2.", exc)
+            logger.warning("SPECTER2 encoding failed: %s", exc)
             return None
 
     def _semantic_search(
