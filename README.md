@@ -11,6 +11,7 @@ An intelligent reasoning system for bone science — morphology, mechanics, path
 | [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — textbooks ingestion: 16 curated open-access books |
 | [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — text extraction, chunking, embedding, RAG, LLM, evaluation |
 | [docs/phase3_vlm_plan.md](docs/phase3_vlm_plan.md) | Phase 3 — VLM integration plan: datasets, pipeline, cross-modal retrieval, UI |
+| [docs/phase4_lrm_plan.md](docs/phase4_lrm_plan.md) | Phase 4 — LRM reasoning layer: bone knowledge graph, physics engine, hypothesis generation |
 
 ## Architecture (summary)
 

@@ -144,6 +144,24 @@ TEXTBOOKS_DB_PATH = DB_DIR / "textbooks.db"
 # databases fast and browsable.
 CHUNKS_DB_PATH = DB_DIR / "chunks.db"
 
+# Path to the SQLite file that stores the bone knowledge graph (Phase 4).
+# Contains two tables: nodes (concepts) and edges (causal relationships).
+# Seeded by reasoning/seed.py; grown by reasoning/extractor.py.
+ONTOLOGY_DB_PATH = DB_DIR / "ontology.db"
+
+# ── Ollama (Phase 4 extraction & reasoning) ──────────────────────────────────
+
+# Base URL of the running Ollama server.
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
+# Model used for triple extraction in reasoning/extractor.py.
+# huatuogpt-bone is bone-domain-aware and already available locally.
+EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "huatuogpt-bone:latest")
+
+# Request timeout in seconds for a single Ollama generate call.
+# Triple extraction over a ~400-token chunk typically completes in 5–30 s.
+OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "60"))
+
 # ── Embedding ────────────────────────────────────────────────────────────────
 
 # SPECTER2 base model — Allen AI's 2023 successor to SPECTER.

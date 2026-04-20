@@ -80,7 +80,7 @@ BoneLogic is intentionally restricted to bone science. This is not a limitation 
 | Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
 | Phase 3 — VLM integration | ⏳ Planned | [phase3_vlm_plan.md](phase3_vlm_plan.md) |
-| Phase 4 — LRM reasoning layer | ⏳ Planned | — |
+| Phase 4 — LRM reasoning layer | ⏳ Planned | [phase4_lrm_plan.md](phase4_lrm_plan.md) |
 | Phase 5 — Feedback loop | ⏳ Planned | — |
 
 ---
