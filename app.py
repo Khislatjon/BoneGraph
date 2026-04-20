@@ -6,6 +6,7 @@ BoneLogic — Gradio web UI.
 Tab 1  Ask BoneLogic   Query → retrieve top-k chunks → stream HuatuoGPT-o1-8B answer
 Tab 2  Analyse Image   Upload X-ray/MRI → LLaVA report → cross-modal retrieval → LLM answer
 Tab 3  Search Corpus   Raw semantic search (chunks ranked by cosine similarity)
+Tab 4  Reason          Graph traversal → physics-validated causal hypotheses + gap detection
 
 Run with:
     python app.py
@@ -25,6 +26,8 @@ import requests
 import gradio as gr
 
 from retrieval.retriever import BoneLogicRetriever
+from reasoning.lrm import LRM
+from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 
 # ── Ollama config ─────────────────────────────────────────────────────────────
@@ -118,10 +121,23 @@ CITATION RULES — enforced strictly:
 - The ## References section is mandatory, even for short answers."""
 
 
-# ── Startup: load retriever and corpus stats ──────────────────────────────────
+# ── Startup: load retriever, LRM, and novelty classifier ─────────────────────
 print("Loading BoneLogic retriever...")
 retriever = BoneLogicRetriever()
 retriever.load()
+
+print("Loading LRM (bone knowledge graph)...")
+lrm = LRM()
+
+# Reuse the retriever's already-loaded SPECTER2 model for novelty scoring
+# so we don't load the 1.6 GB model a second time.
+print("Loading novelty classifier...")
+novelty_clf = NoveltyClassifier(
+    use_semantic=True,
+    model=retriever._model,
+    tokenizer=retriever._tokenizer,
+    device=retriever._device,
+)
 
 
 def _load_stats() -> dict:
@@ -463,6 +479,228 @@ def search(query: str, top_k: int, source_filter: str) -> str:
     return html
 
 
+# ── Tab 4: Reason — hypothesis rendering helpers ─────────────────────────────
+
+_PHYSICS_COLORS = {
+    "PLAUSIBLE":   ("#059669", "#D1FAE5"),   # green  (text, bg)
+    "IMPLAUSIBLE": ("#DC2626", "#FEE2E2"),   # red
+    "UNCERTAIN":   ("#6B7280", "#F3F4F6"),   # grey
+}
+_NOVELTY_COLORS = {
+    "GROUNDED":    ("#1D4ED8", "#DBEAFE"),   # blue
+    "SPECULATIVE": ("#D97706", "#FEF3C7"),   # amber
+    "NOVEL":       ("#7C3AED", "#EDE9FE"),   # purple
+    "UNCERTAIN":   ("#6B7280", "#F3F4F6"),   # grey
+}
+
+
+def _badge(label: str, color_map: dict) -> str:
+    """Render a small colored pill badge."""
+    text_col, bg_col = color_map.get(label, ("#374151", "#F9FAFB"))
+    return (
+        f"<span style='background:{bg_col}; color:{text_col}; "
+        f"border:1px solid {text_col}33; border-radius:12px; "
+        f"padding:2px 10px; font-size:0.78em; font-weight:700; "
+        f"letter-spacing:0.04em;'>{label}</span>"
+    )
+
+
+def _chain_html(nodes: list[str], graph) -> str:
+    """Render a causal chain as styled node pills with arrows between them."""
+    parts = []
+    for nid in nodes:
+        node = graph.get_node(nid)
+        label = node.label if node else nid.replace("_", " ")
+        ntype = node.node_type if node else "concept"
+        # Soft background per node type
+        _TYPE_BG = {
+            "structure": "#EFF6FF", "property": "#F0FDF4",
+            "process":   "#FFF7ED", "pathology": "#FFF1F2",
+            "factor":    "#FAF5FF", "cell":      "#F0FDFA",
+            "mechanism": "#FFFBEB", "clinical":  "#F8FAFC",
+            "material":  "#F0FDF4", "scale":     "#F8FAFC",
+            "concept":   "#F9FAFB",
+        }
+        bg = _TYPE_BG.get(ntype, "#F9FAFB")
+        parts.append(
+            f"<span style='background:{bg}; border:1px solid #D1D5DB; "
+            f"border-radius:6px; padding:3px 10px; font-size:0.88em; "
+            f"font-weight:600; color:#111827;'>{label}</span>"
+        )
+    arrow = "<span style='color:#9CA3AF; font-size:1em; margin:0 4px;'>→</span>"
+    return arrow.join(parts)
+
+
+def _render_hypotheses(hypotheses, graph) -> str:
+    """Render a list of HypothesisResult objects as styled HTML cards."""
+    if not hypotheses:
+        return (
+            "<div style='color:#6B7280; padding:24px; text-align:center;'>"
+            "No hypotheses found. Try a different query or broaden your terms."
+            "</div>"
+        )
+
+    html = ""
+    for i, h in enumerate(hypotheses, 1):
+        nr = novelty_clf.classify(h)
+
+        p_badge = _badge(h.physics.status, _PHYSICS_COLORS)
+        n_badge = _badge(nr.label, _NOVELTY_COLORS)
+        chain   = _chain_html(h.chain, graph)
+        rels    = " &nbsp;|&nbsp; ".join(
+            f"<em style='color:#6B7280'>{e.relation}</em>" for e in h.edges
+        )
+
+        disclaimer = ""
+        if nr.show_disclaimer:
+            disclaimer = (
+                f"<div style='background:#FFFBEB; border:1px solid #FCD34D; "
+                f"border-radius:6px; padding:8px 12px; margin-top:10px; "
+                f"font-size:0.82em; color:#92400E;'>"
+                f"⚠️ {CORPUS_DISCLAIMER}</div>"
+            )
+
+        physics_note = ""
+        if h.physics.law:
+            physics_note = (
+                f"<span style='color:#6B7280; font-size:0.82em;'>"
+                f"&nbsp;({h.physics.law})</span>"
+            )
+
+        novelty_note = (
+            f"<span style='color:#6B7280; font-size:0.82em;'>"
+            f"&nbsp;{nr.explanation[:90]}{'…' if len(nr.explanation) > 90 else ''}"
+            f"</span>"
+        )
+
+        html += f"""
+        <div style='border:1px solid #E5E7EB; border-radius:10px;
+                    padding:18px 22px; margin-bottom:14px;
+                    background:#FAFAFA; box-shadow:0 1px 3px rgba(0,0,0,0.06);'>
+
+            <div style='font-size:0.78em; color:#9CA3AF; margin-bottom:8px;
+                        font-weight:600; letter-spacing:0.05em;'>
+                HYPOTHESIS {i} &nbsp;·&nbsp; score {h.score:.3f}
+            </div>
+
+            <div style='margin-bottom:10px; line-height:2;'>
+                {chain}
+            </div>
+
+            <div style='font-size:0.83em; color:#6B7280; margin-bottom:12px;'>
+                {rels}
+            </div>
+
+            <div style='display:flex; gap:8px; align-items:center;
+                        flex-wrap:wrap; margin-bottom:10px;'>
+                {p_badge}{physics_note}
+                &nbsp;&nbsp;
+                {n_badge}{novelty_note}
+            </div>
+
+            <div style='font-size:0.9em; color:#374151; line-height:1.6;
+                        border-top:1px solid #F3F4F6; padding-top:10px;'>
+                {h.summary}
+            </div>
+
+            {disclaimer}
+        </div>
+        """
+    return html
+
+
+def _render_gaps(gaps) -> str:
+    """Render research gap results as a ranked HTML table."""
+    if not gaps:
+        return "<p style='color:#6B7280'>No gaps found.</p>"
+
+    rows = ""
+    for i, g in enumerate(gaps, 1):
+        rows += (
+            f"<tr style='border-bottom:1px solid #F3F4F6;'>"
+            f"<td style='padding:8px 12px; color:#6B7280; font-size:0.85em;'>{i}</td>"
+            f"<td style='padding:8px 12px; font-weight:600; color:#111827;'>{g.label}</td>"
+            f"<td style='padding:8px 12px; color:#6B7280; font-size:0.85em;'>{g.node_type}</td>"
+            f"<td style='padding:8px 12px; font-size:0.85em;'>"
+            f"<span style='background:#EDE9FE; color:#7C3AED; border-radius:8px; "
+            f"padding:2px 8px;'>{g.betweenness:.4f}</span></td>"
+            f"<td style='padding:8px 12px; color:#6B7280; font-size:0.85em;'>{g.n_edges}</td>"
+            f"<td style='padding:8px 12px; font-size:0.85em;'>"
+            f"<strong style='color:#7C3AED;'>{g.gap_score:.4f}</strong></td>"
+            f"</tr>"
+        )
+    return (
+        f"<table style='width:100%; border-collapse:collapse; "
+        f"font-size:0.9em; background:white;'>"
+        f"<thead><tr style='background:#F9FAFB; border-bottom:2px solid #E5E7EB;'>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>#</th>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>Concept</th>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>Type</th>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>Betweenness</th>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>Edges</th>"
+        f"<th style='padding:8px 12px; text-align:left; color:#6B7280;'>Gap score</th>"
+        f"</tr></thead><tbody>{rows}</tbody></table>"
+    )
+
+
+def reason(query: str, max_results: int, physics_filter: bool):
+    """
+    Generator for the Reason tab.
+    Yields (hypotheses_html, gaps_html, graph_stats_md) tuples.
+    """
+    query = query.strip()
+    if not query:
+        yield (
+            "<p style='color:#6B7280; padding:20px;'>Enter a concept or question above.</p>",
+            "",
+            "",
+        )
+        return
+
+    yield (
+        "<p style='color:#6B7280; padding:20px;'>🔬 Traversing knowledge graph…</p>",
+        "",
+        "",
+    )
+
+    try:
+        lrm.physics_filter = physics_filter
+        hypotheses = lrm.query(query, max_results=int(max_results))
+        hyp_html   = _render_hypotheses(hypotheses, lrm._graph)
+
+        s = lrm.graph_stats()
+        stats_md = (
+            f"**Graph:** {s['n_nodes']:,} nodes · {s['n_edges']:,} edges · "
+            f"{s['n_components']} components · "
+            f"largest component: {s['giant_component']} nodes"
+        )
+
+        yield hyp_html, "", stats_md
+
+    except Exception as e:
+        yield f"<p style='color:#DC2626'>⚠️ Error: {e}</p>", "", ""
+
+
+def find_gaps(top_n: int):
+    """Return rendered gap detection results."""
+    try:
+        gaps     = lrm.find_gaps(top_n=int(top_n))
+        gaps_html = _render_gaps(gaps)
+        return gaps_html
+    except Exception as e:
+        return f"<p style='color:#DC2626'>⚠️ Error: {e}</p>"
+
+
+def reload_graph():
+    """Reload the knowledge graph from ontology.db (picks up new extractions)."""
+    lrm.reload()
+    s = lrm.graph_stats()
+    return (
+        f"✅ Graph reloaded: **{s['n_nodes']:,} nodes · {s['n_edges']:,} edges** "
+        f"({s['n_components']} components)"
+    )
+
+
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 _CSS = """
 .answer-markdown { padding-top: 18px !important; }
@@ -617,6 +855,92 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
 
         search_btn.click(fn=search, inputs=[s_box, s_top_k, s_filter], outputs=s_results)
         s_box.submit(fn=search, inputs=[s_box, s_top_k, s_filter], outputs=s_results)
+
+    # ── Tab 4 ──────────────────────────────────────────────────────────────────
+    with gr.Tab("🔬 Reason"):
+        gr.Markdown(
+            "Traverse the **bone knowledge graph** to generate causal hypothesis chains. "
+            "Each hypothesis is validated by the physics engine and scored for novelty "
+            "against the full corpus."
+        )
+
+        with gr.Row():
+            with gr.Column(scale=5):
+                r_query = gr.Textbox(
+                    placeholder="e.g. aging and fracture risk, collagen toughness, RANKL osteoclast",
+                    label="Concept or question",
+                    lines=1,
+                )
+            with gr.Column(scale=1, min_width=130):
+                r_btn = gr.Button("🔬 Reason", variant="primary")
+
+        with gr.Row():
+            r_max = gr.Slider(
+                minimum=1, maximum=15, value=8, step=1,
+                label="Max hypotheses",
+            )
+            r_physics = gr.Checkbox(
+                value=True,
+                label="Filter out IMPLAUSIBLE chains",
+            )
+            r_reload = gr.Button("↺ Reload graph", size="sm")
+
+        r_stats_md = gr.Markdown(value="", label="")
+
+        r_results = gr.HTML(
+            value="<p style='color:#6B7280; padding:20px;'>"
+                  "Enter a concept above and press Reason.</p>"
+        )
+
+        # ── Example queries ───────────────────────────────────────────────────
+        gr.Markdown("#### Example queries:")
+        with gr.Row():
+            _r_examples = [
+                "aging fracture risk",
+                "collagen bone toughness",
+                "RANKL osteoclast resorption",
+                "porosity elastic modulus",
+                "osteoporosis bone mineral density",
+            ]
+            for ex in _r_examples:
+                gr.Button(ex, size="sm").click(fn=lambda q=ex: q, outputs=r_query)
+
+        # ── Research gap detection ─────────────────────────────────────────────
+        gr.Markdown("---")
+        gr.Markdown(
+            "#### 🕳️ Research Gap Detection\n"
+            "Identifies concepts that sit on many causal paths in the graph "
+            "but have few direct connections — candidate knowledge gaps."
+        )
+        with gr.Row():
+            gap_top_n = gr.Slider(minimum=5, maximum=20, value=10, step=1,
+                                  label="Number of gaps to show")
+            gap_btn   = gr.Button("Find Gaps", variant="secondary")
+
+        gap_results = gr.HTML(
+            value="<p style='color:#6B7280'>Press Find Gaps to detect research gaps.</p>"
+        )
+
+        # ── Wire ───────────────────────────────────────────────────────────────
+        r_btn.click(
+            fn=reason,
+            inputs=[r_query, r_max, r_physics],
+            outputs=[r_results, gap_results, r_stats_md],
+        )
+        r_query.submit(
+            fn=reason,
+            inputs=[r_query, r_max, r_physics],
+            outputs=[r_results, gap_results, r_stats_md],
+        )
+        r_reload.click(
+            fn=reload_graph,
+            outputs=r_stats_md,
+        )
+        gap_btn.click(
+            fn=find_gaps,
+            inputs=[gap_top_n],
+            outputs=gap_results,
+        )
 
     gr.Markdown(
         f"---\n"

@@ -180,10 +180,25 @@ class NoveltyClassifier:
         db_path: Path = CHUNKS_DB_PATH,
         use_semantic: bool = True,
         sample_size: int = _SEM_SAMPLE_SIZE,
+        model=None,
+        tokenizer=None,
+        device=None,
     ) -> None:
-        self.db_path     = db_path
+        self.db_path      = db_path
         self.use_semantic = use_semantic
         self.sample_size  = sample_size
+
+        # Allow caller to pass in a pre-loaded SPECTER2 model to avoid
+        # loading it twice (retriever already loads the query adapter).
+        if model is not None:
+            self._model     = model
+            self._tokenizer = tokenizer
+            self._device    = device
+            logger.info("NoveltyClassifier: reusing pre-loaded SPECTER2 model.")
+        else:
+            self._model     = None
+            self._tokenizer = None
+            self._device    = None
 
         # Lazy-loaded semantic index
         self._emb_matrix:  np.ndarray | None = None   # (N, 768) float32, L2-normalised
