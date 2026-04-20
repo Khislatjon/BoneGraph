@@ -361,38 +361,39 @@ class NoveltyClassifier:
         """
         Convert keyword hit counts to (label, similarity, explanation).
         """
+        n = len(terms)
         if full_hits >= _KW_GROUNDED_CHUNKS:
             sim = min(0.90, 0.70 + full_hits * 0.01)
             return (
                 "GROUNDED",
                 sim,
-                f"Found {full_hits} corpus chunks containing all {len(terms)} key terms — "
-                f"this chain is well-covered in the literature.",
+                f"{full_hits} chunks matched all {n} key terms — "
+                f"well-covered in the literature.",
             )
         elif full_hits >= _KW_SPECULATIVE_CHUNKS:
             sim = 0.65 + full_hits * 0.02
             return (
                 "SPECULATIVE",
                 sim,
-                f"Found {full_hits} corpus chunk(s) with all key terms and "
-                f"{partial_hits} with partial coverage — "
+                f"{full_hits} chunks matched all {n} key terms, "
+                f"{partial_hits} matched partially — "
                 f"partially discussed in the literature.",
             )
         elif partial_hits >= _KW_GROUNDED_CHUNKS:
             return (
                 "SPECULATIVE",
                 0.62,
-                f"No chunk covers all {len(terms)} terms together, but "
-                f"{partial_hits} chunks cover subsets — "
-                f"component concepts exist; this specific combination is less documented.",
+                f"0 chunks matched all {n} key terms, "
+                f"{partial_hits} matched partially — "
+                f"component concepts exist but this combination is less documented.",
             )
         else:
             sim = max(0.0, 0.30 - partial_hits * 0.02)
             return (
                 "NOVEL",
                 sim,
-                f"Only {partial_hits} chunk(s) with partial term coverage "
-                f"and {full_hits} with full coverage — "
+                f"0 chunks matched all {n} key terms, "
+                f"{partial_hits} matched partially — "
                 f"this combination appears under-represented in the corpus.",
             )
 
@@ -593,7 +594,7 @@ class NoveltyClassifier:
             final_ids   = sem_ids
             explanation = (
                 f"{kw_explanation} "
-                f"Semantic similarity max={sem_sim:.3f} → {sem_label}."
+                f"Semantic similarity: {sem_sim:.3f} (semantic prevails)."
             )
             tier = "semantic"
         else:
@@ -602,7 +603,7 @@ class NoveltyClassifier:
             final_ids   = top_ids or sem_ids
             explanation = (
                 f"{kw_explanation} "
-                f"Semantic check: max_sim={sem_sim:.3f} — keyword result prevails."
+                f"Semantic similarity: {sem_sim:.3f} (keyword prevails)."
             )
             tier = "semantic"
 

@@ -34,8 +34,8 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama · streaming RAG answers |
 | Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
 | Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links |
-| Phase 3 — VLM integration | ⏳ Planned | |
-| Phase 4 — LRM reasoning | ⏳ Planned | |
+| Phase 3 — VLM integration | 🔶 Partial | LLaVA 1.6 tab implemented · cross-modal retrieval pending |
+| Phase 4 — LRM reasoning | 🔶 In Progress | Steps 4.1–4.6 complete · 3,001 nodes · 2,339 edges (textbooks) |
 
 ---
 
@@ -143,7 +143,7 @@ python -m retrieval.query "cortical bone fracture toughness"
 # CLI — interactive mode (embeddings loaded once, fast repeated queries)
 python -m retrieval.query --interactive
 
-# Gradio web UI (two tabs: Ask BoneLogic + Search Corpus)
+# Gradio web UI (tabs: Ask BoneLogic · Search Corpus · Analyse Image · Reason)
 python app.py    # Opens automatically at http://localhost:7860
 ```
 
@@ -174,6 +174,69 @@ Results are saved to `eval/results.json`. Current scores (top_k=10):
 
 ---
 
+## Phase 4 — LRM Reasoning Layer
+
+Steps 4.1–4.6 are complete. The knowledge graph is seeded, triple extraction has run on all 16 textbooks, and the full reasoning stack (physics engine, LRM, novelty classifier, Gradio "Reason" tab) is live.
+
+### Check graph stats
+
+```bash
+# Quick SQLite inspection
+python -c "
+import sqlite3, pathlib
+con = sqlite3.connect('data/db/ontology.db')
+nodes = con.execute('SELECT COUNT(*) FROM nodes').fetchone()[0]
+edges = con.execute('SELECT COUNT(*) FROM edges').fetchone()[0]
+print(f'Nodes: {nodes}  Edges: {edges}')
+"
+```
+
+### Run triple extraction (resumable)
+
+```bash
+# Textbooks only (highest quality, ~1,983 chunks, ~7 hours CPU-only)
+.venv/bin/python -m reasoning.extractor --source textbooks
+
+# All chunks including papers (long-running, use caffeinate / nohup on macOS)
+caffeinate -i nohup .venv/bin/python -m reasoning.extractor > logs/extractor.log 2>&1 &
+
+# Tail progress
+tail -f logs/extractor.log
+```
+
+> Extraction is **resumable** — if interrupted, re-run the same command and it picks up from the last processed chunk (tracked in `extraction_progress` table in `ontology.db`).
+
+### Current graph stats (after textbook extraction)
+
+| Metric | Value |
+|---|---|
+| Chunks processed | 1,983 / 1,983 textbook chunks |
+| Non-empty chunks | 727 (37%) |
+| Raw triples extracted | 2,935 |
+| Nodes (unique concepts) | 3,001 |
+| Edges (unique relations) | 2,339 |
+
+### Launch the Reason tab
+
+```bash
+python app.py   # Tab 4: 🔬 Reason
+```
+
+The Reason tab supports:
+- **Natural language hypothesis queries** — anchors to graph nodes, traverses multi-hop causal chains
+- **Physics validation** — 71 directional rules + numerical checks (Currey's law, Frost mechanostat, Paris crack growth, beam bending, stress concentration)
+- **Novelty classification** — Tier 1 keyword search + Tier 2 SPECTER2 semantic similarity → GROUNDED / SPECULATIVE / NOVEL
+- **Research gap detection** — betweenness centrality analysis ranks under-studied bridge concepts
+
+Example queries:
+- `"aging fracture risk"`
+- `"cortical porosity elastic modulus"`
+- `"collagen crosslink toughness"`
+- `"osteocyte lacuna fatigue crack"`
+- `"bone mineral density osteoporosis"`
+
+---
+
 ## Project structure
 
 ```
@@ -184,6 +247,15 @@ BoneLogic/
 │   └── textbooks/           # Textbook scanner and storage
 ├── processing/              # Text extraction, chunking, embedding
 ├── retrieval/               # RAG retrieval engine + CLI/web query interface
+├── reasoning/               # Phase 4: bone knowledge graph + LRM reasoning layer
+│   ├── __init__.py
+│   ├── ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
+│   ├── graph_db.py          # SQLite-backed graph persistence (ontology.db)
+│   ├── seed.py              # ~200 seed concepts + hand-curated causal edges
+│   ├── extractor.py         # LLM triple extraction pipeline from chunks.db (resumable)
+│   ├── physics.py           # Bone physics engine: 71 directional rules + numerical laws
+│   ├── lrm.py               # Core reasoning engine: path-finding, gap detection, scoring
+│   └── novelty.py           # Novelty classifier: keyword tier + SPECTER2 semantic tier
 ├── scripts/                 # Utilities: DB inspector, language filter
 ├── data/
 │   ├── raw/papers/          # Downloaded paper PDFs (gitignored)
@@ -192,13 +264,14 @@ BoneLogic/
 │   └── db/                  # SQLite databases (gitignored)
 │       ├── papers.db        # 54,634 paper metadata rows
 │       ├── textbooks.db     # 16 textbook metadata rows
-│       └── chunks.db        # 248,629 chunks + SPECTER2 embeddings
+│       ├── chunks.db        # 248,629 chunks + SPECTER2 embeddings
+│       └── ontology.db      # Knowledge graph: 3,001 nodes · 2,339 edges
 ├── eval/                    # Retrieval quality benchmark
 │   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
 │   ├── run_eval.py          # Eval script — computes MRR and Recall@k
 │   └── results.json         # Latest benchmark results
 ├── docs/                    # Detailed documentation per phase
-├── app.py                   # Gradio web UI
+├── app.py                   # Gradio web UI (4 tabs: Ask · Search · Analyse Image · Reason)
 ├── mypaper/                 # Paper draft (gitignored)
 └── tests/
 ```

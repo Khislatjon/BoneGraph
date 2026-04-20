@@ -651,6 +651,8 @@ def reason(query: str, max_results: int, physics_filter: bool):
     """
     Generator for the Reason tab.  Yields a single HTML string.
     """
+    import time
+
     query = query.strip()
     if not query:
         yield "<p style='color:#6B7280; padding:20px;'>Enter a concept or question above.</p>"
@@ -659,16 +661,19 @@ def reason(query: str, max_results: int, physics_filter: bool):
     yield "<p style='color:#6B7280; padding:20px;'>🔬 Traversing knowledge graph…</p>"
 
     try:
+        t0 = time.perf_counter()
         lrm.physics_filter = physics_filter
         hypotheses = lrm.query(query, max_results=int(max_results))
         hyp_html   = _render_hypotheses(hypotheses, lrm._graph)
+        elapsed    = time.perf_counter() - t0
 
         s = lrm.graph_stats()
         stats_html = (
             f"<p style='font-size:0.8em; color:#6B7280; margin:0 0 16px 0;'>"
             f"Graph: {s['n_nodes']:,} nodes · {s['n_edges']:,} edges · "
             f"{s['n_components']} components · "
-            f"largest component: {s['giant_component']} nodes</p>"
+            f"largest component: {s['giant_component']} nodes · "
+            f"response time: {elapsed:.1f}s</p>"
         )
 
         yield stats_html + hyp_html
