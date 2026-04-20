@@ -394,15 +394,16 @@ class LRM:
         """
         Compute a composite ranking score for a hypothesis.
 
-        Score components:
-        - Physics confidence (0–1)          weight 0.4
-        - Chain length bonus (2–5 hops)     weight 0.3
+        Score components (physics is guard-rail only — penalty if IMPLAUSIBLE,
+        neutral otherwise):
+        - Chain length bonus (2–5 hops)     weight 0.5
           (longer = more interesting, up to max_hops)
-        - Mean edge weight (evidence)        weight 0.2
+        - Mean edge weight (evidence)        weight 0.4
         - Novelty bonus                      weight 0.1
           NOVEL=1.0, SPECULATIVE=0.5, GROUNDED=0.0
         """
-        phys_score   = physics.confidence if not physics.is_implausible else 0.0
+        if physics.is_implausible:
+            return 0.0
         length_score = min((len(edges) - 1) / max(self.max_hops - 1, 1), 1.0)
         weight_score = (
             sum(e.weight for e in edges) / len(edges) if edges else 0.0
@@ -413,9 +414,8 @@ class LRM:
         )
 
         return (
-            0.4 * phys_score
-            + 0.3 * length_score
-            + 0.2 * weight_score
+            0.5 * length_score
+            + 0.4 * weight_score
             + 0.1 * novelty_score
         )
 

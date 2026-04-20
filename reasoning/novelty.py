@@ -145,7 +145,7 @@ class NoveltyResult:
     @property
     def show_disclaimer(self) -> bool:
         """True when the UI should show the corpus disclaimer."""
-        return self.label in ("NOVEL", "SPECULATIVE")
+        return self.label == "NOVEL"
 
 
 # ── NoveltyClassifier ─────────────────────────────────────────────────────────

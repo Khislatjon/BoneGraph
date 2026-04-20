@@ -1,6 +1,6 @@
 # Phase 4 — LRM Reasoning Layer
 
-**Status: ⏳ Planned**
+**Status: 🔶 In Progress — Steps 4.1–4.6 complete · paper corpus extraction pending**
 
 Move from retrieval to reasoning. A structured bone ontology (knowledge graph) connects concepts causally. The LRM traverses the ontology to construct multi-hop reasoning chains and generate grounded hypotheses — not just summaries of what the literature says.
 
@@ -480,46 +480,104 @@ python eval/run_eval_lrm.py        # runs all three task benchmarks
 
 ---
 
-## New repository structure
+## Repository structure (as built)
 
 ```
 reasoning/
     __init__.py
-    ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
-    graph_db.py          # SQLite-backed persistence for ontology.db
-    extractor.py         # LLM triple extraction pipeline from chunks.db
-    physics.py           # Bone physics engine (scaling laws, fracture mechanics)
-    lrm.py               # Core reasoning engine (path finding, gap detection, hypothesis gen)
-    novelty.py           # Novelty classifier (SPECTER2 similarity vs corpus)
-    render.py            # Sub-graph → structured text context for LLM prompts
+    ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers, NODE_TYPES
+    graph_db.py          # SQLite-backed persistence + extraction_progress tracking
+    seed.py              # ~200 seed concepts + ~80 hand-curated causal edges
+    extractor.py         # LLM triple extraction pipeline from chunks.db (resumable)
+    physics.py           # Bone physics engine: 40 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
+    lrm.py               # Core reasoning engine: anchor → traverse → score → summarise
+    novelty.py           # Novelty classifier: keyword Tier 1 + SPECTER2 Tier 2
 
 data/db/
-    ontology.db          # Knowledge graph (nodes + edges tables)
+    ontology.db          # Knowledge graph: 3,001 nodes · 2,339 edges (after textbook extraction)
 
 eval/
-    benchmark_lrm.json   # 50-item benchmark across 3 task types
-    run_eval_lrm.py      # Evaluation runner
-    results_lrm.json     # Latest results (gitignored)
+    benchmark_lrm.json   # 50-item benchmark (pending)
+    run_eval_lrm.py      # Evaluation runner (pending)
+    results_lrm.json     # Latest results (pending)
 
 docs/
     phase4_lrm_plan.md   # This file
 ```
 
+### Physics engine implementation (`reasoning/physics.py`)
+
+**Layer 1 — Directional guard-rail rules (40 rules)**
+
+Rules are stored as `(src_fragment, relation, tgt_fragment) → (status, law, explanation)`. Node matching uses substring lookup so extracted node names like `"cortical_bone_porosity"` match the rule fragment `"porosity"`.
+
+Rules act as **guard rails only**: an `IMPLAUSIBLE` match on any edge causes the entire chain to score 0 and be filtered out. There is no `PLAUSIBLE` reward — chains that pass (or are not covered by any rule) are scored identically. This avoids systematic bias toward topics with many encoded rules.
+
+Example IMPLAUSIBLE guard rails:
+```python
+("porosity",   "increases", "elastic_modulus"): ("IMPLAUSIBLE", "Currey's law",              "..."),
+("OPG",        "activates", "osteoclast"):      ("IMPLAUSIBLE", "RANK/RANKL/OPG signalling", "..."),
+("sclerostin", "activates", "bone_formation"):  ("IMPLAUSIBLE", "Wnt/β-catenin signalling",  "..."),
+("disuse",     "leads_to",  "bone_formation"):  ("IMPLAUSIBLE", "Frost mechanostat",         "..."),
+```
+
+**Chain validation**
+
+A chain is immediately rejected (score = 0) if any single edge matches an IMPLAUSIBLE rule. All other chains pass through to scoring unchanged — PLAUSIBLE and UNCERTAIN are treated identically.
+
+**Layer 2 — Numerical functions**
+
+| Function | Law | Formula |
+|---|---|---|
+| `check_currey(rho)` | Currey's law | E = 7·ρ² (GPa, ρ in g/cm³) |
+| `check_mechanostat(με)` | Frost mechanostat | 6 zones: disuse · remodelling · homeostasis · modelling · overload · fracture |
+| `check_paris(ΔK)` | Paris crack growth | da/dN = 1.7×10⁻⁹ · ΔK³·⁹ |
+| `check_beam_bending(M, c, I)` | Euler–Bernoulli beam | σ = Mc/I |
+| `check_stress_concentration(a, ρ)` | Inglis / Kirsch | Kt = 1 + 2√(a/ρ) |
+
+### Novelty classifier implementation (`reasoning/novelty.py`)
+
+**Tier 1 — Keyword search**
+
+Tokenises the hypothesis into keywords, runs `LIKE` queries against `chunks.db`. Thresholds: ≥5 chunk hits → GROUNDED; 1–4 → SPECULATIVE; 0 → NOVEL.
+
+**Tier 2 — SPECTER2 semantic similarity**
+
+Embeds the hypothesis with SPECTER2 adhoc_query adapter. Computes cosine similarity against 8,000 randomly sampled L2-normalised corpus embeddings. Thresholds: ≥0.82 → GROUNDED; 0.60–0.82 → SPECULATIVE; <0.60 → NOVEL.
+
+**Merge rule:** take the label corresponding to the higher similarity score (more conservative = less likely to overclaim novelty).
+
+**SPECTER2 model sharing:** the model, tokenizer, and device are passed in from the retriever at startup so the 1.6 GB model is loaded only once.
+
+**Corpus disclaimer:** shown only for NOVEL results:
+> ⚠️ Novelty is assessed against our open-access corpus only — some results may already appear in paywalled literature.
+
 ---
 
 ## Execution order
 
-| Step | Work | Output |
-|---|---|---|
-| 4.1 | Seed ontology with ~200 bone concepts + hand-curated edges | `ontology.db` populated |
-| 4.2 | Triple extraction on textbooks (highest quality, fastest) | ~5,000 triples |
-| 4.3 | Triple extraction on full papers corpus | ~50,000–100,000 raw triples |
-| 4.4 | Graph deduplication, edge weighting, giant-component analysis | Clean graph ready |
-| 4.5 | Implement physics engine, test against known bone values | `physics.py` validated |
-| 4.6 | Implement LRM reasoning engine, test on 10 manual queries | `lrm.py` working |
-| 4.7 | Implement novelty classifier | `novelty.py` working |
-| 4.8 | Gradio "Reason" tab integration | End-to-end UI working |
-| 4.9 | LRM benchmark evaluation, fix gaps | `results_lrm.json` |
+| Step | Work | Status | Output |
+|---|---|---|---|
+| 4.1 | Seed ontology with ~200 bone concepts + hand-curated edges | ✅ Done | `ontology.db` populated |
+| 4.2 | Triple extraction on textbooks (highest quality) | ✅ Done | 2,935 triples · 3,001 nodes · 2,339 edges |
+| 4.3 | Physics engine — directional guard-rail rules + numerical laws | ✅ Done | 40 rules · 5 numerical functions |
+| 4.4 | LRM reasoning engine — anchor, traverse, score | ✅ Done | Multi-hop chains · gap detection |
+| 4.5 | Novelty classifier — keyword + SPECTER2 semantic tiers | ✅ Done | GROUNDED / SPECULATIVE / NOVEL |
+| 4.6 | Gradio "Reason" tab integration | ✅ Done | End-to-end UI with physics + novelty badges |
+| 4.7 | Triple extraction on full papers corpus | ⏳ Pending | ~50,000–100,000 additional triples |
+| 4.8 | LRM benchmark evaluation, fix gaps | ⏳ Pending | `results_lrm.json` |
+
+### Actual extraction results (textbooks, April 2026)
+
+| Metric | Value |
+|---|---|
+| Textbook chunks processed | 1,983 / 1,983 |
+| Chunks with extracted triples | 727 (37%) |
+| Empty chunks (figures, TOC, captions) | 1,256 (63%) |
+| Raw triples extracted | 2,935 |
+| Unique nodes after deduplication | 3,001 |
+| Unique edges after deduplication | 2,339 |
+| Extraction speed | ~8.4 s/chunk (CPU-only, HuatuoGPT-bone) |
 
 ---
 

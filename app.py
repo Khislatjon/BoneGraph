@@ -494,15 +494,17 @@ _NOVELTY_COLORS = {
 }
 
 
-def _badge(label: str, color_map: dict) -> str:
+def _badge(label: str, color_map: dict, display=None) -> str:
     """Render a small colored pill badge."""
     text_col, bg_col = color_map.get(label, ("#374151", "#F9FAFB"))
+    text = display if display is not None else label
     return (
         f"<span style='background:{bg_col}; color:{text_col}; "
         f"border:1px solid {text_col}33; border-radius:12px; "
         f"padding:2px 10px; font-size:0.78em; font-weight:700; "
-        f"letter-spacing:0.04em;'>{label}</span>"
+        f"letter-spacing:0.04em;'>{text}</span>"
     )
+
 
 
 def _chain_html(nodes: list[str], graph) -> str:
@@ -544,8 +546,18 @@ def _render_hypotheses(hypotheses, graph) -> str:
     for i, h in enumerate(hypotheses, 1):
         nr = novelty_clf.classify(h)
 
-        p_badge = _badge(h.physics.status, _PHYSICS_COLORS)
-        n_badge = _badge(nr.label, _NOVELTY_COLORS)
+        _NOVELTY_DISPLAY = {
+            "GROUNDED":    "Grounded hypothesis",
+            "SPECULATIVE": "Speculative hypothesis",
+            "NOVEL":       "Novel hypothesis",
+            "UNCERTAIN":   "Uncertain hypothesis",
+        }
+
+        p_badge = (
+            _badge("IMPLAUSIBLE", _PHYSICS_COLORS)
+            if h.physics.is_implausible else ""
+        )
+        n_badge = _badge(nr.label, _NOVELTY_COLORS, display=_NOVELTY_DISPLAY.get(nr.label))
         chain   = _chain_html(h.chain, graph)
         rels    = " &nbsp;|&nbsp; ".join(
             f"<em style='color:#6B7280'>{e.relation}</em>" for e in h.edges
@@ -560,16 +572,9 @@ def _render_hypotheses(hypotheses, graph) -> str:
                 f"⚠️ {CORPUS_DISCLAIMER}</div>"
             )
 
-        physics_note = ""
-        if h.physics.law:
-            physics_note = (
-                f"<span style='color:#6B7280; font-size:0.82em;'>"
-                f"&nbsp;({h.physics.law})</span>"
-            )
-
         novelty_note = (
             f"<span style='color:#6B7280; font-size:0.82em;'>"
-            f"&nbsp;{nr.explanation[:90]}{'…' if len(nr.explanation) > 90 else ''}"
+            f"&nbsp;{nr.explanation}"
             f"</span>"
         )
 
@@ -593,8 +598,7 @@ def _render_hypotheses(hypotheses, graph) -> str:
 
             <div style='display:flex; gap:8px; align-items:center;
                         flex-wrap:wrap; margin-bottom:10px;'>
-                {p_badge}{physics_note}
-                &nbsp;&nbsp;
+                {p_badge}{'&nbsp;&nbsp;' if p_badge else ''}
                 {n_badge}{novelty_note}
             </div>
 
@@ -645,23 +649,14 @@ def _render_gaps(gaps) -> str:
 
 def reason(query: str, max_results: int, physics_filter: bool):
     """
-    Generator for the Reason tab.
-    Yields (hypotheses_html, gaps_html, graph_stats_md) tuples.
+    Generator for the Reason tab.  Yields a single HTML string.
     """
     query = query.strip()
     if not query:
-        yield (
-            "<p style='color:#6B7280; padding:20px;'>Enter a concept or question above.</p>",
-            "",
-            "",
-        )
+        yield "<p style='color:#6B7280; padding:20px;'>Enter a concept or question above.</p>"
         return
 
-    yield (
-        "<p style='color:#6B7280; padding:20px;'>🔬 Traversing knowledge graph…</p>",
-        "",
-        "",
-    )
+    yield "<p style='color:#6B7280; padding:20px;'>🔬 Traversing knowledge graph…</p>"
 
     try:
         lrm.physics_filter = physics_filter
@@ -669,16 +664,17 @@ def reason(query: str, max_results: int, physics_filter: bool):
         hyp_html   = _render_hypotheses(hypotheses, lrm._graph)
 
         s = lrm.graph_stats()
-        stats_md = (
-            f"**Graph:** {s['n_nodes']:,} nodes · {s['n_edges']:,} edges · "
+        stats_html = (
+            f"<p style='font-size:0.8em; color:#6B7280; margin:0 0 16px 0;'>"
+            f"Graph: {s['n_nodes']:,} nodes · {s['n_edges']:,} edges · "
             f"{s['n_components']} components · "
-            f"largest component: {s['giant_component']} nodes"
+            f"largest component: {s['giant_component']} nodes</p>"
         )
 
-        yield hyp_html, "", stats_md
+        yield stats_html + hyp_html
 
     except Exception as e:
-        yield f"<p style='color:#DC2626'>⚠️ Error: {e}</p>", "", ""
+        yield f"<p style='color:#DC2626'>⚠️ Error: {e}</p>"
 
 
 def find_gaps(top_n: int):
@@ -883,9 +879,6 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
                 value=True,
                 label="Filter out IMPLAUSIBLE chains",
             )
-            r_reload = gr.Button("↺ Reload graph", size="sm")
-
-        r_stats_md = gr.Markdown(value="", label="")
 
         r_results = gr.HTML(
             value="<p style='color:#6B7280; padding:20px;'>"
@@ -925,16 +918,12 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
         r_btn.click(
             fn=reason,
             inputs=[r_query, r_max, r_physics],
-            outputs=[r_results, gap_results, r_stats_md],
+            outputs=r_results,
         )
         r_query.submit(
             fn=reason,
             inputs=[r_query, r_max, r_physics],
-            outputs=[r_results, gap_results, r_stats_md],
-        )
-        r_reload.click(
-            fn=reload_graph,
-            outputs=r_stats_md,
+            outputs=r_results,
         )
         gap_btn.click(
             fn=find_gaps,

@@ -79,8 +79,8 @@ BoneLogic is intentionally restricted to bone science. This is not a limitation 
 | Phase 1 — Paper ingestion | ✅ Complete (March 2026) | [papers_ingestion_pipeline.md](papers_ingestion_pipeline.md) |
 | Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
-| Phase 3 — VLM integration | ⏳ Planned | [phase3_vlm_plan.md](phase3_vlm_plan.md) |
-| Phase 4 — LRM reasoning layer | ⏳ Planned | [phase4_lrm_plan.md](phase4_lrm_plan.md) |
+| Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](phase3_vlm_plan.md) |
+| Phase 4 — LRM reasoning layer | 🔶 In Progress (April 2026) | Steps 4.1–4.6 complete · paper extraction pending · [phase4_lrm_plan.md](phase4_lrm_plan.md) |
 | Phase 5 — Feedback loop | ⏳ Planned | — |
 
 ---
@@ -93,11 +93,20 @@ Collect the knowledge base. 54,634 papers from OpenAlex · 7,674 PDFs · 16 text
 ### Phase 2 — Text processing & RAG ✅
 Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B answers via Ollama. Retrieval benchmark: MRR 0.928, Recall@5 1.000.
 
-### Phase 3 — VLM integration ⏳
-Add image understanding for X-ray and MRI inputs. LLaVA 1.6 generates structured radiological reports; reports are embedded with SPECTER2 and used to retrieve relevant literature from the text corpus (cross-modal retrieval in a shared embedding space). New "Analyse Image" tab in the web UI.
+### Phase 3 — VLM integration 🔶 Partial
+Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab is live in the Gradio UI — users can upload an image and receive a structured radiological report. Full cross-modal retrieval (reports embedded with SPECTER2 and used to search the text corpus) is planned but not yet implemented.
 
-### Phase 4 — LRM reasoning layer ⏳
-Move from retrieval to reasoning. A structured bone ontology (knowledge graph) connects concepts causally. The LRM traverses the ontology to construct reasoning chains and generate grounded hypotheses — not just summaries.
+### Phase 4 — LRM reasoning layer 🔶 In Progress
+Move from retrieval to reasoning. Steps 4.1–4.6 are complete:
+
+- **4.1 — Seed ontology**: ~200 bone science concepts and ~80 hand-curated causal edges bootstrapped into `ontology.db`.
+- **4.2 — Triple extraction**: HuatuoGPT-bone (via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Textbook extraction complete: 1,983 chunks processed → 2,935 triples → 3,001 nodes, 2,339 edges. Paper extraction pending.
+- **4.3 — Physics engine** (`reasoning/physics.py`): 40 directional guard-rail rules covering core bone mechanics relationships. Rules act as IMPLAUSIBLE filters only — a chain containing a physically impossible edge is discarded entirely. Five numerical law implementations: Currey's modulus (E = 7·ρ²), Frost mechanostat (6 strain zones), Paris crack growth (da/dN = C·ΔK^m), beam bending stress (σ = Mc/I), stress concentration (Kt = 1 + 2√(a/ρ)).
+- **4.4 — LRM reasoning engine** (`reasoning/lrm.py`): Anchors natural-language queries to graph nodes via token matching, traverses all shortest paths between anchor pairs, scores chains by path length (50%) + mean edge weight (40%) + novelty bonus (10%). Physics is penalty-only: IMPLAUSIBLE chains score 0 and are filtered out; all other chains are scored without a physics reward.
+- **4.5 — Novelty classifier** (`reasoning/novelty.py`): Two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative (less novel) tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
+- **4.6 — Reason tab** (`app.py`): Fourth Gradio tab with query box, physics-filter toggle, max-results slider, colour-coded hypothesis cards (novelty badge; IMPLAUSIBLE badge shown only when a chain is physically impossible), and research gap table.
+
+Remaining: paper corpus extraction (Steps 4.3 plan variant), LRM benchmark evaluation.
 
 ### Phase 5 — Feedback loop ⏳
 Make the system improve with use. User feedback (corrections, confirmations) updates the ontology, refining retrieval and reasoning in subsequent queries.
@@ -158,14 +167,22 @@ BoneLogic/
 │   ├── retriever.py             BoneLogicRetriever — loads all embeddings, cosine search
 │   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
+├── reasoning/                   Phase 4: bone knowledge graph + LRM reasoning layer
+│   ├── __init__.py
+│   ├── ontology.py              Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
+│   ├── graph_db.py              SQLite-backed graph persistence + extraction progress tracking
+│   ├── seed.py                  ~200 seed concepts + ~80 hand-curated causal edges
+│   ├── extractor.py             LLM triple extraction from chunks.db (resumable, HuatuoGPT-bone)
+│   ├── physics.py               Bone physics engine: 40 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
+│   ├── lrm.py                   Core reasoning engine: anchor → traverse → score → summarise
+│   └── novelty.py               Novelty classifier: keyword tier + SPECTER2 semantic tier
+│
 ├── eval/                        Retrieval quality benchmarks
 │   ├── benchmark.json           30 questions across 7 domains with expected keywords
 │   ├── run_eval.py              Computes MRR and Recall@k · saves results.json
 │   └── results.json             Latest benchmark results
 │
-├── models/                      Phases 3-4: LLM, VLM, LRM wrappers (coming in Phase 3)
-├── reasoning/                   Phase 4: ontology and LRM (coming in Phase 4)
-├── api/                         Phase 5: user-facing interface (coming in Phase 5)
+├── models/                      Phases 3-4: LLM, VLM, LRM wrappers
 │
 ├── data/
 │   ├── raw/papers/              Downloaded PDFs — 7,674 files (gitignored)
@@ -174,19 +191,21 @@ BoneLogic/
 │   └── db/
 │       ├── papers.db            54,634 paper metadata rows (gitignored)
 │       ├── textbooks.db         16 textbook metadata rows (gitignored)
-│       └── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
+│       ├── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
+│       └── ontology.db          Knowledge graph: 3,001 nodes · 2,339 edges (gitignored)
 │
 ├── docs/
 │   ├── architecture.md                    ← this file (high-level overview)
 │   ├── papers_ingestion_pipeline.md       Phase 1 — papers ingestion deep-dive
 │   ├── textbooks_ingestion_pipeline.md    Phase 1b — textbooks ingestion deep-dive
 │   ├── phase2_rag_pipeline.md             Phase 2 — text processing, RAG, evaluation
-│   └── phase3_vlm_plan.md                 Phase 3 — VLM integration plan
+│   ├── phase3_vlm_plan.md                 Phase 3 — VLM integration plan
+│   └── phase4_lrm_plan.md                 Phase 4 — LRM reasoning layer plan + progress
 │
 ├── tests/
 │   └── test_ingestion.py
 │
-├── app.py                       Gradio web UI (http://localhost:7860)
+├── app.py                       Gradio web UI — 4 tabs: Ask · Search · Analyse Image · Reason
 ├── .env                         API keys (gitignored — never commit)
 ├── .env.example                 Template showing which keys are needed
 └── requirements.txt
