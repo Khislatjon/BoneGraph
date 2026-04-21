@@ -436,7 +436,7 @@ function SearchTab({ totalChunks }) {
   const [elapsed, setElapsed] = useState(0);
   const [filter, setFilter]   = useState('All');
 
-  const EXAMPLES = ['trabecular bone viscoelasticity','cortical porosity aging','osteocyte mechanosensing','bone fracture toughness'];
+  const EXAMPLES = ['bone mineral density osteoporosis','collagen crosslink mechanics','osteoblast osteoclast remodeling','stress fracture fatigue crack'];
   const FILTERS  = ['All','Papers only','Textbooks only'];
 
   const doSearch = async (q, f) => {
@@ -463,7 +463,7 @@ function SearchTab({ totalChunks }) {
             <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
           </svg>
           <input className="search-input"
-            placeholder={`Search ${totalChunks ? totalChunks.toLocaleString() : ''} papers and textbooks…`}
+            placeholder={`Search ${totalChunks ? totalChunks.toLocaleString() : '248,629'} paper and textbook chunks…`}
             value={query} onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key==='Enter' && doSearch(query)}/>
           <button className="search-btn" onClick={() => doSearch(query)} disabled={loading || !query.trim()}>

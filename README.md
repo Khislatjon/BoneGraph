@@ -30,7 +30,7 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Language filtering | ✅ Complete | 336 non-English papers flagged |
 | Phase 2 — Chunking | ✅ Complete | 248,629 chunks (sentence-aware · ~400 tokens · 2-sentence overlap) |
 | Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
-| Phase 2 — RAG retrieval | ✅ Complete | CLI + Gradio web UI (Ask + Search tabs) |
+| Phase 2 — RAG retrieval | ✅ Complete | CLI + React web UI (Ask · Search · Analyse Image · Reason tabs) |
 | Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama (`huatuogpt-bone` — HuatuoGPT-o1-8B with custom bone science system prompt) · streaming RAG answers |
 | Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
 | Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links |
@@ -51,9 +51,9 @@ cp .env.example .env
 # Add CROSSREF_EMAIL and WILEY_TDM_TOKEN to .env
 ```
 
-#### Known issue — gradio_client crash on startup
+#### Known issue — gradio_client crash on startup (legacy UI only)
 
-Some versions of `gradio_client` crash with `TypeError: argument of type 'bool' is not iterable` when building API info for components. If you see this error, apply the following two-line patch:
+Some versions of `gradio_client` crash with `TypeError: argument of type 'bool' is not iterable` when building API info for components. This only affects `app.py` (the legacy Gradio UI). If you see this error, apply the following two-line patch:
 
 **File:** `.venv/lib/python3.9/site-packages/gradio_client/utils.py`
 
@@ -143,8 +143,8 @@ python -m retrieval.query "cortical bone fracture toughness"
 # CLI — interactive mode (embeddings loaded once, fast repeated queries)
 python -m retrieval.query --interactive
 
-# Gradio web UI (tabs: Ask BoneLogic · Search Corpus · Analyse Image · Reason)
-python app.py    # Opens automatically at http://localhost:7860
+# React web UI (tabs: Ask BoneLogic · Search Corpus · Analyse Image · Reason)
+python serve.py    # FastAPI backend + React frontend at http://localhost:8000
 ```
 
 **Ask BoneLogic tab** requires Ollama running with the fine-tuned model:
@@ -155,6 +155,8 @@ ollama run huatuogpt-bone  # HuatuoGPT-o1-8B with custom bone science system pro
 ```
 
 **Search Corpus tab** works without Ollama — pure semantic retrieval only.
+
+> Legacy Gradio UI is still available via `python app.py` (port 7860) but is no longer the primary interface.
 
 ### Run the retrieval benchmark
 
@@ -219,7 +221,7 @@ tail -f logs/extractor.log
 ### Launch the Reason tab
 
 ```bash
-python app.py   # Tab 4: 🔬 Reason
+python serve.py   # React UI at http://localhost:8000 — Reason tab in sidebar
 ```
 
 The Reason tab supports:
@@ -270,8 +272,14 @@ BoneLogic/
 │   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
 │   ├── run_eval.py          # Eval script — computes MRR and Recall@k
 │   └── results.json         # Latest benchmark results
+├── api/                     # FastAPI backend (endpoints: ask, search, reason, analyse, gaps, stats)
+│   └── main.py
+├── frontend/                # React web UI (sidebar design: Ask · Search · Analyse Image · Reason)
+│   ├── index.html           # Single-file React app (Babel in-browser transpilation)
+│   └── static/              # React, ReactDOM, Babel bundles
+├── serve.py                 # Uvicorn launcher — starts FastAPI at http://localhost:8000
+├── app.py                   # Legacy Gradio UI (4 tabs) — kept for reference
 ├── docs/                    # Detailed documentation per phase
-├── app.py                   # Gradio web UI (4 tabs: Ask · Search · Analyse Image · Reason)
 ├── mypaper/                 # Paper draft (gitignored)
 └── tests/
 ```

@@ -37,3 +37,6 @@ htmlcov/
 
 # Paper drafts (kept local only)
 mypaper/
+
+# Claude Code local config (machine-specific permissions)
+.claude/
