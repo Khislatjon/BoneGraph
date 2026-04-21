@@ -314,12 +314,37 @@ function AskTab({ totalChunks }) {
   const [loading, setLoading]   = useState(false);
   const [streaming, setStreaming] = useState('');
   const [liveSource, setLiveSource] = useState(null);
-  const endRef  = useRef(null);
-  const inputRef = useRef(null);
+  const endRef      = useRef(null);
+  const inputRef    = useRef(null);
+  const chatAreaRef = useRef(null);
+  const autoScroll  = useRef(true);
 
+  // onWheel fires before the browser processes the scroll — preemptively disable
+  const handleWheel = () => { autoScroll.current = false; };
+  const handleTouchStart = () => { autoScroll.current = false; };
+
+  // Re-enable only when the user scrolls back to the very bottom
+  const handleChatScroll = () => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
+      autoScroll.current = true;
+    }
+  };
+
+  // Scroll on new completed messages (user just sent something)
   useEffect(() => {
-    if (endRef.current) endRef.current.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streaming]);
+    if (autoScroll.current && endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // During streaming, scroll instantly only if auto-scroll is still enabled
+  useEffect(() => {
+    if (streaming && autoScroll.current && endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'instant' });
+    }
+  }, [streaming]);
 
   const CHIPS = [
     'What drives cortical porosity in aging bone?',
@@ -330,6 +355,7 @@ function AskTab({ totalChunks }) {
   const send = async (text) => {
     const t = text.trim();
     if (!t || loading) return;
+    autoScroll.current = true;
     setMessages(prev => [...prev, { role:'user', content:t }]);
     setInput('');
     setLoading(true);
@@ -371,7 +397,7 @@ function AskTab({ totalChunks }) {
   const empty = messages.length === 0 && !loading;
   return (
     <div className="ask">
-      <div className="chat-area">
+      <div className="chat-area" ref={chatAreaRef} onScroll={handleChatScroll} onWheel={handleWheel} onTouchStart={handleTouchStart}>
         <div className="chat-inner">
           {empty ? (
             <div className="empty-state">
