@@ -32,7 +32,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow-y:auto}
 .sb-logo{display:flex;align-items:center;gap:11px;padding:20px 16px 18px;border-bottom:1px solid var(--border)}
 .sb-logo-icon{width:34px;height:34px;background:#2a2f42;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:3px;flex-shrink:0}
-.sb-logo-text{font-family:var(--serif);font-size:19px;letter-spacing:-.01em}
+.sb-logo-text{font-family:var(--sans);font-size:19px;letter-spacing:-.01em}
 .sb-nav{display:flex;flex-direction:column;padding:10px 8px;gap:2px;flex:1}
 .sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:none;background:none;cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--text2);text-align:left;width:100%;transition:background .12s,color .12s}
 .sb-item:hover{background:var(--surface2);color:var(--text)}
@@ -72,6 +72,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .msg-user .msg-bubble{background:var(--amber-light);border:1px solid var(--amber-border);border-radius:14px 4px 14px 14px;padding:12px 16px}
 .msg-asst .msg-bubble{background:var(--surface);border:1px solid var(--border);border-radius:4px 14px 14px 14px;padding:14px 18px;box-shadow:var(--shadow)}
 .msg-text{font-size:14.5px;line-height:1.7;white-space:pre-wrap}
+.resp-heading{font-weight:700;font-size:14.5px;margin:16px 0 4px;color:var(--text);font-family:var(--sans)}
+.ref-link{color:var(--amber);text-decoration:none}
+.ref-link:hover{text-decoration:underline}
 .cite{color:var(--amber);font-size:.72em;font-weight:600;font-family:var(--mono)}
 .blink{color:var(--amber);animation:blink 1s steps(1) infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
@@ -257,10 +260,25 @@ const ChainArrow = () => (
 
 // ── Inline citations renderer ─────────────────────────────────────────────────
 function parseCit(text) {
-  return text.split(/(\[\d+\])/g).map((p, i) => {
-    const m = p.match(/^\[(\d+)\]$/);
-    return m ? <sup key={i} className="cite">[{m[1]}]</sup> : p;
+  const lines = text.split('\n');
+  const result = [];
+  lines.forEach((line, li) => {
+    const headingMatch = line.match(/^##\s+(.+)$/);
+    if (headingMatch) {
+      result.push(<div key={`h${li}`} className="resp-heading">{headingMatch[1]}</div>);
+      return;
+    }
+    const parts = line.split(/(\[\d+\]|\[[^\]]+\]\(https?:\/\/[^)]+\))/g);
+    parts.forEach((p, i) => {
+      const citM = p.match(/^\[(\d+)\]$/);
+      const linkM = p.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
+      if (citM) result.push(<sup key={`${li}-${i}`} className="cite">[{citM[1]}]</sup>);
+      else if (linkM) result.push(<a key={`${li}-${i}`} href={linkM[2]} target="_blank" rel="noopener noreferrer" className="ref-link">{linkM[1]}</a>);
+      else result.push(p);
+    });
+    if (li < lines.length - 1) result.push('\n');
   });
+  return result;
 }
 
 // ── Sources panel (Ask tab) ───────────────────────────────────────────────────
