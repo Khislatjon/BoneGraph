@@ -189,37 +189,33 @@ def _build_context(results: list[dict]) -> str:
 
 def _build_sources_html(results: list[dict], collapsible: bool = False) -> str:
     """
-    Render retrieved chunks as a styled HTML panel.
+    Render retrieved chunks as styled result cards.
 
-    collapsible=True  →  show first 5 lines of text with a Read more / Show less toggle.
-                         Uses inline JS so it works inside Gradio's gr.HTML component.
-    collapsible=False →  show full text (used by Tab 2 / Search Corpus).
+    collapsible=True  →  show preview text with a Read more / Show less toggle.
+    collapsible=False →  show full text (Search Corpus tab).
     """
     if not results:
-        return "<p style='color:#888'>No relevant passages found.</p>"
+        return "<p style='color:#928f82; font-family:var(--bl-sans,sans-serif)'>No relevant passages found.</p>"
 
-    # Characters that roughly fill 3 lines inside the panel (~80 chars/line)
     PREVIEW_CHARS = 240
 
     html = ""
     for r in results:
         is_tb      = r["source_type"] == "textbook"
-        border     = "#2ca02c" if is_tb else "#1f77b4"
-        badge_bg   = border
         icon       = "📚" if is_tb else "📄"
         source_lbl = "Textbook" if is_tb else "Paper"
+        src_color  = "#1a7a4e" if is_tb else "#1a2540"
+        src_bg     = "#eaf5ee" if is_tb else "#e8ecf4"
 
         meta_parts = []
-        if r["authors"]:     meta_parts.append(r["authors"])
-        if r["year"]:        meta_parts.append(str(r["year"]))
+        if r["authors"]:  meta_parts.append(r["authors"])
+        if r["year"]:     meta_parts.append(str(r["year"]))
         if r["venue"]:
             venue = r["venue"]
-            # Deduplicate "Name/Name" patterns (exact or near-duplicate parts)
             if "/" in venue:
                 parts = [p.strip() for p in venue.split("/")]
                 seen = [parts[0]]
                 for p in parts[1:]:
-                    # Skip if this part is contained in or contains an already-seen part
                     norm = p.lower().replace("the ", "").strip()
                     already = any(
                         norm in s.lower().replace("the ", "").strip() or
@@ -229,56 +225,55 @@ def _build_sources_html(results: list[dict], collapsible: bool = False) -> str:
                     if not already:
                         seen.append(p)
                 venue = " / ".join(seen)
-            meta_parts.append(f"<em style='color:green'>{venue}</em>")
+            meta_parts.append(venue)
         if r["page_number"]: meta_parts.append(f"p.&nbsp;{r['page_number']}")
-        meta_line = " &nbsp;·&nbsp; ".join(meta_parts)
+        byline = " &nbsp;·&nbsp; ".join(meta_parts)
+
+        score_pct = min(int(r["score"] * 100), 100)
+        score_bar = (
+            f"<div class='bl-score-wrap'>"
+            f"<div class='bl-score-num'>{r['score']:.3f}</div>"
+            f"<div class='bl-score-track'><div class='bl-score-fill' style='width:{score_pct}%'></div></div>"
+            f"</div>"
+        )
+        src_badge = (
+            f"<span class='bl-source-badge' style='background:{src_bg}; color:{src_color};'>"
+            f"{icon} {source_lbl}</span>"
+        )
 
         text = r["text"].strip().replace("\n", " ")
 
         if collapsible and len(text) > PREVIEW_CHARS:
-            uid      = f"bl_src_{r['rank']}"
-            preview  = text[:PREVIEW_CHARS].rsplit(" ", 1)[0] + "…"
-            text_block = f"""
-            <div style="background:white; border:1px solid #e0e0e0; border-radius:4px;
-                        padding:10px 14px; font-size:0.87em; line-height:1.6; color:#000000 !important;">
-                <span id="{uid}_short" style="color:#000000 !important;">{preview}</span>
-                <span id="{uid}_full" style="display:none; color:#000000 !important;">{text}</span>
-                <br>
-                <button id="{uid}_btn"
-                    onclick="
-                        var s=document.getElementById('{uid}_short');
-                        var f=document.getElementById('{uid}_full');
-                        var b=document.getElementById('{uid}_btn');
-                        if(f.style.display==='none'){{
-                            s.style.display='none'; f.style.display='inline'; b.textContent='Show less';
-                        }} else {{
-                            f.style.display='none'; s.style.display='inline'; b.textContent='Read more';
-                        }}"
-                    style="margin-top:6px; background:none; border:none; color:#1f77b4;
-                           font-size:0.85em; cursor:pointer; padding:0; font-weight:600;">
-                    Read more
-                </button>
-            </div>"""
+            uid     = f"bl_src_{r['rank']}"
+            preview = text[:PREVIEW_CHARS].rsplit(" ", 1)[0] + "…"
+            excerpt = (
+                f"<div class='bl-result-excerpt'>"
+                f"<span id='{uid}_short'>{preview}</span>"
+                f"<span id='{uid}_full' style='display:none'>{text}</span>"
+                f"<br><button id='{uid}_btn'"
+                f" onclick=\"var s=document.getElementById('{uid}_short');"
+                f"var f=document.getElementById('{uid}_full');"
+                f"var b=document.getElementById('{uid}_btn');"
+                f"if(f.style.display==='none'){{s.style.display='none';f.style.display='inline';b.textContent='Show less';}}"
+                f"else{{f.style.display='none';s.style.display='inline';b.textContent='Read more';}}\""
+                f" style='margin-top:8px; background:none; border:none; color:#b07820;"
+                f" font-size:12px; cursor:pointer; padding:0; font-weight:600;"
+                f" font-family:var(--bl-sans,sans-serif);'>Read more</button>"
+                f"</div>"
+            )
         else:
-            text_block = f"""
-            <div style="background:white; border:1px solid #e0e0e0; border-radius:4px;
-                        padding:10px 14px; font-size:0.87em; line-height:1.6;
-                        color:#000000 !important;">{text}</div>"""
+            excerpt = f"<div class='bl-result-excerpt'>{text}</div>"
 
-        html += f"""
-        <div style="border-left:4px solid {border}; background:#f8f9fa;
-                    border-radius:6px; padding:14px 18px; margin-bottom:12px;">
-            <div style="margin-bottom:4px">
-                <span style="background:{badge_bg}; color:white; border-radius:10px;
-                             padding:2px 8px; font-size:0.82em; font-weight:bold;
-                             margin-right:8px;">[{r['rank']}] {r['score']:.3f}</span>
-                <strong style="color:#000000;">{icon} {r['title']}</strong>
-                <span style="color:#666; font-size:0.8em; margin-left:8px">{source_lbl}</span>
-            </div>
-            <div style="color:green; font-size:0.85em; margin-bottom:8px">{meta_line}</div>
-            {text_block}
-        </div>
-        """
+        html += (
+            f"<div class='bl-result-card'>"
+            f"<div class='bl-result-top'>"
+            f"<div class='bl-result-title'>[{r['rank']}] {r['title']}</div>"
+            f"{score_bar}"
+            f"</div>"
+            f"<div class='bl-result-byline'>{src_badge} &nbsp;&nbsp;{byline}</div>"
+            f"{excerpt}"
+            f"</div>"
+        )
     return html
 
 
@@ -481,135 +476,108 @@ def search(query: str, top_k: int, source_filter: str) -> str:
 
 # ── Tab 4: Reason — hypothesis rendering helpers ─────────────────────────────
 
+# (text_color, bg_color, border_color) — from design file
 _PHYSICS_COLORS = {
-    "PLAUSIBLE":   ("#059669", "#D1FAE5"),   # green  (text, bg)
-    "IMPLAUSIBLE": ("#DC2626", "#FEE2E2"),   # red
-    "UNCERTAIN":   ("#6B7280", "#F3F4F6"),   # grey
+    "PLAUSIBLE":   ("#1a7a4e", "#eaf5ee", "#a8d8b8"),
+    "IMPLAUSIBLE": ("#b01c1c", "#fdeaea", "#f0a8a8"),
+    "UNCERTAIN":   ("#a07010", "#fef5e4", "#f0d48a"),
 }
 _NOVELTY_COLORS = {
-    "GROUNDED":    ("#1D4ED8", "#DBEAFE"),   # blue
-    "SPECULATIVE": ("#D97706", "#FEF3C7"),   # amber
-    "NOVEL":       ("#7C3AED", "#EDE9FE"),   # purple
-    "UNCERTAIN":   ("#6B7280", "#F3F4F6"),   # grey
+    "GROUNDED":    ("#4a5a6a", "#f0f2f5", "#c8d0da"),
+    "SPECULATIVE": ("#c05a10", "#fef0e0", "#f0c898"),
+    "NOVEL":       ("#6b3fb0", "#f3edfb", "#c8a8e8"),
+    "UNCERTAIN":   ("#a07010", "#fef5e4", "#f0d48a"),
 }
 
 
 def _badge(label: str, color_map: dict, display=None) -> str:
-    """Render a small colored pill badge."""
-    text_col, bg_col = color_map.get(label, ("#374151", "#F9FAFB"))
+    """Render a small colored pill badge using design system styles."""
+    entry = color_map.get(label, ("#52514a", "#f8f7f3", "#ccc8be"))
+    text_col, bg_col, border_col = entry
     text = display if display is not None else label
     return (
-        f"<span style='background:{bg_col}; color:{text_col}; "
-        f"border:1px solid {text_col}33; border-radius:12px; "
-        f"padding:2px 10px; font-size:0.78em; font-weight:700; "
-        f"letter-spacing:0.04em;'>{text}</span>"
+        f"<span class='bl-badge' style='background:{bg_col}; color:{text_col}; "
+        f"border-color:{border_col};'>{text}</span>"
     )
 
 
 
+_ARROW_SVG = (
+    "<span class='bl-chain-arrow'>"
+    "<svg width='18' height='18' viewBox='0 0 24 24' fill='none'"
+    " stroke='#b07820' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>"
+    "<line x1='5' y1='12' x2='19' y2='12'/>"
+    "<polyline points='12 5 19 12 12 19'/>"
+    "</svg></span>"
+)
+
+
 def _chain_html(nodes: list[str], graph) -> str:
-    """Render a causal chain as styled node pills with arrows between them."""
+    """Render a causal chain as node pills with amber SVG arrows."""
     parts = []
     for nid in nodes:
         node = graph.get_node(nid)
         label = node.label if node else nid.replace("_", " ")
-        ntype = node.node_type if node else "concept"
-        # Soft background per node type
-        _TYPE_BG = {
-            "structure": "#EFF6FF", "property": "#F0FDF4",
-            "process":   "#FFF7ED", "pathology": "#FFF1F2",
-            "factor":    "#FAF5FF", "cell":      "#F0FDFA",
-            "mechanism": "#FFFBEB", "clinical":  "#F8FAFC",
-            "material":  "#F0FDF4", "scale":     "#F8FAFC",
-            "concept":   "#F9FAFB",
-        }
-        bg = _TYPE_BG.get(ntype, "#F9FAFB")
-        parts.append(
-            f"<span style='background:{bg}; border:1px solid #D1D5DB; "
-            f"border-radius:6px; padding:3px 10px; font-size:0.88em; "
-            f"font-weight:600; color:#111827;'>{label}</span>"
-        )
-    arrow = "<span style='color:#9CA3AF; font-size:1em; margin:0 4px;'>→</span>"
-    return arrow.join(parts)
+        parts.append(f"<span class='bl-chain-node'>{label}</span>")
+    return _ARROW_SVG.join(parts)
 
 
 def _render_hypotheses(hypotheses, graph) -> str:
-    """Render a list of HypothesisResult objects as styled HTML cards."""
+    """Render a list of HypothesisResult objects as chain-card HTML."""
     if not hypotheses:
         return (
-            "<div style='color:#6B7280; padding:24px; text-align:center;'>"
+            "<div style='color:var(--bl-text3,#928f82); padding:32px; text-align:center;"
+            " font-family:var(--bl-sans,sans-serif); font-size:14px;'>"
             "No hypotheses found. Try a different query or broaden your terms."
             "</div>"
         )
+
+    _NOVELTY_DISPLAY = {
+        "GROUNDED":    "Grounded hypothesis",
+        "SPECULATIVE": "Speculative hypothesis",
+        "NOVEL":       "Novel hypothesis",
+        "UNCERTAIN":   "Uncertain hypothesis",
+    }
 
     html = ""
     for i, h in enumerate(hypotheses, 1):
         nr = novelty_clf.classify(h)
 
-        _NOVELTY_DISPLAY = {
-            "GROUNDED":    "Grounded hypothesis",
-            "SPECULATIVE": "Speculative hypothesis",
-            "NOVEL":       "Novel hypothesis",
-            "UNCERTAIN":   "Uncertain hypothesis",
-        }
-
-        p_badge = (
-            _badge("IMPLAUSIBLE", _PHYSICS_COLORS)
-            if h.physics.is_implausible else ""
-        )
+        p_badge = _badge("IMPLAUSIBLE", _PHYSICS_COLORS) if h.physics.is_implausible else ""
         n_badge = _badge(nr.label, _NOVELTY_COLORS, display=_NOVELTY_DISPLAY.get(nr.label))
         chain   = _chain_html(h.chain, graph)
-        rels    = " &nbsp;|&nbsp; ".join(
-            f"<em style='color:#6B7280'>{e.relation}</em>" for e in h.edges
+        rels    = " &nbsp;·&nbsp; ".join(
+            f"<em style='color:var(--bl-text3,#928f82)'>{e.relation}</em>"
+            for e in h.edges
         )
 
         disclaimer = ""
         if nr.show_disclaimer:
             disclaimer = (
-                f"<div style='background:#FFFBEB; border:1px solid #FCD34D; "
-                f"border-radius:6px; padding:8px 12px; margin-top:10px; "
-                f"font-size:0.82em; color:#92400E;'>"
-                f"⚠️ {CORPUS_DISCLAIMER}</div>"
+                f"<div class='bl-chain-disclaimer'>⚠️ {CORPUS_DISCLAIMER}</div>"
             )
 
         novelty_note = (
-            f"<span style='color:#6B7280; font-size:0.82em;'>"
-            f"&nbsp;{nr.explanation}"
-            f"</span>"
+            f"<span style='color:var(--bl-text3,#928f82); font-size:12px;"
+            f" font-family:var(--bl-sans,sans-serif);'>"
+            f"&nbsp;&nbsp;{nr.explanation}</span>"
         )
 
-        html += f"""
-        <div style='border:1px solid #E5E7EB; border-radius:10px;
-                    padding:18px 22px; margin-bottom:14px;
-                    background:#FAFAFA; box-shadow:0 1px 3px rgba(0,0,0,0.06);'>
-
-            <div style='font-size:0.78em; color:#9CA3AF; margin-bottom:8px;
-                        font-weight:600; letter-spacing:0.05em;'>
-                HYPOTHESIS {i} &nbsp;·&nbsp; score {h.score:.3f}
-            </div>
-
-            <div style='margin-bottom:10px; line-height:2;'>
-                {chain}
-            </div>
-
-            <div style='font-size:0.83em; color:#6B7280; margin-bottom:12px;'>
-                {rels}
-            </div>
-
-            <div style='display:flex; gap:8px; align-items:center;
-                        flex-wrap:wrap; margin-bottom:10px;'>
-                {p_badge}{'&nbsp;&nbsp;' if p_badge else ''}
-                {n_badge}{novelty_note}
-            </div>
-
-            <div style='font-size:0.9em; color:#374151; line-height:1.6;
-                        border-top:1px solid #F3F4F6; padding-top:10px;'>
-                {h.summary}
-            </div>
-
-            {disclaimer}
-        </div>
-        """
+        html += (
+            f"<div class='bl-chain-card'>"
+            f"<div class='bl-chain-label'>Hypothesis {i} &nbsp;·&nbsp; score {h.score:.3f}</div>"
+            f"<div style='display:flex; align-items:center; flex-wrap:wrap; gap:0; row-gap:10px;'>"
+            f"{chain}</div>"
+            f"<div class='bl-chain-rels'>{rels}</div>"
+            f"<div class='bl-chain-meta'>"
+            f"{'&nbsp;' if p_badge else ''}{p_badge}"
+            f"{'&nbsp;' if p_badge else ''}{n_badge}"
+            f"{novelty_note}"
+            f"</div>"
+            f"<div class='bl-chain-summary'>{h.summary}</div>"
+            f"{disclaimer}"
+            f"</div>"
+        )
     return html
 
 
@@ -702,19 +670,139 @@ def reload_graph():
     )
 
 
-# ── Gradio UI ─────────────────────────────────────────────────────────────────
+# ── Design system ─────────────────────────────────────────────────────────────
+_BONE_SVG = (
+    '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"'
+    ' width="100%" height="100%">'
+    '<g transform="translate(50,50) scale(0.9) translate(-50,-50)">'
+    '<rect x="40" y="11" width="20" height="78" rx="4" fill="#6b4835"/>'
+    '<rect x="11" y="40" width="78" height="20" rx="4" fill="#6b4835"/>'
+    '<circle cx="43" cy="13" r="12" fill="#6b4835"/>'
+    '<circle cx="57" cy="13" r="12" fill="#6b4835"/>'
+    '<circle cx="43" cy="87" r="12" fill="#6b4835"/>'
+    '<circle cx="57" cy="87" r="12" fill="#6b4835"/>'
+    '<circle cx="13" cy="43" r="12" fill="#6b4835"/>'
+    '<circle cx="13" cy="57" r="12" fill="#6b4835"/>'
+    '<circle cx="87" cy="43" r="12" fill="#6b4835"/>'
+    '<circle cx="87" cy="57" r="12" fill="#6b4835"/>'
+    '<rect x="43.5" y="14" width="13" height="72" rx="3" fill="#f7f2e4"/>'
+    '<rect x="14" y="43.5" width="72" height="13" rx="3" fill="#f7f2e4"/>'
+    '<circle cx="43" cy="13" r="10" fill="#f7f2e4"/>'
+    '<circle cx="57" cy="13" r="10" fill="#f7f2e4"/>'
+    '<circle cx="43" cy="87" r="10" fill="#f7f2e4"/>'
+    '<circle cx="57" cy="87" r="10" fill="#f7f2e4"/>'
+    '<circle cx="13" cy="43" r="10" fill="#f7f2e4"/>'
+    '<circle cx="13" cy="57" r="10" fill="#f7f2e4"/>'
+    '<circle cx="87" cy="43" r="10" fill="#f7f2e4"/>'
+    '<circle cx="87" cy="57" r="10" fill="#f7f2e4"/>'
+    '<rect x="47" y="16" width="6" height="20" rx="3" fill="#fffcf2" opacity="0.5"/>'
+    '<rect x="16" y="47" width="20" height="6" rx="3" fill="#fffcf2" opacity="0.5"/>'
+    '</g></svg>'
+)
+
 _CSS = """
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+
+:root {
+  --bl-bg:           #f3f1ec;
+  --bl-surface:      #ffffff;
+  --bl-surface2:     #f8f7f3;
+  --bl-border:       #e3dfd7;
+  --bl-border2:      #ccc8be;
+  --bl-text:         #1c1b18;
+  --bl-text2:        #52514a;
+  --bl-text3:        #928f82;
+  --bl-amber:        #b07820;
+  --bl-amber-light:  #fef5e4;
+  --bl-amber-border: #edd590;
+  --bl-navy:         #1a2540;
+  --bl-sans:         'DM Sans', system-ui, sans-serif;
+  --bl-serif:        'DM Serif Display', Georgia, serif;
+  --bl-radius:       10px;
+  --bl-shadow:       0 1px 3px rgba(0,0,0,0.06), 0 1px 8px rgba(0,0,0,0.04);
+}
+
+body, .gradio-container { background: var(--bl-bg) !important; font-family: var(--bl-sans) !important; }
+
+/* Tab nav */
+.tabs > .tab-nav { background: var(--bl-surface) !important; border-bottom: 1px solid var(--bl-border) !important; padding: 6px 8px !important; gap: 2px !important; }
+.tabs > .tab-nav > button { font-family: var(--bl-sans) !important; font-size: 13.5px !important; font-weight: 500 !important; color: var(--bl-text2) !important; border-radius: 8px !important; border: none !important; padding: 8px 14px !important; transition: background 0.12s, color 0.12s !important; }
+.tabs > .tab-nav > button:hover { background: var(--bl-surface2) !important; color: var(--bl-text) !important; }
+.tabs > .tab-nav > button.selected { background: var(--bl-amber-light) !important; color: var(--bl-amber) !important; }
+
+/* Buttons */
+button.primary { background: var(--bl-navy) !important; border-radius: 8px !important; font-family: var(--bl-sans) !important; font-weight: 500 !important; border: none !important; }
+button.primary:hover { background: #253660 !important; }
+button.secondary { font-family: var(--bl-sans) !important; border-color: var(--bl-border) !important; color: var(--bl-text2) !important; border-radius: 8px !important; }
+button.sm { font-family: var(--bl-sans) !important; border-color: var(--bl-border) !important; border-radius: 999px !important; color: var(--bl-text2) !important; font-size: 12.5px !important; background: var(--bl-surface) !important; }
+button.sm:hover { border-color: var(--bl-amber-border) !important; color: var(--bl-amber) !important; background: var(--bl-amber-light) !important; }
+
+/* Inputs */
+input[type="text"], textarea, .block textarea { font-family: var(--bl-sans) !important; background: var(--bl-surface) !important; border-color: var(--bl-border) !important; border-radius: 10px !important; color: var(--bl-text) !important; }
+input[type="text"]:focus, textarea:focus { border-color: var(--bl-amber-border) !important; box-shadow: 0 0 0 3px rgba(176,120,32,0.1) !important; }
+label span { font-family: var(--bl-sans) !important; color: var(--bl-text2) !important; font-size: 13px !important; }
+
+/* Sliders */
+input[type="range"] { accent-color: var(--bl-amber) !important; }
+
+/* Markdown */
 .answer-markdown { padding-top: 18px !important; }
+.gradio-container .prose { font-family: var(--bl-sans) !important; color: var(--bl-text) !important; }
+.gradio-container h1, .gradio-container h2, .gradio-container h3 { font-family: var(--bl-serif) !important; }
+
+/* Hide Gradio footer */
+footer.svelte-mpyp5e { display: none !important; }
+
+/* Block panels */
+.block { background: var(--bl-surface) !important; border-color: var(--bl-border) !important; }
+
+/* Header */
+.bl-header { display: flex; align-items: center; gap: 14px; padding: 18px 0 12px 0; border-bottom: 1px solid var(--bl-border); margin-bottom: 4px; }
+.bl-logo-wrap { width: 38px; height: 38px; background: #2a2f42; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 5px; flex-shrink: 0; }
+.bl-header-text { display: flex; flex-direction: column; gap: 1px; }
+.bl-header-title { font-family: var(--bl-serif) !important; font-size: 21px !important; color: var(--bl-text) !important; font-weight: 400 !important; letter-spacing: -0.01em; line-height: 1.2; }
+.bl-header-sub { font-size: 12px !important; color: var(--bl-text3) !important; font-family: var(--bl-sans) !important; }
+
+/* Chain cards */
+.bl-chain-card { background: var(--bl-surface); border: 1px solid var(--bl-border); border-radius: var(--bl-radius); padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--bl-shadow); margin-bottom: 18px; }
+.bl-chain-label { font-size: 11px; color: var(--bl-text3); letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--bl-sans); }
+.bl-chain-node { background: var(--bl-surface2); border: 1.5px solid var(--bl-border); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--bl-text); display: inline-block; font-family: var(--bl-sans); }
+.bl-chain-arrow { color: var(--bl-amber); padding: 0 4px; flex-shrink: 0; display: inline-flex; align-items: center; }
+.bl-chain-summary { font-size: 13px; color: var(--bl-text2); line-height: 1.6; border-top: 1px solid var(--bl-border); padding-top: 12px; font-family: var(--bl-sans); }
+.bl-chain-disclaimer { display: flex; gap: 8px; align-items: flex-start; background: #fef5e4; border: 1px solid #edd590; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #7a5010; line-height: 1.55; margin-top: 4px; }
+.bl-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; border: 1px solid transparent; white-space: nowrap; font-family: var(--bl-sans); }
+.bl-chain-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bl-chain-rels { font-size: 12px; color: var(--bl-text3); font-family: var(--bl-sans); }
+
+/* Result cards (Search Corpus) */
+.bl-result-card { background: var(--bl-surface); border: 1px solid var(--bl-border); border-radius: var(--bl-radius); padding: 18px 20px; margin-bottom: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.bl-result-card:hover { border-color: var(--bl-border2); box-shadow: var(--bl-shadow); }
+.bl-result-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.bl-result-title { font-size: 14.5px; font-weight: 600; color: var(--bl-text); line-height: 1.4; flex: 1; font-family: var(--bl-sans); }
+.bl-score-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.bl-score-num { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; font-weight: 600; color: var(--bl-amber); }
+.bl-score-track { width: 56px; height: 4px; background: var(--bl-border); border-radius: 2px; overflow: hidden; }
+.bl-score-fill { height: 100%; background: var(--bl-amber); border-radius: 2px; }
+.bl-result-byline { font-size: 12px; color: var(--bl-text3); font-family: var(--bl-sans); }
+.bl-result-excerpt { font-size: 13px; color: var(--bl-text2); line-height: 1.6; margin-top: 4px; border-top: 1px solid var(--bl-border); padding-top: 10px; font-family: var(--bl-sans); }
+.bl-source-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 """
 
-with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
+with gr.Blocks(title="BoneLogic", theme=gr.themes.Base(), css=_CSS) as demo:
 
-    gr.Markdown(
-        f"# 🦴 BoneLogic\n"
-        f"Intelligent reasoning system for bone science · "
-        f"{STATS['pdfs_downloaded']:,} papers · "
-        f"{STATS['textbooks']} textbooks · "
-        f"{STATS['chunks']:,} chunks · SPECTER2 + HuatuoGPT-o1-8B"
+    gr.HTML(
+        f"<div class='bl-header'>"
+        f"<div class='bl-logo-wrap'>{_BONE_SVG}</div>"
+        f"<div class='bl-header-text'>"
+        f"<div class='bl-header-title'>BoneLogic</div>"
+        f"<div class='bl-header-sub'>"
+        f"AI research assistant for bone science &nbsp;·&nbsp; "
+        f"{STATS['pdfs_downloaded']:,} papers &nbsp;·&nbsp; "
+        f"{STATS['textbooks']} textbooks &nbsp;·&nbsp; "
+        f"{STATS['chunks']:,} chunks"
+        f"</div>"
+        f"</div>"
+        f"</div>"
     )
 
     # ── Tab 1 ──────────────────────────────────────────────────────────────────
@@ -936,13 +1024,17 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Soft(), css=_CSS) as demo:
             outputs=gap_results,
         )
 
-    gr.Markdown(
-        f"---\n"
-        f"**Corpus:** {STATS['pdfs_downloaded']:,} papers (full text) · "
-        f"{STATS['papers_total']:,} papers (metadata) · "
-        f"{STATS['textbooks']} textbooks · "
-        f"{STATS['chunks']:,} chunks · "
-        f"SPECTER2 768-dim embeddings · HuatuoGPT-o1-8B via Ollama"
+    gr.HTML(
+        f"<div style='border-top:1px solid #e3dfd7; margin-top:8px; padding:12px 0 4px 0;"
+        f" font-size:12px; color:#928f82; font-family:var(--bl-sans,sans-serif);'>"
+        f"<span style='display:inline-block; width:6px; height:6px; border-radius:50%;"
+        f" background:#1a7a4e; margin-right:6px; vertical-align:middle;'></span>"
+        f"Corpus: {STATS['pdfs_downloaded']:,} papers (full text) &nbsp;·&nbsp; "
+        f"{STATS['papers_total']:,} papers (metadata) &nbsp;·&nbsp; "
+        f"{STATS['textbooks']} textbooks &nbsp;·&nbsp; "
+        f"{STATS['chunks']:,} chunks &nbsp;·&nbsp; "
+        f"SPECTER2 768-dim &nbsp;·&nbsp; HuatuoGPT-o1-8B via Ollama"
+        f"</div>"
     )
 
 

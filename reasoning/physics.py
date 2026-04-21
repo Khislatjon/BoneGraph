@@ -12,7 +12,7 @@ one question: is this chain physically consistent with known bone mechanics?
 Two layers
 ----------
 Layer 1 — Directional rules (always runs)
-    A lookup table of ~30 known bone physics relationships.  Each entry
+    A lookup table of 40 known bone physics relationships.  Each entry
     asserts the correct direction of a causal relationship according to
     established bone science.  Checking is instantaneous and requires no
     numerical input.
