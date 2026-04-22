@@ -100,13 +100,15 @@ Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab 
 Move from retrieval to reasoning. Steps 4.1–4.6 are complete:
 
 - **4.1 — Seed ontology**: ~200 bone science concepts and ~80 hand-curated causal edges bootstrapped into `ontology.db`.
-- **4.2 — Triple extraction**: `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt, via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Textbook extraction complete: 1,983 chunks processed → 2,935 triples → 3,001 nodes, 2,339 edges. Paper extraction pending.
-- **4.3 — Physics engine** (`reasoning/physics.py`): 40 directional guard-rail rules covering core bone mechanics relationships. Rules act as IMPLAUSIBLE filters only — a chain containing a physically impossible edge is discarded entirely. Five numerical law implementations: Currey's modulus (E = 7·ρ²), Frost mechanostat (6 strain zones), Paris crack growth (da/dN = C·ΔK^m), beam bending stress (σ = Mc/I), stress concentration (Kt = 1 + 2√(a/ρ)).
+- **4.2 — Triple extraction**: `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt, via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Two extraction runs completed:
+  - **Textbooks** (April 2026): 1,983 chunks → 2,935 triples → 3,001 nodes, 2,339 edges
+  - **Full paper corpus** (April 2026): 17,381 chunks attempted (9,258 yielded triples · 8,120 empty · 3 failed) · 2,310 min runtime → 41,359 triples → **35,338 nodes · 34,265 edges** (combined graph)
+- **4.3 — Physics engine** (`reasoning/physics.py`): 71 directional guard-rail rules covering core bone mechanics relationships. Rules act as IMPLAUSIBLE filters only — a chain containing a physically impossible edge is discarded entirely. Five numerical law implementations: Currey's modulus (E = 7·ρ²), Frost mechanostat (6 strain zones), Paris crack growth (da/dN = C·ΔK^m), beam bending stress (σ = Mc/I), stress concentration (Kt = 1 + 2√(a/ρ)).
 - **4.4 — LRM reasoning engine** (`reasoning/lrm.py`): Anchors natural-language queries to graph nodes via token matching, traverses all shortest paths between anchor pairs, scores chains by path length (50%) + mean edge weight (40%) + novelty bonus (10%). Physics is penalty-only: IMPLAUSIBLE chains score 0 and are filtered out; all other chains are scored without a physics reward.
 - **4.5 — Novelty classifier** (`reasoning/novelty.py`): Two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative (less novel) tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
 - **4.6 — Reason tab** (`api/main.py` + `frontend/index.html`): Sidebar tab in the React UI with query box, physics-filter toggle, max-results slider, colour-coded hypothesis cards (novelty badge; IMPLAUSIBLE badge shown only when a chain is physically impossible), and research gap table. Also available as the fourth tab in the legacy Gradio UI (`app.py`).
 
-Remaining: paper corpus extraction (Steps 4.3 plan variant), LRM benchmark evaluation.
+Remaining: LRM benchmark evaluation.
 
 ### Phase 5 — Feedback loop ⏳
 Make the system improve with use. User feedback (corrections, confirmations) updates the ontology, refining retrieval and reasoning in subsequent queries.
@@ -173,7 +175,7 @@ BoneLogic/
 │   ├── graph_db.py              SQLite-backed graph persistence + extraction progress tracking
 │   ├── seed.py                  ~200 seed concepts + ~80 hand-curated causal edges
 │   ├── extractor.py             LLM triple extraction from chunks.db (resumable, huatuogpt-bone = HuatuoGPT-o1-8B + custom prompt)
-│   ├── physics.py               Bone physics engine: 40 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
+│   ├── physics.py               Bone physics engine: 71 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
 │   ├── lrm.py                   Core reasoning engine: anchor → traverse → score → summarise
 │   └── novelty.py               Novelty classifier: keyword tier + SPECTER2 semantic tier
 │
@@ -192,7 +194,7 @@ BoneLogic/
 │       ├── papers.db            54,634 paper metadata rows (gitignored)
 │       ├── textbooks.db         16 textbook metadata rows (gitignored)
 │       ├── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
-│       └── ontology.db          Knowledge graph: 3,001 nodes · 2,339 edges (gitignored)
+│       └── ontology.db          Knowledge graph: 35,338 nodes · 34,265 edges (gitignored)
 │
 ├── docs/
 │   ├── architecture.md                    ← this file (high-level overview)

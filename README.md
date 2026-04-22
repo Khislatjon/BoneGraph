@@ -35,7 +35,7 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
 | Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links |
 | Phase 3 — VLM integration | 🔶 Partial | LLaVA 1.6 tab implemented · cross-modal retrieval pending |
-| Phase 4 — LRM reasoning | 🔶 In Progress | Steps 4.1–4.6 complete · 3,001 nodes · 2,339 edges (textbooks) |
+| Phase 4 — LRM reasoning | 🔶 In Progress | Steps 4.1–4.6 complete · 35,338 nodes · 34,265 edges (textbooks + papers) |
 
 ---
 
@@ -267,7 +267,7 @@ BoneLogic/
 │       ├── papers.db        # 54,634 paper metadata rows
 │       ├── textbooks.db     # 16 textbook metadata rows
 │       ├── chunks.db        # 248,629 chunks + SPECTER2 embeddings
-│       └── ontology.db      # Knowledge graph: 3,001 nodes · 2,339 edges
+│       └── ontology.db      # Knowledge graph: 35,338 nodes · 34,265 edges
 ├── eval/                    # Retrieval quality benchmark
 │   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
 │   ├── run_eval.py          # Eval script — computes MRR and Recall@k
