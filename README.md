@@ -12,6 +12,7 @@ An intelligent reasoning system for bone science — morphology, mechanics, path
 | [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — text extraction, chunking, embedding, RAG, LLM, evaluation |
 | [docs/phase3_vlm_plan.md](docs/phase3_vlm_plan.md) | Phase 3 — VLM integration plan: datasets, pipeline, cross-modal retrieval, UI |
 | [docs/phase4_lrm_plan.md](docs/phase4_lrm_plan.md) | Phase 4 — LRM reasoning layer: bone knowledge graph, physics engine, hypothesis generation |
+| [docs/lrm_benchmark.md](docs/lrm_benchmark.md) | LRM benchmark: chain coverage, physics accuracy, novelty calibration — methodology and thresholds |
 
 ## Architecture (summary)
 
@@ -236,6 +237,15 @@ Example queries:
 - `"collagen crosslink toughness"`
 - `"osteocyte lacuna fatigue crack"`
 - `"bone mineral density osteoporosis"`
+
+### Run the LRM benchmark
+
+```bash
+python eval/run_lrm_eval.py              # default max_results=10
+python eval/run_lrm_eval.py --max-results 5
+```
+
+Three components — physics accuracy, chain coverage, novelty calibration. Results saved to `eval/lrm_results.json`. See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for full methodology and pass thresholds.
 
 ---
 

@@ -18,7 +18,7 @@ Pipeline per query
 3. Gap detect  — identify high-betweenness nodes with sparse edges
                  (candidate research gaps)
 4. Validate    — pass every chain through PhysicsEngine
-5. Rank        — score by chain length × physics confidence × edge weight
+5. Rank        — score by query relevance × edge weight × chain length × novelty
 6. Generate    — format structured hypothesis output
 
 Output format
@@ -79,15 +79,31 @@ def _classify_novelty(
 
     Labels
     ------
-    GROUNDED     — all edges are seed edges, chain ≤ 2 hops
-    SPECULATIVE  — chain is 3+ hops, or contains extracted edges
-    NOVEL        — extracted edges + crosses ≥ 2 node-type boundaries
+    GROUNDED     — all seed edges and chain ≤ 2 hops, OR high-evidence
+                   extracted chain (mean weight ≥ 5.0, chain ≤ 3 hops).
+                   Weight accumulates per chunk that confirms a triple, so
+                   mean_weight ≥ 5 means the relationship appears in 5+
+                   independent corpus passages.
+    SPECULATIVE  — extracted edges with moderate evidence, or seed edges
+                   in a longer chain.  Plausible but not fully attested.
+    NOVEL        — long chain (≥ 3 hops) of low-evidence extracted edges
+                   (mean weight < 2.0) crossing ≥ 3 distinct node-type
+                   boundaries.  Connections not yet consolidated in the
+                   literature.
+
+    Design note
+    -----------
+    The original classifier used type_changes ≥ 2 as the NOVEL signal.
+    After full paper extraction the graph has ~35K nodes, most typed as
+    "concept" (LLM default), while seed nodes have specific types.  Any
+    mixed seed+extracted path crosses ≥ 2 boundaries trivially, making
+    NOVEL fire for everything.  Weight-based thresholds are more stable.
     """
     n_hops = len(edges)
-    extracted = [e for e in edges if e.edge_source == "extracted"]
-    n_extracted = len(extracted)
+    n_extracted = sum(1 for e in edges if e.edge_source == "extracted")
+    mean_weight = sum(e.weight for e in edges) / n_hops if n_hops else 0.0
 
-    # Count type boundaries crossed
+    # Count distinct node-type boundaries crossed along the chain
     type_changes = 0
     for i in range(1, len(chain)):
         n1 = graph.get_node(chain[i - 1])
@@ -95,17 +111,31 @@ def _classify_novelty(
         if n1 and n2 and n1.node_type != n2.node_type:
             type_changes += 1
 
+    # GROUNDED — all-seed short chain (canonical case)
     if n_extracted == 0 and n_hops <= 2:
-        return "GROUNDED", "all edges from curated seed; short chain"
-    elif n_extracted > 0 and type_changes >= 2:
+        return "GROUNDED", "all seed edges; ≤2 hops"
+
+    # GROUNDED — well-attested extracted chain (≥5 corpus confirmations)
+    if mean_weight >= 5.0 and n_hops <= 3:
+        return "GROUNDED", (
+            f"high-evidence chain (mean weight {mean_weight:.1f}); "
+            f"{n_hops} hops"
+        )
+
+    # NOVEL — long, low-evidence, cross-domain chain
+    if n_extracted >= 2 and n_hops >= 3 and mean_weight < 2.0 and type_changes >= 3:
         return "NOVEL", (
-            f"{n_extracted} extracted edge(s); "
-            f"crosses {type_changes} concept-type boundaries"
+            f"{n_hops}-hop cross-domain chain; "
+            f"{n_extracted} extracted edges; "
+            f"mean weight {mean_weight:.1f}; "
+            f"{type_changes} type boundaries"
         )
-    else:
-        return "SPECULATIVE", (
-            f"{n_hops}-hop chain; {n_extracted} extracted edge(s)"
-        )
+
+    # SPECULATIVE — everything else
+    return "SPECULATIVE", (
+        f"{n_hops}-hop chain; {n_extracted}/{n_hops} extracted; "
+        f"mean weight {mean_weight:.1f}"
+    )
 
 
 # ── HypothesisResult ──────────────────────────────────────────────────────────
@@ -297,8 +327,10 @@ class LRM:
         query_lower = query.lower()
         tokens = re.findall(r"[a-z0-9]+", query_lower)
         query_snake = "_".join(tokens)
+        sig_tokens = [t for t in tokens if len(t) > 3]
 
-        seen: dict[str, int] = {}   # node_id → priority (lower = better)
+        # node_id → (priority, -token_hits) for fine-grained ranking
+        seen: dict[str, tuple[int, float]] = {}
 
         for node in self._graph.iter_nodes():
             nid   = node.node_id
@@ -306,20 +338,43 @@ class LRM:
 
             # 1 — exact node_id match
             if nid == query_snake:
-                seen[nid] = 0
+                seen[nid] = (0, 0.0)
                 continue
 
-            # 2 — node_id is a substring of the query or vice versa
-            if nid in query_lower or any(t in nid for t in tokens if len(t) > 3):
-                seen.setdefault(nid, 1)
+            # Count how many distinct query tokens appear in this node_id
+            token_hits = sum(1 for t in sig_tokens if t in nid)
+
+            # 2 — node_id contains at least one query token
+            if token_hits > 0:
+                seen.setdefault(nid, (1, -token_hits))
 
             # 3 — label words appear in query
             label_words = re.findall(r"[a-z0-9]+", label)
             matches = sum(1 for w in label_words if w in tokens and len(w) > 3)
             if matches >= 1:
-                seen.setdefault(nid, 2)
+                seen.setdefault(nid, (2, -matches))
 
-        return sorted(seen, key=lambda k: seen[k])
+        # Ensure coverage: for each significant token, keep its single best match
+        # (highest token_hits, then shortest node_id as tiebreak).
+        # Then pad with the next best anchors up to a global cap.
+        ordered = sorted(seen, key=lambda k: (seen[k][0], seen[k][1], len(k)))
+
+        per_token_best: list[str] = []
+        for tok in sig_tokens:
+            for nid in ordered:
+                if tok in nid and nid not in per_token_best:
+                    per_token_best.append(nid)
+                    break
+
+        # Fill remaining slots from the ranked list (skip already included)
+        combined = list(per_token_best)
+        for nid in ordered:
+            if nid not in combined:
+                combined.append(nid)
+            if len(combined) >= 30:
+                break
+
+        return combined
 
     # ── Path traversal ────────────────────────────────────────────────────────
 
@@ -390,16 +445,17 @@ class LRM:
         edges: list[Edge],
         physics: ValidationResult,
         novelty: str,
+        query_tokens: set[str] | None = None,
     ) -> float:
         """
         Compute a composite ranking score for a hypothesis.
 
         Score components (physics is guard-rail only — penalty if IMPLAUSIBLE,
         neutral otherwise):
-        - Chain length bonus (2–5 hops)     weight 0.5
-          (longer = more interesting, up to max_hops)
-        - Mean edge weight (evidence)        weight 0.4
-        - Novelty bonus                      weight 0.1
+        - Query relevance (chain nodes ∩ query tokens)  weight 0.35
+        - Mean edge weight (evidence strength)           weight 0.40
+        - Chain length bonus (2–5 hops)                  weight 0.15
+        - Novelty bonus                                  weight 0.10
           NOVEL=1.0, SPECULATIVE=0.5, GROUNDED=0.0
         """
         if physics.is_implausible:
@@ -409,14 +465,25 @@ class LRM:
             sum(e.weight for e in edges) / len(edges) if edges else 0.0
         )
         weight_score = min(weight_score / 5.0, 1.0)   # normalise (cap at 5)
-        novelty_score = {"NOVEL": 1.0, "SPECULATIVE": 0.5, "GROUNDED": 0.0}.get(
+        # GROUNDED (established) ranks highest; NOVEL (low-evidence) ranks lowest.
+        # This surfaces reliable chains first and pushes speculative hypotheses down.
+        novelty_score = {"GROUNDED": 1.0, "SPECULATIVE": 0.5, "NOVEL": 0.0}.get(
             novelty, 0.5
         )
+        if query_tokens:
+            rel_hits = sum(
+                1 for nid in chain
+                if any(t in nid for t in query_tokens if len(t) > 3)
+            )
+            relevance_score = rel_hits / len(chain) if chain else 0.0
+        else:
+            relevance_score = 0.0
 
         return (
-            0.5 * length_score
-            + 0.4 * weight_score
-            + 0.1 * novelty_score
+            0.35 * relevance_score
+            + 0.40 * weight_score
+            + 0.15 * length_score
+            + 0.10 * novelty_score
         )
 
     # ── Summary generation ────────────────────────────────────────────────────
@@ -503,6 +570,7 @@ class LRM:
             "Query %r anchored to %d nodes: %s",
             question, len(anchors), anchors[:5],
         )
+        query_tokens = set(re.findall(r"[a-z0-9]+", question.lower()))
 
         # 2 — traverse chains
         results: list[HypothesisResult] = []
@@ -522,7 +590,7 @@ class LRM:
             novelty, novelty_reason = _classify_novelty(chain, edges, self._graph)
 
             # 5 — score
-            score = self._score(chain, edges, physics, novelty)
+            score = self._score(chain, edges, physics, novelty, query_tokens)
 
             # 6 — summarise
             summary = self._summarise(chain, edges, self._graph)

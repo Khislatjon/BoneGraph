@@ -1,0 +1,1053 @@
+{
+  "benchmark_version": "1.0",
+  "max_results": 10,
+  "graph_stats": {
+    "n_nodes": 35338,
+    "n_edges": 33324,
+    "n_components": 7674,
+    "giant_component": 17569,
+    "density": 2.7e-05,
+    "type_counts": {
+      "cell": 14,
+      "clinical": 12,
+      "concept": 30555,
+      "factor": 16,
+      "material": 280,
+      "mechanism": 164,
+      "pathology": 280,
+      "process": 1092,
+      "property": 1115,
+      "scale": 5,
+      "structure": 1805
+    }
+  },
+  "aggregate": {
+    "physics_accuracy": 1.0,
+    "physics_sensitivity": 1.0,
+    "physics_specificity": 1.0,
+    "anchor_success_rate": 1.0,
+    "chain_coverage_rate_3": 0.6,
+    "novelty_agreement_rate": 0.5
+  },
+  "thresholds": {
+    "pa_pass": true,
+    "asr_pass": true,
+    "ccr3_pass": true,
+    "nar_pass": true
+  },
+  "physics": [
+    {
+      "id": 1,
+      "source": "porosity",
+      "relation": "increases",
+      "target": "elastic_modulus",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Porosity reduces density \u2192 E decreases (E \u221d \u03c1\u00b2)"
+    },
+    {
+      "id": 2,
+      "source": "porosity",
+      "relation": "increases",
+      "target": "stiffness",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Stiffness scales with density; higher porosity \u2192 lower density \u2192 lower stiffness"
+    },
+    {
+      "id": 3,
+      "source": "mineral",
+      "relation": "decreases",
+      "target": "elastic_modulus",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Mineral is the primary load-bearing phase; less mineral \u2192 lower E"
+    },
+    {
+      "id": 4,
+      "source": "density",
+      "relation": "decreases",
+      "target": "elastic_modulus",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Lower density \u2192 lower E by Currey's power law"
+    },
+    {
+      "id": 5,
+      "source": "collagen",
+      "relation": "decreases",
+      "target": "fracture_toughness",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Collagen toughening mechanisms",
+      "match": true,
+      "note": "Intact collagen increases KIc via crack bridging; degraded collagen reduces it"
+    },
+    {
+      "id": 6,
+      "source": "advanced_glycation",
+      "relation": "increases",
+      "target": "fracture_toughness",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "AGE crosslink embrittlement",
+      "match": true,
+      "note": "Non-enzymatic AGE crosslinks embrittle collagen \u2192 lower KIc"
+    },
+    {
+      "id": 7,
+      "source": "porosity",
+      "relation": "increases",
+      "target": "fracture_toughness",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Stress concentration",
+      "match": true,
+      "note": "Pores act as stress concentrators (Kt = 1 + 2\u221a(a/\u03c1))"
+    },
+    {
+      "id": 8,
+      "source": "disuse",
+      "relation": "leads_to",
+      "target": "bone_formation",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Frost mechanostat",
+      "match": true,
+      "note": "Disuse falls in the resorption window (< 200 \u03bc\u025b), not formation"
+    },
+    {
+      "id": 9,
+      "source": "OPG",
+      "relation": "activates",
+      "target": "osteoclast",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "RANK/RANKL/OPG signalling",
+      "match": true,
+      "note": "OPG is a decoy receptor for RANKL \u2014 it inhibits, not activates, osteoclastogenesis"
+    },
+    {
+      "id": 10,
+      "source": "osteoclast",
+      "relation": "leads_to",
+      "target": "bone_formation",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Bone cell biology",
+      "match": true,
+      "note": "Osteoclasts resorb bone; formation is exclusively performed by osteoblasts"
+    },
+    {
+      "id": 11,
+      "source": "sclerostin",
+      "relation": "activates",
+      "target": "bone_formation",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Wnt/\u03b2-catenin signalling",
+      "match": true,
+      "note": "Sclerostin inhibits Wnt signalling \u2192 suppresses osteoblast activity"
+    },
+    {
+      "id": 12,
+      "source": "osteoporosis",
+      "relation": "decreases",
+      "target": "fracture_risk",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Osteoporosis epidemiology",
+      "match": true,
+      "note": "Osteoporosis is defined by elevated fragility fracture risk"
+    },
+    {
+      "id": 13,
+      "source": "pore",
+      "relation": "decreases",
+      "target": "stress_concentration",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Stress concentration theory",
+      "match": true,
+      "note": "Pores are stress risers; Kt \u2265 1 always increases with pore size"
+    },
+    {
+      "id": 14,
+      "source": "cortical_thickness",
+      "relation": "decreases",
+      "target": "bending_strength",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Beam theory",
+      "match": true,
+      "note": "Thicker cortex \u2192 larger second moment of area \u2192 higher bending resistance"
+    },
+    {
+      "id": 15,
+      "source": "bone_mineral_density",
+      "relation": "decreases",
+      "target": "elastic_modulus",
+      "expected_status": "IMPLAUSIBLE",
+      "got_status": "IMPLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Lower BMD \u2192 lower apparent density \u2192 lower E"
+    },
+    {
+      "id": 16,
+      "source": "porosity",
+      "relation": "decreases",
+      "target": "elastic_modulus",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Higher porosity \u2192 lower apparent density \u2192 lower E (correct direction)"
+    },
+    {
+      "id": 17,
+      "source": "porosity",
+      "relation": "decreases",
+      "target": "stiffness",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Higher porosity reduces bone stiffness \u2014 well established"
+    },
+    {
+      "id": 18,
+      "source": "mineral",
+      "relation": "increases",
+      "target": "elastic_modulus",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "Higher mineral content \u2192 higher apparent density \u2192 higher E"
+    },
+    {
+      "id": 19,
+      "source": "density",
+      "relation": "increases",
+      "target": "elastic_modulus",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Currey's law",
+      "match": true,
+      "note": "E \u221d \u03c1\u00b2 \u2014 higher density always gives higher stiffness"
+    },
+    {
+      "id": 20,
+      "source": "collagen",
+      "relation": "increases",
+      "target": "fracture_toughness",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Collagen toughening mechanisms",
+      "match": true,
+      "note": "Intact collagen network enables crack bridging and deflection \u2192 higher KIc"
+    },
+    {
+      "id": 21,
+      "source": "crosslink",
+      "relation": "increases",
+      "target": "fracture_toughness",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Collagen crosslinking mechanics",
+      "match": true,
+      "note": "Enzymatic crosslinks stabilise fibrils \u2192 improved energy absorption"
+    },
+    {
+      "id": 22,
+      "source": "advanced_glycation",
+      "relation": "decreases",
+      "target": "fracture_toughness",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "AGE crosslink embrittlement",
+      "match": true,
+      "note": "AGEs make collagen brittle \u2192 reduced KIc \u2014 well established in aging bone"
+    },
+    {
+      "id": 23,
+      "source": "porosity",
+      "relation": "decreases",
+      "target": "fracture_toughness",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Stress concentration",
+      "match": true,
+      "note": "Pores increase local stress \u2192 lower KIc (correct direction)"
+    },
+    {
+      "id": 24,
+      "source": "mechanical_loading",
+      "relation": "activates",
+      "target": "bone_formation",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Frost mechanostat",
+      "match": true,
+      "note": "Mild overload strains (1500\u20133000 \u03bc\u025b) stimulate net bone formation"
+    },
+    {
+      "id": 25,
+      "source": "disuse",
+      "relation": "leads_to",
+      "target": "bone_resorption",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Frost mechanostat",
+      "match": true,
+      "note": "Strains < 200 \u03bc\u025b fall in the disuse resorption window"
+    },
+    {
+      "id": 26,
+      "source": "RANKL",
+      "relation": "activates",
+      "target": "osteoclast",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "RANK/RANKL/OPG signalling",
+      "match": true,
+      "note": "RANKL binds RANK on precursors \u2192 osteoclastogenesis \u2014 canonical pathway"
+    },
+    {
+      "id": 27,
+      "source": "OPG",
+      "relation": "inhibits",
+      "target": "osteoclast",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "RANK/RANKL/OPG signalling",
+      "match": true,
+      "note": "OPG decoy receptor sequesters RANKL \u2192 blocks osteoclastogenesis"
+    },
+    {
+      "id": 28,
+      "source": "osteoclast",
+      "relation": "leads_to",
+      "target": "bone_resorption",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Bone cell biology",
+      "match": true,
+      "note": "Osteoclasts are the sole bone-resorbing cells"
+    },
+    {
+      "id": 29,
+      "source": "osteoblast",
+      "relation": "leads_to",
+      "target": "bone_formation",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Bone cell biology",
+      "match": true,
+      "note": "Osteoblasts synthesise and mineralise osteoid \u2014 bone formation"
+    },
+    {
+      "id": 30,
+      "source": "osteoporosis",
+      "relation": "increases",
+      "target": "fracture_risk",
+      "expected_status": "PLAUSIBLE",
+      "got_status": "PLAUSIBLE",
+      "law": "Osteoporosis epidemiology",
+      "match": true,
+      "note": "Osteoporosis is defined by elevated fragility fracture risk"
+    }
+  ],
+  "chain_coverage": [
+    {
+      "id": 1,
+      "domain": "mechanics",
+      "query": "aging cortical porosity fracture risk",
+      "expected_nodes": [
+        "porosity",
+        "bone_density",
+        "fracture"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "cortical porosity \u2192 bone density \u2192 fracture risk",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.6408,
+      "elapsed_s": 0.59
+    },
+    {
+      "id": 2,
+      "domain": "mechanics",
+      "query": "cortical porosity elastic modulus stiffness",
+      "expected_nodes": [
+        "porosity",
+        "elastic"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "cortical porosity increase \u2192 fracture toughness \u2192 porosity \u2192 stiffness",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.8375,
+      "elapsed_s": 0.55
+    },
+    {
+      "id": 3,
+      "domain": "mechanics",
+      "query": "collagen crosslink fracture toughness",
+      "expected_nodes": [
+        "collagen",
+        "fracture_toughness"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "fracture toughness \u2192 collagen crosslink density",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.85,
+      "elapsed_s": 0.62
+    },
+    {
+      "id": 4,
+      "domain": "mechanics",
+      "query": "bone mineral density strength fracture",
+      "expected_nodes": [
+        "mineral_density",
+        "fracture"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "bone mineral density \u2192 fracture risk \u2192 low bone mineral density",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.8875,
+      "elapsed_s": 0.58
+    },
+    {
+      "id": 5,
+      "domain": "mechanics",
+      "query": "fatigue cyclic loading stress fracture",
+      "expected_nodes": [
+        "fatigue",
+        "fracture"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "loading \u2192 bone formation \u2192 porosity \u2192 elastic modulus \u2192 stress shielding \u2192 fatigue fracture",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.775,
+      "elapsed_s": 0.93
+    },
+    {
+      "id": 6,
+      "domain": "mechanics",
+      "query": "cortical thickness bending strength long bone",
+      "expected_nodes": [
+        "cortical",
+        "bending"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "cortical bone thickness \u2192 porosity \u2192 elastic modulus \u2192 cortical bone density",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.75,
+      "elapsed_s": 0.77
+    },
+    {
+      "id": 7,
+      "domain": "mechanics",
+      "query": "trabecular architecture anisotropy compressive strength",
+      "expected_nodes": [
+        "trabecular",
+        "compressive"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "anisotropy \u2192 elastic modulus \u2192 porosity \u2192 compressive strength",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.6467,
+      "elapsed_s": 0.67
+    },
+    {
+      "id": 8,
+      "domain": "mechanics",
+      "query": "advanced glycation end products collagen embrittlement",
+      "expected_nodes": [
+        "glycation",
+        "collagen"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "collagen i \u2192 cell adhesion \u2192 osteoblast activity \u2192 bone density \u2192 fracture risk \u2192 advanced glycation endproduct",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.7167,
+      "elapsed_s": 1.65
+    },
+    {
+      "id": 9,
+      "domain": "pathology",
+      "query": "osteoporosis bone mineral density fracture risk",
+      "expected_nodes": [
+        "osteoporosis",
+        "fracture"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "bone mineral density \u2192 fracture risk \u2192 low bone mineral density",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.8875,
+      "elapsed_s": 0.73
+    },
+    {
+      "id": 10,
+      "domain": "pathology",
+      "query": "osteogenesis imperfecta collagen bone fragility",
+      "expected_nodes": [
+        "collagen",
+        "fragility"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "bone fragility \u2192 fracture risk \u2192 porosity \u2192 mechanical strength \u2192 silk fibroin \u2192 collagen",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.7167,
+      "elapsed_s": 0.62
+    },
+    {
+      "id": 11,
+      "domain": "pathology",
+      "query": "osteoporosis trabecular microstructure perforation",
+      "expected_nodes": [
+        "osteoporosis",
+        "trabecular"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "osteoporosis \u2192 fracture risk \u2192 advanced glycation endproduct \u2192 trabecular thinning",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.75,
+      "elapsed_s": 0.49
+    },
+    {
+      "id": 12,
+      "domain": "pathology",
+      "query": "Paget disease bone turnover disorganised structure",
+      "expected_nodes": [
+        "paget",
+        "remodel"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "paget s disease of bone \u2192 bone resorption \u2192 bone mineral density \u2192 fracture toughness \u2192 collagen crosslink density \u2192 bone tissue structure",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.7533,
+      "elapsed_s": 0.69
+    },
+    {
+      "id": 13,
+      "domain": "cell_biology",
+      "query": "RANKL osteoclast bone resorption",
+      "expected_nodes": [
+        "rankl",
+        "osteoclast"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "osteoclast resorption \u2192 bone resorption",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.85,
+      "elapsed_s": 0.65
+    },
+    {
+      "id": 14,
+      "domain": "cell_biology",
+      "query": "osteoblast bone formation mineralisation",
+      "expected_nodes": [
+        "osteoblast",
+        "formation"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "osteoblast formation \u2192 bone formation",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.53,
+      "elapsed_s": 0.88
+    },
+    {
+      "id": 15,
+      "domain": "cell_biology",
+      "query": "sclerostin Wnt signalling osteoblast inhibition",
+      "expected_nodes": [
+        "sclerostin",
+        "osteoblast"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 9,
+      "top_chain": "sclerostin \u2192 wnt b catenin signaling \u2192 osteoblasts",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.6008,
+      "elapsed_s": 0.96
+    },
+    {
+      "id": 16,
+      "domain": "cell_biology",
+      "query": "PTH intermittent anabolic bone formation",
+      "expected_nodes": [
+        "pth",
+        "formation"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "bone formation rate \u2192 sclerostin overexpression \u2192 bone mineral density \u2192 teriparatide \u2192 bone turnover \u2192 new bone formation",
+      "top_novelty": "NOVEL",
+      "top_score": 0.4793,
+      "elapsed_s": 0.85
+    },
+    {
+      "id": 17,
+      "domain": "mechanobiology",
+      "query": "mechanical loading osteocyte mechanosensing bone formation",
+      "expected_nodes": [
+        "mechanical",
+        "osteocyte"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "osteocyte \u2192 sclerostin \u2192 bone formation",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.5708,
+      "elapsed_s": 0.89
+    },
+    {
+      "id": 18,
+      "domain": "mechanobiology",
+      "query": "disuse immobilisation bone loss resorption",
+      "expected_nodes": [
+        "disuse",
+        "resorption"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "immobilisation \u2192 bone loss \u2192 fracture risk \u2192 advanced glycation endproduct \u2192 bone density loss",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.7725,
+      "elapsed_s": 0.63
+    },
+    {
+      "id": 19,
+      "domain": "mechanobiology",
+      "query": "fluid flow lacuno-canalicular network osteocyte signalling",
+      "expected_nodes": [
+        "fluid",
+        "canalicular"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "canalicular network \u2192 cortical bone \u2192 porosity \u2192 bone density \u2192 skin conductance \u2192 current flow",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.5887,
+      "elapsed_s": 1.14
+    },
+    {
+      "id": 20,
+      "domain": "mechanobiology",
+      "query": "overloading microdamage stress fracture repair",
+      "expected_nodes": [
+        "overload",
+        "microdamage"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "stress fracture \u2192 microdamage accumulation \u2192 fracture risk \u2192 osteoporosis \u2192 fractures",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.7825,
+      "elapsed_s": 0.8
+    },
+    {
+      "id": 21,
+      "domain": "biomaterials",
+      "query": "hydroxyapatite scaffold bone tissue engineering",
+      "expected_nodes": [
+        "hydroxyapatite",
+        "scaffold"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "hydroxyapatite scaffold \u2192 osteogenic differentiation \u2192 bone mineral density \u2192 fracture toughness \u2192 collagen crosslink density \u2192 bone tissue structure",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.663,
+      "elapsed_s": 0.55
+    },
+    {
+      "id": 22,
+      "domain": "biomaterials",
+      "query": "collagen scaffold mineralisation bone substitute",
+      "expected_nodes": [
+        "collagen",
+        "scaffold"
+      ],
+      "anchored": true,
+      "ccr3": true,
+      "n_chains": 10,
+      "top_chain": "collagen \u2192 bone",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.56,
+      "elapsed_s": 0.86
+    },
+    {
+      "id": 23,
+      "domain": "morphology",
+      "query": "Haversian system osteon cortical bone remodelling",
+      "expected_nodes": [
+        "haversian",
+        "osteon"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "cortical bone area \u2192 bone mass \u2192 fracture toughness \u2192 porosity \u2192 elastic modulus \u2192 cortical bone density",
+      "top_novelty": "SPECULATIVE",
+      "top_score": 0.775,
+      "elapsed_s": 0.97
+    },
+    {
+      "id": 24,
+      "domain": "morphology",
+      "query": "osteocyte lacunar network connectivity bone quality",
+      "expected_nodes": [
+        "osteocyte",
+        "lacunar"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 10,
+      "top_chain": "bone quality \u2192 fracture risk \u2192 advanced glycation endproduct \u2192 bone loss",
+      "top_novelty": "GROUNDED",
+      "top_score": 0.75,
+      "elapsed_s": 0.82
+    },
+    {
+      "id": 25,
+      "domain": "simulation",
+      "query": "finite element model bone mechanical behaviour prediction",
+      "expected_nodes": [
+        "finite_element",
+        "mechanical"
+      ],
+      "anchored": true,
+      "ccr3": false,
+      "n_chains": 7,
+      "top_chain": "mechanical bone quality \u2192 fracture risk \u2192 bone resorption \u2192 angiogenesis \u2192 bone modeling",
+      "top_novelty": "NOVEL",
+      "top_score": 0.4225,
+      "elapsed_s": 0.68
+    }
+  ],
+  "novelty": [
+    {
+      "id": 1,
+      "query": "RANKL osteoclast",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Direct 1-hop seed edge \u2014 RANKL activates osteoclast"
+    },
+    {
+      "id": 2,
+      "query": "OPG osteoclast inhibition",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 1,
+      "note": "Direct 1-hop seed edge \u2014 OPG inhibits osteoclast"
+    },
+    {
+      "id": 3,
+      "query": "aging cortical porosity",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "GROUNDED"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Direct 1-hop seed edge \u2014 aging increases porosity"
+    },
+    {
+      "id": 4,
+      "query": "osteoblast bone formation",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "GROUNDED",
+      "top3_labels": [
+        "GROUNDED",
+        "NOVEL",
+        "NOVEL"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Direct 1-hop seed edge \u2014 osteoblast leads to bone formation"
+    },
+    {
+      "id": 5,
+      "query": "disuse bone resorption",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Direct 1-hop seed edge \u2014 disuse leads to bone resorption"
+    },
+    {
+      "id": 6,
+      "query": "sclerostin Wnt bone formation inhibition",
+      "expected_novelty": "GROUNDED",
+      "top1_novelty": "NOVEL",
+      "top3_labels": [
+        "NOVEL",
+        "SPECULATIVE",
+        "NOVEL"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Direct seed edge \u2014 sclerostin inhibits bone formation via Wnt"
+    },
+    {
+      "id": 7,
+      "query": "aging porosity fracture risk mechanics",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "3-hop chain aging\u2192porosity\u2192elastic_modulus\u2192fracture_risk spans multiple edges"
+    },
+    {
+      "id": 8,
+      "query": "osteoporosis osteoclast resorption bone loss",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "NOVEL",
+      "top3_labels": [
+        "NOVEL",
+        "NOVEL",
+        "NOVEL"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Multi-hop extracted chain connecting pathology to cell biology"
+    },
+    {
+      "id": 9,
+      "query": "mechanical loading osteocyte sclerostin formation",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Load\u2192osteocyte\u2192sclerostin\u2193\u2192Wnt\u2192formation: extracted edges likely involved"
+    },
+    {
+      "id": 10,
+      "query": "fatigue crack propagation collagen crosslink toughness",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Multi-hop mechanics chain likely spanning extracted edges"
+    },
+    {
+      "id": 11,
+      "query": "collagen glycation aging fracture mechanics",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "AGE crosslinks \u2192 embrittlement \u2192 fracture: 3+ hops, extracted edges"
+    },
+    {
+      "id": 12,
+      "query": "osteocyte fluid flow mechanosensing RANKL remodelling",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "GROUNDED",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Mechanosensing\u2192RANKL regulation: mechanobiology\u2013cell biology bridge"
+    },
+    {
+      "id": 13,
+      "query": "PTH intermittent sclerostin osteoblast anabolic",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "PTH\u2192sclerostin suppression\u2192Wnt\u2192osteoblast: multi-hop extracted chain"
+    },
+    {
+      "id": 14,
+      "query": "hydroxyapatite mineral content stiffness scaffold implant",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Biomaterials\u2013mechanics bridge crossing multiple concept-type boundaries"
+    },
+    {
+      "id": 15,
+      "query": "osteocyte apoptosis microdamage remodelling signal",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Cell death as mechanical damage signal: crosses cell biology\u2013mechanics\u2013pathology"
+    },
+    {
+      "id": 16,
+      "query": "trabecular anisotropy fluid permeability mechanosensing",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "NOVEL"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "Architecture\u2013fluid transport\u2013mechanobiology: three concept-type boundaries"
+    },
+    {
+      "id": 17,
+      "query": "advanced glycation collagen remodelling osteoclast activity",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Matrix quality \u2192 cell behaviour: chemistry\u2013mechanics\u2013biology boundary crossing"
+    },
+    {
+      "id": 18,
+      "query": "cortical porosity fluid flow osteocyte damage detection",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Macro-porosity \u2192 LCN flow disruption \u2192 reduced mechanosensing: novel chain"
+    },
+    {
+      "id": 19,
+      "query": "bone mineral density prediction fracture finite element",
+      "expected_novelty": "SPECULATIVE",
+      "top1_novelty": "GROUNDED",
+      "top3_labels": [
+        "GROUNDED",
+        "SPECULATIVE",
+        "SPECULATIVE"
+      ],
+      "match": true,
+      "n_chains": 5,
+      "note": "BMD\u2192fracture is established; FEM bridge adds speculation but not novel cross-domain leap"
+    },
+    {
+      "id": 20,
+      "query": "collagen fibril orientation trabecular plate mechanics anisotropy",
+      "expected_novelty": "NOVEL",
+      "top1_novelty": "SPECULATIVE",
+      "top3_labels": [
+        "SPECULATIVE",
+        "GROUNDED",
+        "GROUNDED"
+      ],
+      "match": false,
+      "n_chains": 5,
+      "note": "Nano-scale collagen organisation \u2192 macro-scale architecture: multi-scale novel chain"
+    }
+  ]
+}
