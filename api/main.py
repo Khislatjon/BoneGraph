@@ -7,8 +7,13 @@ Endpoints
 ---------
 GET  /api/stats            — corpus statistics
 POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
-                              (results are deduplicated by title before context is built
-                               so the LLM never sees the same paper under two rank numbers)
+                              · accepts optional `history` (JSON array of {role,content})
+                                for multi-turn follow-up questions
+                              · topic guard: retrieval score < 0.70 → off-topic rejection,
+                                no LLM call made
+                              · results deduplicated by title before context is built
+                                so the LLM never sees the same paper under two rank numbers
+                              · answer generated at temperature 0.2 for factual consistency
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
 GET  /api/gaps             — research gap detection, JSON response
@@ -263,7 +268,7 @@ def get_stats():
 
 
 @app.post("/api/ask")
-async def ask(question: str = Form(...), top_k: int = Form(8)):
+async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Form("[]")):
     """
     Server-Sent Events stream.
     Events:
@@ -271,7 +276,16 @@ async def ask(question: str = Form(...), top_k: int = Form(8)):
       {"type": "token",   "content": "..."}   — each LLM token
       {"type": "done",    "answer": "..."}    — final answer with DOI links injected
       {"type": "error",   "message": "..."}   — on failure
+
+    `history` is a JSON array of {role, content} objects for prior turns.
+    Retrieval always uses only the latest question so sources stay relevant.
     """
+    prior_turns: list[dict] = json.loads(history) if history else []
+
+    # Minimum cosine similarity for the top retrieved chunk to be considered on-topic.
+    # Below this threshold the question almost certainly falls outside the bone science corpus.
+    BONE_SCIENCE_THRESHOLD = 0.70
+
     def generate():
         q = question.strip()
         if not q:
@@ -279,6 +293,18 @@ async def ask(question: str = Form(...), top_k: int = Form(8)):
             return
 
         results = retriever.query(q, top_k=top_k)
+
+        # Topic guard: if the best matching chunk is below the similarity threshold
+        # the question is off-topic — skip RAG and return a redirect message.
+        if not results or results[0]["score"] < BONE_SCIENCE_THRESHOLD:
+            out = (
+                "I'm BoneLogic, a specialist assistant for bone science. "
+                "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
+                "or a closely related biomedical topic. Please ask something within that domain "
+                "and I'll do my best to answer from the literature."
+            )
+            yield f"data: {json.dumps({'type':'done','answer':out})}\n\n"
+            return
 
         # Deduplicate by title so the LLM sees each paper only once
         seen_titles: set[str] = set()
@@ -303,6 +329,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8)):
         context  = _build_context(results)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
+            *prior_turns,
             {"role": "user",   "content": f"Context passages:\n\n{context}\n\n---\n\nQuestion: {q}"},
         ]
 
@@ -310,7 +337,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8)):
         try:
             resp = requests.post(
                 OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True},
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0.2}},
                 stream=True,
                 timeout=180,
             )

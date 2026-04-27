@@ -258,6 +258,14 @@ const ChainArrow = () => (
   </div>
 );
 
+// Strip the model's "Thinking" preamble — show only from "Final Response" onward.
+function stripThinking(text) {
+  const marker = /final response\s*/i;
+  const idx = text.search(marker);
+  if (idx === -1) return text;
+  return text.slice(idx).replace(marker, '').trimStart();
+}
+
 // ── Inline citations renderer ─────────────────────────────────────────────────
 function parseCit(text) {
   const lines = text.split('\n');
@@ -356,6 +364,8 @@ function AskTab({ totalChunks }) {
     const t = text.trim();
     if (!t || loading) return;
     autoScroll.current = true;
+    // Capture history before adding the new user turn
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
     setMessages(prev => [...prev, { role:'user', content:t }]);
     setInput('');
     setLoading(true);
@@ -367,6 +377,7 @@ function AskTab({ totalChunks }) {
       const fd = new FormData();
       fd.append('question', t);
       fd.append('top_k', '8');
+      fd.append('history', JSON.stringify(history));
       const resp = await fetch('/api/ask', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
@@ -414,7 +425,7 @@ function AskTab({ totalChunks }) {
                 <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : 'msg-asst'}`}>
                   {m.role === 'assistant' && <div className="msg-avatar"><BoneSVG size={26}/></div>}
                   <div className="msg-bubble">
-                    <div className="msg-text">{m.role === 'assistant' ? parseCit(m.content) : m.content}</div>
+                    <div className="msg-text">{m.role === 'assistant' ? parseCit(stripThinking(m.content)) : m.content}</div>
                     {m.role === 'assistant' && <Sources results={m.sources}/>}
                   </div>
                 </div>
@@ -424,7 +435,11 @@ function AskTab({ totalChunks }) {
                   <div className="msg-avatar"><BoneSVG size={26}/></div>
                   <div className="msg-bubble">
                     <div className="msg-text">
-                      {streaming ? <>{parseCit(streaming)}<span className="blink">▍</span></> : <Dots/>}
+                      {streaming
+                        ? /final response/i.test(streaming)
+                          ? <>{parseCit(stripThinking(streaming))}<span className="blink">▍</span></>
+                          : <Dots/>
+                        : <Dots/>}
                     </div>
                     {liveSource && <Sources results={liveSource}/>}
                   </div>
