@@ -278,6 +278,19 @@ async def ask(question: str = Form(...), top_k: int = Form(8)):
 
         results = retriever.query(q, top_k=top_k)
 
+        # Deduplicate by title so the LLM sees each paper only once
+        seen_titles: set[str] = set()
+        deduped = []
+        for r in results:
+            key = (r["title"] or "").strip().lower()
+            if key not in seen_titles:
+                seen_titles.add(key)
+                deduped.append(r)
+        # Re-number ranks to stay consecutive after dedup
+        for i, r in enumerate(deduped, 1):
+            r["rank"] = i
+        results = deduped
+
         # Serialise results (exclude raw embedding bytes)
         results_payload = [
             {k: v for k, v in r.items() if k != "embedding"}
