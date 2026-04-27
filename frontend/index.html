@@ -236,8 +236,8 @@ const NOVELTY_STYLES = {
   UNCERTAIN:   { bg:'#fef5e4', color:'#a07010', border:'#f0d48a' },
 };
 const NOVELTY_DISPLAY = {
-  GROUNDED:'Grounded hypothesis', SPECULATIVE:'Speculative hypothesis',
-  NOVEL:'Novel hypothesis', UNCERTAIN:'Uncertain hypothesis',
+  GROUNDED:'Grounded', SPECULATIVE:'Speculative',
+  NOVEL:'Novel', UNCERTAIN:'Uncertain',
 };
 function Badge({ label, map, display }) {
   const s = map[label] || { bg:'#f8f7f3', color:'#52514a', border:'#ccc8be' };
@@ -591,22 +591,26 @@ function GapsSection() {
 }
 
 function ReasonTab() {
-  const [concept, setConcept] = useState('');
-  const [result, setResult]   = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [concept, setConcept]         = useState('');
+  const [result, setResult]           = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
+  const [clientElapsed, setClientElapsed] = useState(null);
 
   const EXAMPLES = ['aging and fracture risk','collagen bone toughness','RANKL osteoclast resorption','cortical porosity elastic modulus'];
 
   const reason = async (c) => {
     const term = (c || concept).trim();
     if (!term || loading) return;
-    setConcept(term); setLoading(true); setResult(null); setError('');
+    setConcept(term); setLoading(true); setResult(null); setError(''); setClientElapsed(null);
+    const t0 = performance.now();
     try {
       const fd = new FormData();
       fd.append('query', term); fd.append('max_results','8'); fd.append('physics_filter','true');
       const r = await fetch('/api/reason', { method:'POST', body:fd });
-      setResult(await r.json());
+      const data = await r.json();
+      setClientElapsed(((performance.now() - t0) / 1000).toFixed(2));
+      setResult(data);
     } catch { setError('Could not generate hypothesis chains. Please try again.'); }
     setLoading(false);
   };
@@ -639,7 +643,7 @@ function ReasonTab() {
           <div className="results-title">Causal hypothesis chains for <em>"{result.concept}"</em></div>
           {result.graph_stats && (
             <div className="graph-stats-line">
-              {result.graph_stats.nodes?.toLocaleString()} nodes · {result.graph_stats.edges?.toLocaleString()} edges · {result.elapsed}s
+              {result.graph_stats.nodes?.toLocaleString()} nodes · {result.graph_stats.edges?.toLocaleString()} edges · {clientElapsed}s
             </div>
           )}
           {result.chains && result.chains.length > 0 ? result.chains.map((ch,i) => (
@@ -683,14 +687,14 @@ function ReasonTab() {
                 <Badge label="IMPLAUSIBLE" map={VALIDITY_STYLES}/>
               </div>
               <div className="legend-grp">
-                <span className="legend-lbl">Novelty</span>
+                <span className="legend-lbl">Hypothesis</span>
                 {['GROUNDED','SPECULATIVE','NOVEL'].map(k => <Badge key={k} label={k} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[k]}/>)}
               </div>
             </div>
           )}
         </div>
       )}
-      <GapsSection/>
+      {/* <GapsSection/> */}
     </div>
   );
 }

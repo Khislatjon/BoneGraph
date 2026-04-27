@@ -362,7 +362,6 @@ def reason(query: str = Form(...), max_results: int = Form(8), physics_filter: b
     t0 = time.perf_counter()
     lrm.physics_filter = physics_filter
     hypotheses = lrm.query(q, max_results=max_results)
-    elapsed = round(time.perf_counter() - t0, 2)
 
     chains = []
     for h in hypotheses:
@@ -398,6 +397,7 @@ def reason(query: str = Form(...), max_results: int = Form(8), physics_filter: b
             "corpus_disclaimer": CORPUS_DISCLAIMER if nr.show_disclaimer else None,
         })
 
+    elapsed = round(time.perf_counter() - t0, 2)
     graph_stats = lrm.graph_stats()
     return {
         "concept":     q,
