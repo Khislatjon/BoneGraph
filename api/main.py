@@ -9,8 +9,12 @@ GET  /api/stats            — corpus statistics
 POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                               · accepts optional `history` (JSON array of {role,content})
                                 for multi-turn follow-up questions
-                              · topic guard: retrieval score < 0.70 → off-topic rejection,
-                                no LLM call made
+                              · topic guard: a general-purpose classifier model (llama3.2:3b)
+                                decides if the question is bone-science-related; off-topic
+                                questions are rejected before retrieval and before the main
+                                LLM call. (llama3.2:1b was tried first but misclassified
+                                clear bone questions like "trabecular vs cortical bone" as
+                                off-topic — too small to follow the classification prompt.)
                               · results deduplicated by title before context is built
                                 so the LLM never sees the same paper under two rank numbers
                               · answer generated at temperature 0.2 for factual consistency
@@ -42,6 +46,7 @@ from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 # ── Ollama config ──────────────────────────────────────────────────────────────
 OLLAMA_URL   = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "huatuogpt-bone"
+GUARD_MODEL  = "llama3.2:3b"  # general-purpose classifier for topic guard
 VLM_MODEL    = "llava:13b"
 
 VLM_PROMPT = (
@@ -282,9 +287,72 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
     """
     prior_turns: list[dict] = json.loads(history) if history else []
 
-    # Minimum cosine similarity for the top retrieved chunk to be considered on-topic.
-    # Below this threshold the question almost certainly falls outside the bone science corpus.
-    BONE_SCIENCE_THRESHOLD = 0.70
+    GUARD_PROMPT = (
+        "Classify whether the user's question is about bone science.\n\n"
+        "Bone science covers ALL of the following — treat any question that touches these "
+        "topics as YES:\n"
+        "• Skeletal anatomy: any named bone in the human or animal skeleton — skull "
+        "(frontal, parietal, temporal, occipital, sphenoid, ethmoid, mandible, maxilla, "
+        "nasal, zygomatic, palatine, vomer), ear ossicles (malleus, incus, stapes), "
+        "hyoid, spine and vertebrae (cervical, thoracic, lumbar, sacrum, coccyx, atlas, "
+        "axis, vertebral discs), thoracic cage (ribs, sternum, clavicle, scapula), "
+        "upper limb (humerus, radius, ulna, carpals, scaphoid, lunate, metacarpals, "
+        "phalanges), pelvis/hip (ilium, ischium, pubis, acetabulum, femoral head), "
+        "lower limb (femur, tibia, fibula, patella, calcaneus, talus, navicular, "
+        "metatarsals, toe phalanges).\n"
+        "• Bone tissue types: cortical/compact bone, trabecular/cancellous bone, "
+        "long/short/flat/irregular/sesamoid bones, lamellar/woven bone, periosteum, "
+        "endosteum, bone marrow, ossification (endochondral, intramembranous).\n"
+        "• Morphology and microstructure: osteons, Haversian canals, lacunar-canalicular "
+        "network, osteocyte lacunae, bone hierarchical structure.\n"
+        "• Composition and structure-function: collagen-mineral composite, hydroxyapatite, "
+        "bone anisotropy, poroelasticity.\n"
+        "• Mechanics and biomechanics: fracture toughness, fatigue, viscoelasticity, "
+        "elastic modulus, crack propagation, nanoindentation, yield strength, stiffness.\n"
+        "• Pathology: osteoporosis, osteogenesis imperfecta, Paget's disease, bone "
+        "metastasis, stress fractures, osteonecrosis, avascular necrosis, osteoarthritis "
+        "(subchondral bone), rickets, osteomalacia, bone dysplasia, osteosarcoma, any "
+        "bone tumour or bone disease.\n"
+        "• Fracture: fracture types, healing, repair, callus formation, non-union.\n"
+        "• Imaging: X-ray, radiograph, MRI, microCT, quantitative CT, DXA/DEXA, "
+        "ultrasound — applied to bone.\n"
+        "• Biomaterials and tissue engineering: bone scaffolds, grafts, substitutes, "
+        "bone cement, 3D-printed bone, regeneration, bio-inspired bone materials.\n"
+        "• Computational modelling: finite element analysis, multiscale modelling, "
+        "mathematical bone remodelling models, molecular dynamics on bone mineral, "
+        "mechanobiology simulation.\n"
+        "• Cell biology and signalling: osteoblasts, osteoclasts, osteocytes, RANKL/"
+        "RANK/OPG, Wnt signalling, mesenchymal stem cells in bone, mechanosensing, "
+        "bone remodelling biology.\n"
+        "• Bone metabolism: bone mineral density (BMD), calcium and vitamin D "
+        "metabolism in bone, hormonal regulation of bone (PTH, oestrogen).\n"
+        "• Cartilage and joints when discussed in connection with bone or orthopaedics.\n"
+        "• Orthopaedics and skeletal development/aging.\n\n"
+        "Anything outside these areas is NOT bone science. Examples that are NO: "
+        "geography, country populations, politics, general history, cooking, programming, "
+        "philosophy, sports rules, non-bone medical topics (cardiology, dermatology, "
+        "neurology unrelated to skeleton), economics, entertainment.\n\n"
+        "Reply with exactly one word: YES or NO. No explanation, no punctuation.\n\n"
+        "Question: {q}"
+    )
+
+    def _is_bone_science(q: str) -> bool:
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={
+                    "model": GUARD_MODEL,
+                    "messages": [{"role": "user", "content": GUARD_PROMPT.format(q=q)}],
+                    "stream": False,
+                    "options": {"temperature": 0, "num_predict": 5},
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            answer = resp.json()["message"]["content"].strip().upper()
+            return answer.startswith("YES")
+        except Exception:
+            return True  # fail open so a network hiccup doesn't block real questions
 
     def generate():
         q = question.strip()
@@ -292,11 +360,9 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             yield f"data: {json.dumps({'type':'error','message':'Empty question'})}\n\n"
             return
 
-        results = retriever.query(q, top_k=top_k)
-
-        # Topic guard: if the best matching chunk is below the similarity threshold
-        # the question is off-topic — skip RAG and return a redirect message.
-        if not results or results[0]["score"] < BONE_SCIENCE_THRESHOLD:
+        # Topic guard: dedicated small classifier model decides if question is on-topic.
+        # Runs before retrieval so off-topic questions cost nothing beyond the guard call.
+        if not _is_bone_science(q):
             out = (
                 "I'm BoneLogic, a specialist assistant for bone science. "
                 "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
@@ -305,6 +371,8 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             )
             yield f"data: {json.dumps({'type':'done','answer':out})}\n\n"
             return
+
+        results = retriever.query(q, top_k=top_k)
 
         # Deduplicate by title so the LLM sees each paper only once
         seen_titles: set[str] = set()
