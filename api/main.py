@@ -7,6 +7,8 @@ Endpoints
 ---------
 GET  /api/stats            — corpus statistics
 POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
+                              (results are deduplicated by title before context is built
+                               so the LLM never sees the same paper under two rank numbers)
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
 GET  /api/gaps             — research gap detection, JSON response
