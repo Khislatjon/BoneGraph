@@ -17,7 +17,11 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 off-topic — too small to follow the classification prompt.)
                               · results deduplicated by title before context is built
                                 so the LLM never sees the same paper under two rank numbers
-                              · answer generated at temperature 0.2 for factual consistency
+                              · answer generated at temperature 0 for full determinism
+                              · References section is rebuilt server-side from the retrieved
+                                results — the LLM's own References block is discarded because
+                                huatuogpt-bone tends to renumber citations, breaking the link
+                                between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
 GET  /api/gaps             — research gap detection, JSON response
@@ -206,29 +210,58 @@ def _build_context(results: list[dict]) -> str:
 
 
 def _inject_ref_links(answer: str, results: list[dict]) -> str:
+    """
+    Authoritative references handling:
+      1. Strip whatever the LLM wrote in `## References` (it tends to renumber).
+      2. Parse inline [N] citations from the body — those numbers are trusted
+         because they came directly from the numbered context passages.
+      3. Rebuild the References section from `results` keyed by rank, in order
+         of first appearance in the body.
+
+    Citations the LLM invented (rank not present in results) are dropped from
+    the rebuilt list so the user never sees a phantom reference.
+    """
     import re
-    ref_urls: dict[int, str] = {}
-    for r in results:
-        if r["source_type"] != "paper":
-            continue
-        if r["doi"]:
-            ref_urls[r["rank"]] = f"https://doi.org/{r['doi']}"
-        elif r["openalex_id"]:
-            ref_urls[r["rank"]] = f"https://openalex.org/{r['openalex_id']}"
 
-    if not ref_urls or "## References" not in answer:
-        return answer
+    # Drop the model's References section entirely
+    body, _, _ = answer.partition("## References")
+    body = body.rstrip()
 
-    def _replace(m):
+    by_rank: dict[int, dict] = {r["rank"]: r for r in results}
+
+    # Find inline citations [N] in order of first appearance, dedup, keep only
+    # ranks that actually exist in the retrieved results.
+    seen: list[int] = []
+    for m in re.finditer(r"\[(\d+)\]", body):
         n = int(m.group(1))
-        rest = m.group(2)
-        url = ref_urls.get(n)
-        return f"[{n}]{rest} · [Open paper]({url})" if url else m.group(0)
+        if n in by_rank and n not in seen:
+            seen.append(n)
 
-    body, _, refs = answer.partition("## References")
-    refs = re.sub(r"^\[(\d+)\](.*)", _replace, refs, flags=re.MULTILINE)
-    refs = re.sub(r"\n(\[\d+\])", r"\n\n\1", refs).lstrip("\n")
-    return body + "## References\n\n" + refs
+    if not seen:
+        return body  # no valid citations → no References section
+
+    lines = ["## References", ""]
+    for n in seen:
+        r = by_rank[n]
+        title   = r["title"]
+        authors = r["authors"] or "Unknown"
+        year    = r["year"] or ""
+        venue   = r["venue"] or ""
+        url = None
+        if r["source_type"] == "paper":
+            if r.get("doi"):
+                url = f"https://doi.org/{r['doi']}"
+            elif r.get("openalex_id"):
+                url = f"https://openalex.org/{r['openalex_id']}"
+        meta_bits = [authors, f"({year})" if year else "", venue]
+        meta = " · ".join(b for b in meta_bits if b).replace(" · (", " (")
+        line = f"[{n}] {title} — {meta}"
+        if url:
+            line += f" · [Open paper]({url})"
+        lines.append(line)
+        lines.append("")
+
+    return body + "\n\n" + "\n".join(lines).rstrip() + "\n"
 
 
 def _dedupe_venue(venue: str) -> str:
@@ -405,7 +438,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         try:
             resp = requests.post(
                 OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0.2}},
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0}},
                 stream=True,
                 timeout=180,
             )
