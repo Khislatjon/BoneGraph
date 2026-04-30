@@ -51,7 +51,7 @@ Image upload (X-ray / MRI)
 
 **What it contains:** 40,561 X-rays of 7 upper extremity body parts — shoulder, clavicle, elbow, finger, forearm, humerus, wrist. Each study is labelled normal or abnormal by radiologists.
 
-**Why useful for BoneLogic:** Covers cortical bone abnormalities, fractures, and structural changes across multiple bone types with radiologist-validated labels.
+**Why useful for BoneMind:** Covers cortical bone abnormalities, fractures, and structural changes across multiple bone types with radiologist-validated labels.
 
 **How to get it:**
 
@@ -85,7 +85,7 @@ MURA-v1.1/
 
 **Labels:** The CSV files map each study folder to a binary label. `study1_positive` = abnormal, `study1_negative` = normal. The folder name is the ground truth.
 
-**Place in BoneLogic:**
+**Place in BoneMind:**
 ```
 data/raw/images/MURA/train/XR_SHOULDER/patient00001/...
 data/raw/images/MURA/valid/XR_SHOULDER/...
@@ -97,7 +97,7 @@ data/raw/images/MURA/valid/XR_SHOULDER/...
 
 **What it contains:** 12,611 hand X-rays of children aged 1–18, each labelled with bone age in months by radiologists. Sourced from the Radiological Society of North America 2017 challenge.
 
-**Why useful for BoneLogic:** Hand X-rays show cortical thickness, bone density, growth plate status, and skeletal maturity — all relevant to bone morphology understanding.
+**Why useful for BoneMind:** Hand X-rays show cortical thickness, bone density, growth plate status, and skeletal maturity — all relevant to bone morphology understanding.
 
 **How to get it:**
 
@@ -128,7 +128,7 @@ RSNA_BoneAge/
 
 **Labels:** `train.csv` has `id`, `boneage` (in months), and `male` (sex). Bone age in months is continuous — you can bin it: <120 months = child, 120–216 = adolescent.
 
-**Place in BoneLogic:**
+**Place in BoneMind:**
 ```
 data/raw/images/RSNA_BoneAge/
 ```
@@ -139,7 +139,7 @@ data/raw/images/RSNA_BoneAge/
 
 **What it contains:** Longitudinal study of 4,796 subjects tracked over 8 years. Includes bilateral knee X-rays (posteroanterior and lateral), knee MRI (3T), and DXA scans at multiple time points.
 
-**Why useful for BoneLogic:** Best available public dataset for osteoarthritis progression, knee bone structure, and cartilage loss over time. KL grades (0–4) are provided for osteoarthritis severity.
+**Why useful for BoneMind:** Best available public dataset for osteoarthritis progression, knee bone structure, and cartilage loss over time. KL grades (0–4) are provided for osteoarthritis severity.
 
 **How to get it:**
 
@@ -160,7 +160,7 @@ data/raw/images/RSNA_BoneAge/
 
 **What it contains:** 374 CT scans with manually annotated vertebral labels (C1–L5) and segmentation masks. From a Grand Challenge competition.
 
-**Why useful for BoneLogic:** Spine CT covers vertebral morphology, fracture detection, and bone density estimation — important for osteoporosis and spinal pathology.
+**Why useful for BoneMind:** Spine CT covers vertebral morphology, fracture detection, and bone density estimation — important for osteoporosis and spinal pathology.
 
 **How to get it:**
 

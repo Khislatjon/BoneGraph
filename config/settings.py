@@ -1,7 +1,7 @@
 """
 config/settings.py
 ==================
-Central configuration for the entire BoneLogic project.
+Central configuration for the entire BoneMind project.
 
 All tunable constants live here so every other module imports from one place.
 If you need to change a behaviour (rate limits, file paths, which S2 fields to

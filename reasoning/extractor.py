@@ -1,7 +1,7 @@
 """
 reasoning/extractor.py
 ======================
-Step 4.2 — LLM triple extraction from the BoneLogic corpus chunks.
+Step 4.2 — LLM triple extraction from the BoneMind corpus chunks.
 
 Overview
 --------
@@ -765,7 +765,7 @@ def _print_stats() -> None:
 
     print()
     print("─" * 58)
-    print("  BoneLogic — Phase 4 extraction progress")
+    print("  BoneMind — Phase 4 extraction progress")
     print("─" * 58)
     print(f"  Chunks processed : {processed:>7,} / {total_chunks:,}  ({pct:.1f}%)")
     print(f"    done           : {ex['done']:>7,}")

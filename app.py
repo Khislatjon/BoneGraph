@@ -1,9 +1,9 @@
 """
 app.py
 =======
-BoneLogic — Gradio web UI.
+BoneMind — Gradio web UI.
 
-Tab 1  Ask BoneLogic   Query → retrieve top-k chunks → stream HuatuoGPT-o1-8B answer
+Tab 1  Ask BoneMind   Query → retrieve top-k chunks → stream HuatuoGPT-o1-8B answer
 Tab 2  Analyse Image   Upload X-ray/MRI → LLaVA report → cross-modal retrieval → LLM answer
 Tab 3  Search Corpus   Raw semantic search (chunks ranked by cosine similarity)
 Tab 4  Reason          Graph traversal → physics-validated causal hypotheses + gap detection
@@ -25,7 +25,7 @@ import time
 import requests
 import gradio as gr
 
-from retrieval.retriever import BoneLogicRetriever
+from retrieval.retriever import BoneMindRetriever
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -47,7 +47,7 @@ VLM_PROMPT = (
     "Use precise radiological terminology."
 )
 
-SYSTEM_PROMPT = """You are BoneLogic, an expert AI assistant specialised in bone science.
+SYSTEM_PROMPT = """You are BoneMind, an expert AI assistant specialised in bone science.
 You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
 
 MOST IMPORTANT RULE — citations are mandatory:
@@ -69,7 +69,7 @@ RULES — follow exactly:
 
 4. OUT-OF-DOMAIN. If the question is not about bone science (morphology, structure-function
    relationships, mechanics, pathology, imaging, biomaterials, or simulation), respond:
-   "This question is outside BoneLogic's domain. I cover bone science only."
+   "This question is outside BoneMind's domain. I cover bone science only."
 
 5. HYPOTHESES. If you extend beyond direct evidence, mark it explicitly:
    **Hypothesis:** [speculative claim]
@@ -122,8 +122,8 @@ CITATION RULES — enforced strictly:
 
 
 # ── Startup: load retriever, LRM, and novelty classifier ─────────────────────
-print("Loading BoneLogic retriever...")
-retriever = BoneLogicRetriever()
+print("Loading BoneMind retriever...")
+retriever = BoneMindRetriever()
 retriever.load()
 
 print("Loading LRM (bone knowledge graph)...")
@@ -341,7 +341,7 @@ def _inject_ref_links(answer: str, results: list[dict]) -> str:
     return body + "## References\n\n" + refs
 
 
-# ── Tab 1: Ask BoneLogic (RAG + LLM) ─────────────────────────────────────────
+# ── Tab 1: Ask BoneMind (RAG + LLM) ─────────────────────────────────────────
 def ask(question: str, top_k: int):
     """
     Generator for Gradio streaming.
@@ -788,13 +788,13 @@ footer.svelte-mpyp5e { display: none !important; }
 .bl-source-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 """
 
-with gr.Blocks(title="BoneLogic", theme=gr.themes.Base(), css=_CSS) as demo:
+with gr.Blocks(title="BoneMind", theme=gr.themes.Base(), css=_CSS) as demo:
 
     gr.HTML(
         f"<div class='bl-header'>"
         f"<div class='bl-logo-wrap'>{_BONE_SVG}</div>"
         f"<div class='bl-header-text'>"
-        f"<div class='bl-header-title'>BoneLogic</div>"
+        f"<div class='bl-header-title'>BoneMind</div>"
         f"<div class='bl-header-sub'>"
         f"AI research assistant for bone science &nbsp;·&nbsp; "
         f"{STATS['pdfs_downloaded']:,} papers &nbsp;·&nbsp; "
@@ -806,7 +806,7 @@ with gr.Blocks(title="BoneLogic", theme=gr.themes.Base(), css=_CSS) as demo:
     )
 
     # ── Tab 1 ──────────────────────────────────────────────────────────────────
-    with gr.Tab("Ask BoneLogic"):
+    with gr.Tab("Ask BoneMind"):
         gr.Markdown(
             "Ask a question about bone science. "
             "The system retrieves the most relevant passages from the corpus and "

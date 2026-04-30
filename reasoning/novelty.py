@@ -1,7 +1,7 @@
 """
 reasoning/novelty.py
 ====================
-Step 4.5 — Corpus-grounded novelty classification for BoneLogic hypotheses.
+Step 4.5 — Corpus-grounded novelty classification for BoneMind hypotheses.
 
 Overview
 --------
@@ -153,7 +153,7 @@ class NoveltyResult:
 
 class NoveltyClassifier:
     """
-    Corpus-grounded novelty classifier for BoneLogic hypotheses.
+    Corpus-grounded novelty classifier for BoneMind hypotheses.
 
     Parameters
     ----------

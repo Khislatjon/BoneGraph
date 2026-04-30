@@ -1,8 +1,8 @@
-# BoneLogic LRM Benchmark
+# BoneMind LRM Benchmark
 
 ## Overview
 
-The LRM benchmark evaluates the reasoning layer of BoneLogic across three components. It is analogous to the retrieval benchmark (`eval/benchmark.json` / `eval/run_eval.py`) but targets the knowledge graph reasoning engine rather than the embedding retriever.
+The LRM benchmark evaluates the reasoning layer of BoneMind across three components. It is analogous to the retrieval benchmark (`eval/benchmark.json` / `eval/run_eval.py`) but targets the knowledge graph reasoning engine rather than the embedding retriever.
 
 ```
 eval/lrm_benchmark.json    — annotated benchmark dataset (75 items)

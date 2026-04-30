@@ -1,4 +1,4 @@
-# BoneLogic
+# BoneMind
 
 An intelligent reasoning system for bone science — morphology, mechanics, pathology, and biomaterials.
 
@@ -144,11 +144,11 @@ python -m retrieval.query "cortical bone fracture toughness"
 # CLI — interactive mode (embeddings loaded once, fast repeated queries)
 python -m retrieval.query --interactive
 
-# React web UI (tabs: Ask BoneLogic · Search Corpus · Analyse Image · Reason)
+# React web UI (tabs: Ask BoneMind · Search Corpus · Analyse Image · Reason)
 python serve.py    # FastAPI backend + React frontend at http://localhost:8000
 ```
 
-**Ask BoneLogic tab** requires Ollama running with the fine-tuned model:
+**Ask BoneMind tab** requires Ollama running with the fine-tuned model:
 
 ```bash
 ollama serve          # start the server (separate terminal if not running as a service)
@@ -252,7 +252,7 @@ Three components — physics accuracy, chain coverage, novelty calibration. Resu
 ## Project structure
 
 ```
-BoneLogic/
+BoneMind/
 ├── config/                  # Central settings (paths, model names, constants)
 ├── ingestion/
 │   ├── papers/              # OpenAlex API client, storage, downloader
