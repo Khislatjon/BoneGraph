@@ -435,10 +435,12 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         ]
 
         answer = ""
+        prompt_tokens = 0
+        completion_tokens = 0
         try:
             resp = requests.post(
                 OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0}},
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0, "num_ctx": 16384}},
                 stream=True,
                 timeout=180,
             )
@@ -446,13 +448,17 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             for line in resp.iter_lines():
                 if line:
                     data = json.loads(line)
-                    if not data.get("done"):
+                    if data.get("done"):
+                        # Final message — Ollama reports token counts here
+                        prompt_tokens = data.get("prompt_eval_count", 0)
+                        completion_tokens = data.get("eval_count", 0)
+                    else:
                         token = data["message"]["content"]
                         answer += token
                         yield f"data: {json.dumps({'type':'token','content':token})}\n\n"
 
             linked = _inject_ref_links(answer, results)
-            yield f"data: {json.dumps({'type':'done','answer':linked})}\n\n"
+            yield f"data: {json.dumps({'type':'done','answer':linked,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':16384})}\n\n"
 
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
