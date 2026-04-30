@@ -397,7 +397,7 @@ function AskTab({ totalChunks }) {
           else if (ev.type === 'done')  {
             finalAnswer = ev.answer;
             if (typeof ev.prompt_tokens === 'number') {
-              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192 });
+              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192, estimated: true });
             }
           }
           else if (ev.type === 'error') { finalAnswer = '⚠️ ' + ev.message; }
@@ -463,11 +463,10 @@ function AskTab({ totalChunks }) {
             const warn = pct >= 80;
             return (
               <div style={{display:'flex',alignItems:'center',gap:8,fontSize:11,color:warn?'#b85a10':'var(--text3)',fontFamily:'var(--mono)'}}>
-                <span>Context: {usage.prompt.toLocaleString()} / {usage.ctx.toLocaleString()} tokens ({pct}%)</span>
+                <span>Context: ~{usage.prompt.toLocaleString()} / {usage.ctx.toLocaleString()} tokens ({pct}%)</span>
                 <span style={{flex:1,height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}>
                   <span style={{display:'block',height:'100%',width:`${pct}%`,background:warn?'#b85a10':'var(--amber)'}}/>
                 </span>
-                <span>last reply: {usage.completion.toLocaleString()} tok</span>
               </div>
             );
           })()}

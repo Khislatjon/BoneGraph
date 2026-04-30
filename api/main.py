@@ -321,61 +321,35 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
     prior_turns: list[dict] = json.loads(history) if history else []
 
     GUARD_PROMPT = (
-        "Classify whether the user's question is about bone science.\n\n"
-        "Bone science covers ALL of the following — treat any question that touches these "
-        "topics as YES:\n"
-        "• Skeletal anatomy: any named bone in the human or animal skeleton — skull "
-        "(frontal, parietal, temporal, occipital, sphenoid, ethmoid, mandible, maxilla, "
-        "nasal, zygomatic, palatine, vomer), ear ossicles (malleus, incus, stapes), "
-        "hyoid, spine and vertebrae (cervical, thoracic, lumbar, sacrum, coccyx, atlas, "
-        "axis, vertebral discs), thoracic cage (ribs, sternum, clavicle, scapula), "
-        "upper limb (humerus, radius, ulna, carpals, scaphoid, lunate, metacarpals, "
-        "phalanges), pelvis/hip (ilium, ischium, pubis, acetabulum, femoral head), "
-        "lower limb (femur, tibia, fibula, patella, calcaneus, talus, navicular, "
-        "metatarsals, toe phalanges).\n"
-        "• Bone tissue types: cortical/compact bone, trabecular/cancellous bone, "
-        "long/short/flat/irregular/sesamoid bones, lamellar/woven bone, periosteum, "
-        "endosteum, bone marrow, ossification (endochondral, intramembranous).\n"
-        "• Morphology and microstructure: osteons, Haversian canals, lacunar-canalicular "
-        "network, osteocyte lacunae, bone hierarchical structure.\n"
-        "• Composition and structure-function: collagen-mineral composite, hydroxyapatite, "
-        "bone anisotropy, poroelasticity.\n"
-        "• Mechanics and biomechanics: fracture toughness, fatigue, viscoelasticity, "
-        "elastic modulus, crack propagation, nanoindentation, yield strength, stiffness.\n"
-        "• Pathology: osteoporosis, osteogenesis imperfecta, Paget's disease, bone "
-        "metastasis, stress fractures, osteonecrosis, avascular necrosis, osteoarthritis "
-        "(subchondral bone), rickets, osteomalacia, bone dysplasia, osteosarcoma, any "
-        "bone tumour or bone disease.\n"
-        "• Fracture: fracture types, healing, repair, callus formation, non-union.\n"
-        "• Imaging: X-ray, radiograph, MRI, microCT, quantitative CT, DXA/DEXA, "
-        "ultrasound — applied to bone.\n"
-        "• Biomaterials and tissue engineering: bone scaffolds, grafts, substitutes, "
-        "bone cement, 3D-printed bone, regeneration, bio-inspired bone materials.\n"
-        "• Computational modelling: finite element analysis, multiscale modelling, "
-        "mathematical bone remodelling models, molecular dynamics on bone mineral, "
-        "mechanobiology simulation.\n"
-        "• Cell biology and signalling: osteoblasts, osteoclasts, osteocytes, RANKL/"
-        "RANK/OPG, Wnt signalling, mesenchymal stem cells in bone, mechanosensing, "
-        "bone remodelling biology.\n"
-        "• Bone metabolism: bone mineral density (BMD), calcium and vitamin D "
-        "metabolism in bone, hormonal regulation of bone (PTH, oestrogen).\n"
-        "• Cartilage and joints when discussed in connection with bone or orthopaedics.\n"
-        "• Orthopaedics and skeletal development/aging.\n\n"
-        "Anything outside these areas is NOT bone science. Examples that are NO: "
-        "geography, country populations, politics, general history, cooking, programming, "
-        "philosophy, sports rules, non-bone medical topics (cardiology, dermatology, "
-        "neurology unrelated to skeleton), economics, entertainment.\n\n"
-        "Reply with exactly one word: YES or NO. No explanation, no punctuation.\n\n"
-        "Question: {q}"
+        "{prior_block}"
+        "The user's current question is: {q}\n\n"
+        "Is the current question (taking the previous questions as context "
+        "to resolve pronouns) about bone, the skeleton, bones, bone cells "
+        "(osteoblasts, osteoclasts, osteocytes), bone diseases (osteoporosis, "
+        "fractures, osteoarthritis, bone tumours), bone mechanics, bone "
+        "imaging, bone biomaterials, bone metabolism, or orthopaedics?\n\n"
+        "Reply with exactly one word: YES or NO."
     )
 
-    def _is_bone_science(q: str) -> bool:
+    def _is_bone_science(q: str, prior_questions: list[str]) -> bool:
+        # Include the last few user questions so the classifier can resolve
+        # pronouns ("it", "this", "they"). Assistant replies are deliberately
+        # excluded — their off-topic-adjacent vocabulary confuses small classifiers.
+        recent = prior_questions[-8:]
+        if recent:
+            prior_block = (
+                "The user's previous questions in this conversation were:\n"
+                + "\n".join(f"- {p}" for p in recent)
+                + "\n\n"
+            )
+        else:
+            prior_block = ""
         try:
             resp = requests.post(
                 OLLAMA_URL,
                 json={
                     "model": GUARD_MODEL,
-                    "messages": [{"role": "user", "content": GUARD_PROMPT.format(q=q)}],
+                    "messages": [{"role": "user", "content": GUARD_PROMPT.format(q=q, prior_block=prior_block)}],
                     "stream": False,
                     "options": {"temperature": 0, "num_predict": 5},
                 },
@@ -393,9 +367,14 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             yield f"data: {json.dumps({'type':'error','message':'Empty question'})}\n\n"
             return
 
+        prior_user_questions = [
+            t["content"] for t in prior_turns
+            if t.get("role") == "user" and isinstance(t.get("content"), str)
+        ]
+
         # Topic guard: dedicated small classifier model decides if question is on-topic.
         # Runs before retrieval so off-topic questions cost nothing beyond the guard call.
-        if not _is_bone_science(q):
+        if not _is_bone_science(q, prior_user_questions):
             out = (
                 "I'm BoneLogic, a specialist assistant for bone science. "
                 "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
@@ -434,13 +413,18 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             {"role": "user",   "content": f"Context passages:\n\n{context}\n\n---\n\nQuestion: {q}"},
         ]
 
-        answer = ""
-        prompt_tokens = 0
+        # Estimate the full assembled prompt size (Ollama's prompt_eval_count
+        # only reports newly-evaluated tokens because it caches the prefix
+        # between turns, which makes the badge stay flat across follow-ups).
+        # ~3.5 chars/token is a good Llama-3 approximation for English/medical text.
+        char_count = sum(len(m.get("content", "")) for m in messages)
+        prompt_tokens = max(1, round(char_count / 3.5))
         completion_tokens = 0
+        answer = ""
         try:
             resp = requests.post(
                 OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0, "num_ctx": 16384}},
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0, "num_ctx": 8192}},
                 stream=True,
                 timeout=180,
             )
@@ -449,8 +433,6 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
                 if line:
                     data = json.loads(line)
                     if data.get("done"):
-                        # Final message — Ollama reports token counts here
-                        prompt_tokens = data.get("prompt_eval_count", 0)
                         completion_tokens = data.get("eval_count", 0)
                     else:
                         token = data["message"]["content"]
@@ -458,7 +440,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
                         yield f"data: {json.dumps({'type':'token','content':token})}\n\n"
 
             linked = _inject_ref_links(answer, results)
-            yield f"data: {json.dumps({'type':'done','answer':linked,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':16384})}\n\n"
+            yield f"data: {json.dumps({'type':'done','answer':linked,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':8192})}\n\n"
 
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
