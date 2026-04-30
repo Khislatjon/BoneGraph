@@ -589,7 +589,7 @@ def stress_concentration_kt(
 
 class PhysicsEngine:
     """
-    Physics validation engine for the BoneLogic LRM.
+    Physics validation engine for the BoneMind LRM.
 
     Combines Layer 1 (directional rules) and Layer 2 (numerical functions)
     to validate single edges and full causal chains.
@@ -919,7 +919,7 @@ class PhysicsEngine:
     def summary(self) -> None:
         """Print a formatted summary of all directional rules."""
         print(f"\n{'─' * 68}")
-        print(f"  BoneLogic Physics Engine — {self.rule_count()} directional rules")
+        print(f"  BoneMind Physics Engine — {self.rule_count()} directional rules")
         print(f"{'─' * 68}")
         for (src, rel, tgt), (status, law, _) in sorted(
             self._rules.items(), key=lambda x: x[1][0]

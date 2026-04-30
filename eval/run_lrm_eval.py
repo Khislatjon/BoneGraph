@@ -1,7 +1,7 @@
 """
 eval/run_lrm_eval.py
 ====================
-LRM reasoning benchmark for BoneLogic.
+LRM reasoning benchmark for BoneMind.
 
 Three evaluation components
 ---------------------------
@@ -63,7 +63,7 @@ chain_cases   = bench["chain_coverage"]
 physics_pairs = bench["physics_pairs"]
 novelty_cases = bench["novelty_cases"]
 
-print(f"BoneLogic LRM Benchmark  v{bench['version']}")
+print(f"BoneMind LRM Benchmark  v{bench['version']}")
 print(f"  Chain coverage : {len(chain_cases)} queries")
 print(f"  Physics pairs  : {len(physics_pairs)} pairs")
 print(f"  Novelty cases  : {len(novelty_cases)} cases")

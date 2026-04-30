@@ -1,7 +1,7 @@
 """
 processing/chunker.py
 ======================
-Sentence-aware text chunking for the BoneLogic RAG pipeline.
+Sentence-aware text chunking for the BoneMind RAG pipeline.
 
 Strategy
 --------
