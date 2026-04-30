@@ -115,7 +115,7 @@ class OpenAlexClient:
         session = requests.Session()
 
         # Polite pool: email in User-Agent gives more reliable rate limits.
-        ua = "BoneMind-Research-Bot/1.0"
+        ua = "BoneLogic-Research-Bot/1.0"
         if self.email:
             ua += f" (mailto:{self.email})"
         session.headers.update({"User-Agent": ua})

@@ -1,7 +1,7 @@
 """
 api/main.py
 ===========
-FastAPI backend for the BoneMind React frontend.
+FastAPI backend for the BoneLogic React frontend.
 
 Endpoints
 ---------
@@ -42,7 +42,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from retrieval.retriever import BoneMindRetriever
+from retrieval.retriever import BoneLogicRetriever
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -68,7 +68,7 @@ VLM_PROMPT = (
     '"assessment":"...","recommendation":"...","confidence":"HIGH|MODERATE|LOW"}'
 )
 
-SYSTEM_PROMPT = """You are BoneMind, an expert AI assistant specialised in bone science.
+SYSTEM_PROMPT = """You are BoneLogic, an expert AI assistant specialised in bone science.
 You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
 
 MOST IMPORTANT RULE — citations are mandatory:
@@ -90,7 +90,7 @@ RULES — follow exactly:
 
 4. OUT-OF-DOMAIN. If the question is not about bone science (morphology, structure-function
    relationships, mechanics, pathology, imaging, biomaterials, or simulation), respond:
-   "This question is outside BoneMind's domain. I cover bone science only."
+   "This question is outside BoneLogic's domain. I cover bone science only."
 
 5. HYPOTHESES. If you extend beyond direct evidence, mark it explicitly:
    **Hypothesis:** [speculative claim]
@@ -137,8 +137,8 @@ CITATION RULES — enforced strictly:
 
 
 # ── Startup: load models once ──────────────────────────────────────────────────
-print("Loading BoneMind retriever...")
-retriever = BoneMindRetriever()
+print("Loading BoneLogic retriever...")
+retriever = BoneLogicRetriever()
 retriever.load()
 
 print("Loading LRM (bone knowledge graph)...")
@@ -182,7 +182,7 @@ print(
 )
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
-app = FastAPI(title="BoneMind API")
+app = FastAPI(title="BoneLogic API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -376,7 +376,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         # Runs before retrieval so off-topic questions cost nothing beyond the guard call.
         if not _is_bone_science(q, prior_user_questions):
             out = (
-                "I'm BoneMind, a specialist assistant for bone science. "
+                "I'm BoneLogic, a specialist assistant for bone science. "
                 "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
                 "or a closely related biomedical topic. Please ask something within that domain "
                 "and I'll do my best to answer from the literature."

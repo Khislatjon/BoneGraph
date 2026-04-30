@@ -1,7 +1,7 @@
 """
 reasoning/lrm.py
 ================
-Step 4.4 — Latent Reasoning Module (LRM) for BoneMind.
+Step 4.4 — Latent Reasoning Module (LRM) for BoneLogic.
 
 Overview
 --------
@@ -240,7 +240,7 @@ class GapResult:
 
 class LRM:
     """
-    Latent Reasoning Module — the reasoning core of BoneMind Phase 4.
+    Latent Reasoning Module — the reasoning core of BoneLogic Phase 4.
 
     Loads the bone knowledge graph from ontology.db on construction,
     then answers queries by traversing causal chains and generating

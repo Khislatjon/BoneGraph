@@ -1,8 +1,8 @@
-# BoneMind — System Architecture
+# BoneLogic — System Architecture
 
-## What is BoneMind?
+## What is BoneLogic?
 
-BoneMind is an intelligent reasoning system for bone science. It is deliberately restricted to the bone domain because of the richness of available data: published papers, textbooks, mechanical measurements, X-ray and MRI images.
+BoneLogic is an intelligent reasoning system for bone science. It is deliberately restricted to the bone domain because of the richness of available data: published papers, textbooks, mechanical measurements, X-ray and MRI images.
 
 The goal is not to build a simple question-answering chatbot. The goal is to build a system that can:
 
@@ -58,9 +58,9 @@ The goal is not to build a simple question-answering chatbot. The goal is to bui
 
 ## Domain scope
 
-BoneMind is intentionally restricted to bone science. This is not a limitation — it is a design decision that enables depth over breadth.
+BoneLogic is intentionally restricted to bone science. This is not a limitation — it is a design decision that enables depth over breadth.
 
-| Domain | What BoneMind learns |
+| Domain | What BoneLogic learns |
 |---|---|
 | **Morphology** | Shape, size, internal geometry of different bones; cortical/trabecular organisation; osteocyte lacunar networks; Haversian systems |
 | **Structure-function** | How hierarchical structure (from nanoscale collagen-mineral to macroscale geometry) determines mechanical behaviour |
@@ -134,7 +134,7 @@ The LLM, VLM, and LRM are separate modules with defined interfaces. Each can be 
 ## Repository layout
 
 ```
-BoneMind/
+BoneLogic/
 │
 ├── config/                      Phase-independent settings
 │   └── settings.py              All constants, paths, API config
@@ -166,7 +166,7 @@ BoneMind/
 │   └── embed.py                 Embed chunks with SPECTER2 proximity adapter → chunks.db
 │
 ├── retrieval/                   Phase 2: RAG retrieval engine + CLI/web query interface
-│   ├── retriever.py             BoneMindRetriever — loads all embeddings, cosine search
+│   ├── retriever.py             BoneLogicRetriever — loads all embeddings, cosine search
 │   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
 ├── reasoning/                   Phase 4: bone knowledge graph + LRM reasoning layer

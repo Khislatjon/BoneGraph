@@ -1,7 +1,7 @@
 """
 retrieval/query.py
 ===================
-Interactive CLI for querying the BoneMind corpus.
+Interactive CLI for querying the BoneLogic corpus.
 
 Usage
 -----
@@ -24,7 +24,7 @@ import argparse
 import logging
 import textwrap
 
-from retrieval.retriever import BoneMindRetriever
+from retrieval.retriever import BoneLogicRetriever
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,7 +69,7 @@ def _format_result(r: dict, show_text: bool = True) -> str:
     return "\n".join(lines)
 
 
-def run_query(retriever: BoneMindRetriever, query: str, top_k: int) -> None:
+def run_query(retriever: BoneLogicRetriever, query: str, top_k: int) -> None:
     """Execute a query and print formatted results."""
     import time
     t0 = time.time()
@@ -88,7 +88,7 @@ def run_query(retriever: BoneMindRetriever, query: str, top_k: int) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Query the BoneMind corpus")
+    parser = argparse.ArgumentParser(description="Query the BoneLogic corpus")
     parser.add_argument("query", nargs="?", help="Query string")
     parser.add_argument("--top-k", type=int, default=10, help="Number of results (default 10)")
     parser.add_argument("--interactive", "-i", action="store_true",
@@ -100,12 +100,12 @@ def main() -> None:
         return
 
     # Load retriever once.
-    retriever = BoneMindRetriever()
+    retriever = BoneLogicRetriever()
     retriever.load()
 
     if args.interactive:
         print("\n" + "═" * 70)
-        print("  BoneMind RAG — Interactive Query Mode")
+        print("  BoneLogic RAG — Interactive Query Mode")
         print("  Type your question and press Enter. Type 'quit' to exit.")
         print("═" * 70)
         while True:

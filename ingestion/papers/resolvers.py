@@ -70,7 +70,7 @@ _CROSSREF_BASE = "https://api.crossref.org/works"
 # JSON APIs).
 _HEADERS = {
     "User-Agent": (
-        "BoneMind-Research-Bot/1.0 "
+        "BoneLogic-Research-Bot/1.0 "
         f"(PhD research project; academic use only; mailto:{CROSSREF_EMAIL})"
     ),
     "Accept": "application/json",

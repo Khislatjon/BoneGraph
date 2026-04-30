@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BoneMind</title>
+<title>BoneLogic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
@@ -195,7 +195,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#928f82">Loading BoneMind…</div></div>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#928f82">Loading BoneLogic…</div></div>
 
 <script type="text/babel">
 const { useState, useEffect, useRef, Fragment } = React;
@@ -419,7 +419,7 @@ function AskTab({ totalChunks }) {
           {empty ? (
             <div className="empty-state">
               <div className="empty-avatar"><BoneSVG size={44}/></div>
-              <div className="empty-title">Ask BoneMind</div>
+              <div className="empty-title">Ask BoneLogic</div>
               <div className="empty-sub">Grounded in {totalChunks ? totalChunks.toLocaleString() : '248,629'} indexed papers and textbooks</div>
               <div className="chips">
                 {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
@@ -653,7 +653,7 @@ function ReasonTab() {
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
-        <div className="reason-desc">Enter a concept or question. BoneMind traverses its bone knowledge graph to generate causal hypothesis chains, each validated by the physics engine and scored for novelty.</div>
+        <div className="reason-desc">Enter a concept or question. BoneLogic traverses its bone knowledge graph to generate causal hypothesis chains, each validated by the physics engine and scored for novelty.</div>
         <div className="reason-row">
           <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
             value={concept} onChange={e => setConcept(e.target.value)}
@@ -774,7 +774,7 @@ function AnalyseTab() {
         <div className="dz-title">Drop an X-ray or MRI here</div>
         <div className="dz-sub">or click to select · PNG, JPG</div>
       </div>
-      <div className="analyse-note">BoneMind will generate a structured radiology report using LLaVA 13b. For research and educational use only.</div>
+      <div className="analyse-note">BoneLogic will generate a structured radiology report using LLaVA 13b. For research and educational use only.</div>
     </div>
   );
 
@@ -818,7 +818,7 @@ function AnalyseTab() {
 
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 const TABS = [
-  { id:'ask',     label:'Ask BoneMind', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
+  { id:'ask',     label:'Ask BoneLogic', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
   { id:'search',  label:'Search Corpus', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { id:'reason',  label:'Reason',        icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="2.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="12.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4 7.5h2M9 7.5h2" stroke="currentColor" strokeWidth="1.4"/></svg> },
   { id:'analyse', label:'Analyse Image', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
@@ -839,7 +839,7 @@ function App() {
       <aside className="sidebar">
         <div className="sb-logo">
           <div className="sb-logo-icon"><BoneSVG size={26}/></div>
-          <span className="sb-logo-text">BoneMind</span>
+          <span className="sb-logo-text">BoneLogic</span>
         </div>
         <nav className="sb-nav">
           {TABS.map(t => (

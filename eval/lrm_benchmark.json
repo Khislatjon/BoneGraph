@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "LRM reasoning benchmark for BoneMind. Three evaluation components: chain coverage (does the reasoning engine find chains through expected concepts?), physics accuracy (does the physics engine correctly classify edge directions?), and novelty calibration (does the novelty classifier assign the expected label?).",
+  "description": "LRM reasoning benchmark for BoneLogic. Three evaluation components: chain coverage (does the reasoning engine find chains through expected concepts?), physics accuracy (does the physics engine correctly classify edge directions?), and novelty calibration (does the novelty classifier assign the expected label?).",
 
   "chain_coverage": [
     {

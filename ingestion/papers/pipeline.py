@@ -136,7 +136,7 @@ def main() -> None:
         python -m ingestion.papers.pipeline [options]
     """
     parser = argparse.ArgumentParser(
-        description="BoneMind Phase 1 — paper ingestion pipeline",
+        description="BoneLogic Phase 1 — paper ingestion pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

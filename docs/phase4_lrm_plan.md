@@ -14,13 +14,13 @@ Phases 1–2 built a state-of-the-art retrieval system: 248,629 sentence-aware c
 - Identify a *gap* in the knowledge graph (a missing edge between two nodes that should be connected)
 - Generate a hypothesis that is grounded but novel — i.e. consistent with known bone physics but not explicitly stated in the corpus
 
-Phase 4 adds Layer 2 of the BoneMind architecture: a reasoning engine that operates over a structured bone knowledge graph to do all three.
+Phase 4 adds Layer 2 of the BoneLogic architecture: a reasoning engine that operates over a structured bone knowledge graph to do all three.
 
 The concept is directly inspired by two converging ideas:
 
 1. **Unreasonable Labs' "Living World Model"** — the argument that the bottleneck in scientific AI is not access to information but context, causal structure, and the ability to validate hypotheses against physical reality, not just statistical plausibility.
 
-2. **Buehler (MIT, arXiv:2403.11996)** — a working prototype that transforms 1,000 biological materials papers into an ontological knowledge graph and uses graph reasoning (transitive chains, isomorphic mapping, path sampling) to generate novel material designs. BoneMind's corpus is 7× larger, domain-specific to bone, and will add a physics validation layer that Buehler's system lacks.
+2. **Buehler (MIT, arXiv:2403.11996)** — a working prototype that transforms 1,000 biological materials papers into an ontological knowledge graph and uses graph reasoning (transitive chains, isomorphic mapping, path sampling) to generate novel material designs. BoneLogic's corpus is 7× larger, domain-specific to bone, and will add a physics validation layer that Buehler's system lacks.
 
 ---
 
@@ -424,7 +424,7 @@ Add a fourth tab to `app.py` — **"Reason"** — alongside Ask, Search, and Ana
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Ask BoneMind  │  Search Corpus  │  Analyse Image  │  Reason  ←new  │
+│  Ask BoneLogic  │  Search Corpus  │  Analyse Image  │  Reason  ←new  │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  Question or hypothesis to reason about:                             │
@@ -583,9 +583,9 @@ Embeds the hypothesis with SPECTER2 adhoc_query adapter. Computes cosine similar
 
 ## Novel contributions (for the paper)
 
-1. **First domain-specific reasoning graph for bone science** — Buehler's GraphReasoning system covers biological materials broadly. BoneMind builds a bone-only graph from a 7× larger corpus with typed causal edges and quantitative node attributes (units, ranges, literature values), not just relational triples.
+1. **First domain-specific reasoning graph for bone science** — Buehler's GraphReasoning system covers biological materials broadly. BoneLogic builds a bone-only graph from a 7× larger corpus with typed causal edges and quantitative node attributes (units, ranges, literature values), not just relational triples.
 
-2. **Physics-validated hypothesis generation** — The key gap in all existing graph-based AI discovery systems (including Buehler 2024) is the absence of physical plausibility checking. BoneMind's physics engine filters hypotheses against known bone mechanics (Currey's law, Frost's mechanostat, Paris law) before they are presented — categorically reducing hallucination risk for bone science claims.
+2. **Physics-validated hypothesis generation** — The key gap in all existing graph-based AI discovery systems (including Buehler 2024) is the absence of physical plausibility checking. BoneLogic's physics engine filters hypotheses against known bone mechanics (Currey's law, Frost's mechanostat, Paris law) before they are presented — categorically reducing hallucination risk for bone science claims.
 
 3. **Multi-scale causal reasoning** — The ontology explicitly encodes scale (nanoscale → microscale → mesoscale → macroscale) as a node attribute, enabling the LRM to construct reasoning chains that cross hierarchical levels. This is distinct from flat knowledge graphs used in prior work.
 

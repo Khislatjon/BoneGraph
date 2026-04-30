@@ -1,7 +1,7 @@
 """
 reasoning/ontology.py
 =====================
-Data model and in-memory graph for the BoneMind bone knowledge graph.
+Data model and in-memory graph for the BoneLogic bone knowledge graph.
 
 Design
 ------

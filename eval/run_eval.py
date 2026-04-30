@@ -1,7 +1,7 @@
 """
 eval/run_eval.py
 ================
-Retrieval quality benchmark for BoneMind.
+Retrieval quality benchmark for BoneLogic.
 
 Metrics
 -------
@@ -30,7 +30,7 @@ from pathlib import Path
 # Allow running from the project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from retrieval.retriever import BoneMindRetriever
+from retrieval.retriever import BoneLogicRetriever
 
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ RECALL_K = [1, 3, 5, 10]
 
 # ── Load retriever ─────────────────────────────────────────────────────────────
 print("Loading retriever (this takes ~10–20 seconds)...")
-retriever = BoneMindRetriever()
+retriever = BoneLogicRetriever()
 retriever.load()
 print()
 

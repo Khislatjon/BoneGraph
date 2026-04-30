@@ -1,7 +1,7 @@
 """
 serve.py
 ========
-Start the BoneMind FastAPI server.
+Start the BoneLogic FastAPI server.
 
 Usage:
     python serve.py

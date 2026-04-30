@@ -1,7 +1,7 @@
 """
 retrieval/retriever.py
 =======================
-Core RAG retrieval engine for BoneMind.
+Core RAG retrieval engine for BoneLogic.
 
 How it works
 ------------
@@ -67,13 +67,13 @@ from config.settings import (
 logger = logging.getLogger(__name__)
 
 
-class BoneMindRetriever:
+class BoneLogicRetriever:
     """
     RAG retrieval engine. Load once, query many times.
 
     Usage
     -----
-        retriever = BoneMindRetriever()
+        retriever = BoneLogicRetriever()
         retriever.load()   # loads embeddings into RAM (~588 MB, ~10 sec)
 
         results = retriever.query("cortical bone fracture toughness", top_k=10)

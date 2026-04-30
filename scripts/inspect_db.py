@@ -175,7 +175,7 @@ def section_download_status(conn: sqlite3.Connection) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Print a summary of the BoneMind papers database."
+        description="Print a summary of the BoneLogic papers database."
     )
     parser.add_argument(
         "--top", type=int, default=10,
