@@ -424,7 +424,7 @@ Add a sidebar tab to `frontend/index.html` — **"Reason"** — alongside Ask, S
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Ask BoneMind  │  Search Corpus  │  Analyse Image  │  Reason  ←new  │
+│  Ask BoneMind  │  Search BoneScholar  │  Analyse Image  │  Reason  ←new  │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  Question or hypothesis to reason about:                             │
