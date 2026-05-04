@@ -31,7 +31,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 /* Sidebar */
 .sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow-y:auto}
 .sb-logo{display:flex;align-items:center;gap:11px;padding:20px 16px 18px;border-bottom:1px solid var(--border)}
-.sb-logo-icon{width:34px;height:34px;background:#2a2f42;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:3px;flex-shrink:0}
+.sb-logo-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
 .sb-logo-text{font-family:var(--sans);font-size:19px;letter-spacing:-.01em}
 .sb-nav{display:flex;flex-direction:column;padding:10px 8px;gap:2px;flex:1}
 .sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:none;background:none;cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--text2);text-align:left;width:100%;transition:background .12s,color .12s}
@@ -56,7 +56,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .chat-area{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
 .chat-inner{width:100%;max-width:760px;padding:32px 24px 16px}
 .empty-state{max-width:520px;margin:80px auto 0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
-.empty-avatar{width:56px;height:56px;border-radius:16px;background:#2a2f42;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:5px}
+.empty-avatar{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .empty-title{font-family:var(--sans);font-size:24px}
 .empty-sub{font-size:14px;color:var(--text3);margin-bottom:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
@@ -67,7 +67,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .messages{width:100%;display:flex;flex-direction:column;gap:24px;padding-bottom:16px}
 .msg{display:flex;gap:12px;align-items:flex-start}
 .msg-user{flex-direction:row-reverse}
-.msg-avatar{width:34px;height:34px;border-radius:10px;background:#2a2f42;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:3px}
+.msg-avatar{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .msg-bubble{max-width:85%;display:flex;flex-direction:column}
 .msg-user .msg-bubble{background:var(--amber-light);border:1px solid var(--amber-border);border-radius:14px 4px 14px 14px;padding:12px 16px}
 .msg-asst .msg-bubble{background:var(--surface);border:1px solid var(--border);border-radius:4px 14px 14px 14px;padding:14px 18px;box-shadow:var(--shadow)}
@@ -204,21 +204,11 @@ const { useState, useEffect, useRef, Fragment } = React;
 function BoneSVG({ size = 28 }) {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
-      <g transform="translate(50,50) scale(0.9) translate(-50,-50)">
-        <rect x="40" y="11" width="20" height="78" rx="4" fill="#6b4835"/>
-        <rect x="11" y="40" width="78" height="20" rx="4" fill="#6b4835"/>
-        <circle cx="43" cy="13" r="12" fill="#6b4835"/><circle cx="57" cy="13" r="12" fill="#6b4835"/>
-        <circle cx="43" cy="87" r="12" fill="#6b4835"/><circle cx="57" cy="87" r="12" fill="#6b4835"/>
-        <circle cx="13" cy="43" r="12" fill="#6b4835"/><circle cx="13" cy="57" r="12" fill="#6b4835"/>
-        <circle cx="87" cy="43" r="12" fill="#6b4835"/><circle cx="87" cy="57" r="12" fill="#6b4835"/>
-        <rect x="43.5" y="14" width="13" height="72" rx="3" fill="#f7f2e4"/>
-        <rect x="14" y="43.5" width="72" height="13" rx="3" fill="#f7f2e4"/>
-        <circle cx="43" cy="13" r="10" fill="#f7f2e4"/><circle cx="57" cy="13" r="10" fill="#f7f2e4"/>
-        <circle cx="43" cy="87" r="10" fill="#f7f2e4"/><circle cx="57" cy="87" r="10" fill="#f7f2e4"/>
-        <circle cx="13" cy="43" r="10" fill="#f7f2e4"/><circle cx="13" cy="57" r="10" fill="#f7f2e4"/>
-        <circle cx="87" cy="43" r="10" fill="#f7f2e4"/><circle cx="87" cy="57" r="10" fill="#f7f2e4"/>
-        <rect x="47" y="16" width="6" height="20" rx="3" fill="#fffcf2" opacity="0.5"/>
-        <rect x="16" y="47" width="20" height="6" rx="3" fill="#fffcf2" opacity="0.5"/>
+      <rect width="100" height="100" rx="18" fill="#0f1724"/>
+      <text x="18" y="74" fontFamily="Georgia, serif" fontSize="72" fontWeight="700" fill="#f3e8c8" letterSpacing="-2">B</text>
+      <g transform="translate(74,24)">
+        <path d="M0,-16 L3.2,-3.2 L16,0 L3.2,3.2 L0,16 L-3.2,3.2 L-16,0 L-3.2,-3.2 Z" fill="#b07820"/>
+        <path d="M0,-9 L1.8,-1.8 L9,0 L1.8,1.8 L0,9 L-1.8,1.8 L-9,0 L-1.8,-1.8 Z" fill="#f3e8c8"/>
       </g>
     </svg>
   );
@@ -418,7 +408,7 @@ function AskTab({ totalChunks }) {
         <div className="chat-inner">
           {empty ? (
             <div className="empty-state">
-              <div className="empty-avatar"><BoneSVG size={44}/></div>
+              <div className="empty-avatar"><BoneSVG size={56}/></div>
               <div className="empty-title">Ask BoneMind</div>
               <div className="empty-sub">Grounded in {totalChunks ? totalChunks.toLocaleString() : '248,629'} indexed papers and textbooks</div>
               <div className="chips">
@@ -429,7 +419,7 @@ function AskTab({ totalChunks }) {
             <div className="messages">
               {messages.map((m,i) => (
                 <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : 'msg-asst'}`}>
-                  {m.role === 'assistant' && <div className="msg-avatar"><BoneSVG size={26}/></div>}
+                  {m.role === 'assistant' && <div className="msg-avatar"><BoneSVG size={34}/></div>}
                   <div className="msg-bubble">
                     <div className="msg-text">{m.role === 'assistant' ? parseCit(stripThinking(m.content)) : m.content}</div>
                     {m.role === 'assistant' && <Sources results={m.sources}/>}
@@ -438,7 +428,7 @@ function AskTab({ totalChunks }) {
               ))}
               {(streaming || (loading && !streaming)) && (
                 <div className="msg msg-asst">
-                  <div className="msg-avatar"><BoneSVG size={26}/></div>
+                  <div className="msg-avatar"><BoneSVG size={34}/></div>
                   <div className="msg-bubble">
                     <div className="msg-text">
                       {streaming
@@ -838,7 +828,7 @@ function App() {
     <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
       <aside className="sidebar">
         <div className="sb-logo">
-          <div className="sb-logo-icon"><BoneSVG size={26}/></div>
+          <div className="sb-logo-icon"><BoneSVG size={34}/></div>
           <span className="sb-logo-text">BoneMind</span>
         </div>
         <nav className="sb-nav">
