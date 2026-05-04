@@ -241,7 +241,7 @@ def _inject_ref_links(answer: str, results: list[dict]) -> str:
         return body  # no valid citations → no References section
 
     lines = ["## References", ""]
-    for n in seen:
+    for n in sorted(seen):
         r = by_rank[n]
         title   = r["title"]
         authors = r["authors"] or "Unknown"
