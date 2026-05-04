@@ -135,15 +135,17 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Reason tab */
-.reason-tab{padding:32px;overflow-y:auto;flex:1}
-.reason-hdr{max-width:760px;display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
-.reason-desc{font-size:14px;color:var(--text2);line-height:1.65}
-.reason-row{display:flex;gap:10px}
-.reason-input{flex:1;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 16px;font-family:var(--sans);font-size:14px;background:var(--surface);color:var(--text);outline:none}
-.reason-input:focus{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
-.reason-btn{height:44px;padding:0 22px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap}
+.reason-tab{display:flex;flex-direction:column;flex:1}
+.reason-hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:24px 32px 20px;position:sticky;top:0;z-index:50}
+.reason-desc{font-size:14px;color:var(--text2);line-height:1.65;max-width:760px;margin-bottom:14px}
+.reason-bar{display:flex;align-items:center;max-width:760px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 12px;gap:10px}
+.reason-bar:focus-within{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
+.reason-input{flex:1;height:46px;background:none;border:none;outline:none;font-family:var(--sans);font-size:14.5px;color:var(--text)}
+.reason-input::placeholder{color:var(--text3)}
+.reason-btn{background:var(--navy);color:#fff;border:none;padding:7px 18px;border-radius:7px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap}
 .reason-btn:hover{background:#253660}
 .reason-btn:disabled{opacity:.4;cursor:default}
+.reason-body{padding:28px 32px;flex:1;overflow-y:auto}
 .reason-results{max-width:900px;display:flex;flex-direction:column;gap:20px}
 .results-title{font-size:13px;color:var(--text3)}
 .results-title em{color:var(--text2);font-style:normal}
@@ -763,27 +765,34 @@ function ReasonTab() {
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
+        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)'}}>Hypothesis Generator</div>
         <div className="reason-desc">Enter a concept or question. BoneMind traverses its bone knowledge graph to generate causal hypothesis chains, each validated by the physics engine and scored for novelty.</div>
-        <div className="reason-row">
+        <div className="reason-bar">
+          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+          </svg>
           <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
             value={concept} onChange={e => setConcept(e.target.value)}
             onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
           <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
-            {loading ? <Spinner dark/> : 'Reasoning'}
+            {loading ? <Spinner/> : 'Reason'}
           </button>
         </div>
+      </div>
+
+      <div className="reason-body">
         {!result && !loading && (
-          <div className="ex-chips" style={{marginTop:12}}>
+          <div className="ex-chips">
             <span className="chips-label">Try:</span>
             {EXAMPLES.map((ex,i) => <button key={i} className="chip" onClick={() => reason(ex)}>{ex}</button>)}
           </div>
         )}
-      </div>
 
-      {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Traversing knowledge graph…</span></div>}
-      {error && <div className="error-note">{error}</div>}
+        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Traversing knowledge graph…</span></div>}
+        {error && <div className="error-note">{error}</div>}
 
-      {result && !loading && (
+        {result && !loading && (
         <div className="reason-results">
           <div className="results-title">Causal hypothesis chains for <em>"{result.concept}"</em></div>
           {result.graph_stats && (
@@ -838,8 +847,9 @@ function ReasonTab() {
             </div>
           )}
         </div>
-      )}
-      {/* <GapsSection/> */}
+        )}
+        {/* <GapsSection/> */}
+      </div>
     </div>
   );
 }
