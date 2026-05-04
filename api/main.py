@@ -464,20 +464,35 @@ def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = F
     elif source_filter == "Textbooks only":
         raw = [r for r in raw if r["source_type"] == "textbook"]
 
+    # Fetch total chunk counts per source so the UI can show "chunk X of Y".
+    source_ids = list({r["source_id"] for r in raw})
+    total_chunks_map: dict[str, int] = {}
+    if source_ids:
+        conn = sqlite3.connect(CHUNKS_DB_PATH)
+        placeholders = ",".join("?" * len(source_ids))
+        rows = conn.execute(
+            f"SELECT source_id, COUNT(*) FROM chunks WHERE source_id IN ({placeholders}) GROUP BY source_id",
+            source_ids,
+        ).fetchall()
+        conn.close()
+        total_chunks_map = {row[0]: row[1] for row in rows}
+
     results = []
     for r in raw:
         venue = _dedupe_venue(r["venue"] or "")
         results.append({
-            "rank":        r["rank"],
-            "score":       round(r["score"], 4),
-            "title":       r["title"],
-            "authors":     r["authors"] or "",
-            "year":        r["year"],
-            "venue":       venue,
-            "source_type": r["source_type"],
-            "page_number": r["page_number"],
-            "doi":         r["doi"],
-            "excerpt":     r["text"].strip().replace("\n", " "),
+            "rank":         r["rank"],
+            "score":        round(r["score"], 4),
+            "title":        r["title"],
+            "authors":      r["authors"] or "",
+            "year":         r["year"],
+            "venue":        venue,
+            "source_type":  r["source_type"],
+            "page_number":  r["page_number"],
+            "doi":          r["doi"],
+            "chunk_index":  r["chunk_index"],
+            "total_chunks": total_chunks_map.get(r["source_id"], 0),
+            "excerpt":      r["text"].strip().replace("\n", " "),
         })
 
     return {"query": q, "elapsed_ms": round(elapsed_ms), "results": results}

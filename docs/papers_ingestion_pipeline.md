@@ -13,7 +13,7 @@ The full metadata collection run completed successfully. Key statistics:
 | **Total papers collected** | **54,634** |
 | **Unique — no duplicates** | ✅ enforced by SQLite PRIMARY KEY |
 | **Papers with open-access PDF URL** | 21,571 (39%) |
-| **Year range** | 1900 – 2025 (pre-1900 papers removed) |
+| **Year range** | 1970 – 2026 |
 | **Peak publication years** | 2015–2021 (~2,400–2,700 papers/year) |
 | **Keywords used** | 133 across 17 topic groups |
 | **PDFs downloaded to disk** | **7,674** (rest require institutional access) |

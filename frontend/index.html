@@ -112,6 +112,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .filter-btn{font-family:var(--sans);font-size:12.5px;font-weight:500;padding:4px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .12s}
 .filter-btn.active,.filter-btn:hover{background:var(--amber-light);border-color:var(--amber-border);color:var(--amber)}
 .corpus-note{font-size:12px;color:var(--text3);margin-top:6px}
+.range-slider{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--border2);outline:none;cursor:pointer;width:70px}
+.range-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--amber);cursor:pointer;margin-top:-3px;box-shadow:0 0 0 3px var(--amber-light),0 0 0 4px var(--amber-border)}
+.range-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--amber);border:none;cursor:pointer;box-shadow:0 0 0 3px var(--amber-light),0 0 0 4px var(--amber-border)}
 .search-body{padding:28px 32px;flex:1}
 .loading-row{display:flex;align-items:center;gap:12px;color:var(--text3);font-size:14px;padding:24px 0}
 .results-meta{font-size:13px;color:var(--text3);margin-bottom:16px}
@@ -545,21 +548,37 @@ function SearchTab({ totalChunks }) {
   const [current, setCurrent] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [filter, setFilter]   = useState('All');
+  const [topK, setTopK]       = useState(10);
+  const [yearMin, setYearMin] = useState(1970);
+  const [yearMax, setYearMax] = useState(2026);
 
   const EXAMPLES = ['bone mineral density osteoporosis','collagen crosslink mechanics','osteoblast osteoclast remodeling','stress fracture fatigue crack'];
   const FILTERS  = ['All','Papers only','Textbooks only'];
 
-  const doSearch = async (q, f) => {
+  const highlightTerms = (text, q) => {
+    if (!q) return text;
+    const words = q.trim().split(/\s+/).filter(w => w.length > 2);
+    if (!words.length) return text;
+    const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const pattern = new RegExp(`(${words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')})`, 'gi');
+    return safe.replace(pattern, '<mark style="background:#fef3c7;border-radius:2px;padding:0 1px;color:inherit">$1</mark>');
+  };
+
+  const doSearch = async (q, f, k) => {
     const term = (q || query).trim();
     const sf   = f || filter;
+    const tk   = k ?? topK;
     if (!term || loading) return;
     setQuery(term); setLoading(true); setSearched(true); setCurrent(term); setResults([]);
     try {
       const fd = new FormData();
-      fd.append('query', term); fd.append('top_k', '10'); fd.append('source_filter', sf);
+      fd.append('query', term); fd.append('top_k', String(tk)); fd.append('source_filter', sf);
       const r = await fetch('/api/search', { method:'POST', body:fd });
       const d = await r.json();
-      setResults(d.results || []); setElapsed(d.elapsed_ms || 0);
+      const res = d.results || [];
+      setResults(res); setElapsed(d.elapsed_ms || 0);
+      const years = res.map(r => r.year).filter(Boolean);
+      if (years.length) { setYearMin(Math.min(...years)); setYearMax(Math.max(...years)); }
     } catch { setResults([]); }
     setLoading(false);
   };
@@ -581,13 +600,38 @@ function SearchTab({ totalChunks }) {
             {loading ? <Spinner/> : 'Search'}
           </button>
         </div>
-        <div className="filter-row">
+        <div className="filter-row" style={{flexWrap:'wrap',gap:8}}>
           {FILTERS.map(f => (
             <button key={f} className={`filter-btn ${filter===f?'active':''}`}
               onClick={() => { setFilter(f); if (searched) doSearch(query, f); }}>{f}</button>
           ))}
+          <div style={{display:'flex',alignItems:'center',gap:16,marginLeft:8,flexWrap:'wrap'}}>
+            <label style={{fontSize:12,color:'var(--text3)',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
+              Results
+              <input type="range" min="5" max="40" step="5" value={topK}
+                className="range-slider"
+                onChange={e => { const v=Number(e.target.value); setTopK(v); if(searched) doSearch(query, filter, v); }}
+                style={{background:`linear-gradient(to right,#b07820 0%,#b07820 ${(topK-5)/35*100}%,#e5e7eb ${(topK-5)/35*100}%,#e5e7eb 100%)`}}/>
+              <span style={{fontWeight:600,color:'var(--text)',minWidth:20}}>{topK}</span>
+            </label>
+            <label style={{fontSize:12,color:'var(--text3)',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
+              From
+              <input type="range" min="1970" max="2026" step="1" value={yearMin}
+                className="range-slider"
+                onChange={e => setYearMin(Math.min(Number(e.target.value), yearMax))}
+                style={{background:`linear-gradient(to right,#b07820 0%,#b07820 ${(yearMin-1970)/56*100}%,#e5e7eb ${(yearMin-1970)/56*100}%,#e5e7eb 100%)`}}/>
+              <span style={{fontWeight:600,color:'var(--text)',minWidth:32}}>{yearMin}</span>
+            </label>
+            <label style={{fontSize:12,color:'var(--text3)',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
+              To
+              <input type="range" min="1970" max="2026" step="1" value={yearMax}
+                className="range-slider"
+                onChange={e => setYearMax(Math.max(Number(e.target.value), yearMin))}
+                style={{background:`linear-gradient(to right,#b07820 0%,#b07820 ${(yearMax-1970)/56*100}%,#e5e7eb ${(yearMax-1970)/56*100}%,#e5e7eb 100%)`}}/>
+              <span style={{fontWeight:600,color:'var(--text)',minWidth:32}}>{yearMax}</span>
+            </label>
+          </div>
         </div>
-        <div className="corpus-note">Semantic search · SPECTER2 768-dim embeddings</div>
       </div>
       <div className="search-body">
         {!searched && (
@@ -600,44 +644,52 @@ function SearchTab({ totalChunks }) {
           </div>
         )}
         {loading && <div className="loading-row"><Dots/><span>Searching BoneScholar…</span></div>}
-        {!loading && searched && results.length > 0 && (
-          <>
-            <div className="results-meta"><strong>{results.length} results</strong> for "{current}" · {elapsed}ms</div>
-            <div className="results-list">
-              {results.map((r,i) => {
-                const tb = r.source_type === 'textbook';
-                return (
-                  <div key={i} className="result-card">
-                    <div className="result-top">
-                      <div className="result-title">
-                        [{r.rank}] {r.title}
-                        {r.doi && (
-                          <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noopener"
-                            style={{marginLeft:'8px',fontSize:'11px',fontWeight:500,color:'#b07820',
-                              textDecoration:'none',borderBottom:'1px solid #b07820',whiteSpace:'nowrap'}}>
-                            Open ↗
-                          </a>
-                        )}
+        {!loading && searched && results.length > 0 && (() => {
+          const filtered = results.filter(r => !r.year || (r.year >= yearMin && r.year <= yearMax));
+          return (
+            <>
+              <div className="results-meta"><strong>{filtered.length} results</strong> for "{current}" · {elapsed}ms</div>
+              <div className="results-list">
+                {filtered.map((r,i) => {
+                  const tb = r.source_type === 'textbook';
+                  const chunkPos = r.total_chunks ? `embedding ${r.chunk_index + 1} of ${r.total_chunks}` : null;
+                  return (
+                    <div key={i} className="result-card">
+                      <div className="result-top">
+                        <div className="result-title">
+                          [{r.rank}] {r.title}
+                          {r.doi && (
+                            <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noopener"
+                              style={{marginLeft:'8px',fontSize:'11px',fontWeight:500,color:'#b07820',
+                                textDecoration:'none',borderBottom:'1px solid #b07820',whiteSpace:'nowrap'}}>
+                              Open ↗
+                            </a>
+                          )}
+                        </div>
+                        <div className="score-wrap">
+                          <span className="score-num">{r.score.toFixed(3)}</span>
+                          <div className="score-track"><div className="score-fill" style={{width:`${r.score*100}%`}}/></div>
+                        </div>
                       </div>
-                      <div className="score-wrap">
-                        <span className="score-num">{r.score.toFixed(3)}</span>
-                        <div className="score-track"><div className="score-fill" style={{width:`${r.score*100}%`}}/></div>
+                      <div className="result-byline">
+                        <span className="src-badge" style={{background:tb?'#eaf5ee':'#e8ecf4',color:tb?'#1a7a4e':'#1a2540'}}>
+                          {tb ? '📚 Textbook' : '📄 Paper'}
+                        </span>
+                        {[r.authors, r.year, r.venue].filter(Boolean).join(' · ')}
+                        {r.page_number ? ` · p.${r.page_number}` : ''}
+                        {chunkPos && <span style={{marginLeft:6,color:'var(--text3)'}}>· {chunkPos}</span>}
                       </div>
+                      {r.excerpt && (
+                        <div className="result-excerpt"
+                          dangerouslySetInnerHTML={{__html: '"' + highlightTerms(r.excerpt, current) + '"'}}/>
+                      )}
                     </div>
-                    <div className="result-byline">
-                      <span className="src-badge" style={{background:tb?'#eaf5ee':'#e8ecf4',color:tb?'#1a7a4e':'#1a2540'}}>
-                        {tb ? '📚 Textbook' : '📄 Paper'}
-                      </span>
-                      {[r.authors, r.year, r.venue].filter(Boolean).join(' · ')}
-                      {r.page_number ? ` · p.${r.page_number}` : ''}
-                    </div>
-                    {r.excerpt && <div className="result-excerpt">"{r.excerpt}"</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
         {!loading && searched && results.length === 0 && <div className="loading-row">No results. Try a different query.</div>}
       </div>
     </div>
