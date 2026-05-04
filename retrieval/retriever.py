@@ -163,6 +163,12 @@ class BoneMindRetriever:
         logger.info("Loading source metadata...")
         self._metadata = self._load_metadata(chunk_meta)
 
+        # Build a year array (0 = unknown) aligned with self._chunk_ids for fast masking.
+        self._years = np.array(
+            [self._metadata[cid].get("year") or 0 for cid in self._chunk_ids],
+            dtype=np.int32,
+        )
+
         self._loaded = True
         elapsed = time.time() - t0
         logger.info(
@@ -220,7 +226,7 @@ class BoneMindRetriever:
             conn.row_factory = sqlite3.Row
             placeholders = ",".join("?" * len(textbook_ids))
             rows = conn.execute(
-                f"SELECT file_path, title, source FROM textbooks WHERE file_path IN ({placeholders})",
+                f"SELECT file_path, title, source, year FROM textbooks WHERE file_path IN ({placeholders})",
                 list(textbook_ids),
             ).fetchall()
             conn.close()
@@ -228,7 +234,7 @@ class BoneMindRetriever:
                 textbook_meta[row["file_path"]] = {
                     "title":        row["title"] or "Unknown textbook",
                     "authors":      "",
-                    "year":         None,
+                    "year":         row["year"],
                     "venue":        row["source"],
                     "doi":          None,
                     "openalex_id":  None,
@@ -246,7 +252,7 @@ class BoneMindRetriever:
 
         return merged
 
-    def query(self, query_text: str, top_k: int = 10) -> list[dict]:
+    def query(self, query_text: str, top_k: int = 10, year_min: int = 0, year_max: int = 9999) -> list[dict]:
         """
         Retrieve the top-k most relevant chunks for a query.
 
@@ -286,9 +292,22 @@ class BoneMindRetriever:
         # Shape: (N,) — one score per chunk.
         scores = self._embeddings @ query_vec
 
-        # Get indices of top-k scores (unsorted), then sort them.
-        top_indices = np.argpartition(scores, -top_k)[-top_k:]
+        # Mask scores for chunks outside the requested year range.
+        # Chunks with unknown year (0) always pass through.
+        if year_min > 0 or year_max < 9999:
+            known = self._years > 0
+            out_of_range = known & ((self._years < year_min) | (self._years > year_max))
+            scores = scores.copy()
+            scores[out_of_range] = -np.inf
+
+        # Get indices of top-k scores, then sort descending.
+        # Clamp top_k to the number of valid (finite) candidates.
+        n_valid = int(np.isfinite(scores).sum())
+        k = min(top_k, n_valid) if n_valid > 0 else top_k
+        top_indices = np.argpartition(scores, -k)[-k:]
         top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
+        # Drop any remaining masked entries (score == -inf).
+        top_indices = top_indices[np.isfinite(scores[top_indices])]
 
         results = []
         for rank, idx in enumerate(top_indices, start=1):

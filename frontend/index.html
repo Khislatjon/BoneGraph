@@ -564,21 +564,21 @@ function SearchTab({ totalChunks }) {
     return safe.replace(pattern, '<mark style="background:#fef3c7;border-radius:2px;padding:0 1px;color:inherit">$1</mark>');
   };
 
-  const doSearch = async (q, f, k) => {
+  const doSearch = async (q, f, k, yMin, yMax) => {
     const term = (q || query).trim();
     const sf   = f || filter;
     const tk   = k ?? topK;
+    const ym   = yMin ?? yearMin;
+    const yx   = yMax ?? yearMax;
     if (!term || loading) return;
     setQuery(term); setLoading(true); setSearched(true); setCurrent(term); setResults([]);
     try {
       const fd = new FormData();
       fd.append('query', term); fd.append('top_k', String(tk)); fd.append('source_filter', sf);
+      fd.append('year_min', String(ym)); fd.append('year_max', String(yx));
       const r = await fetch('/api/search', { method:'POST', body:fd });
       const d = await r.json();
-      const res = d.results || [];
-      setResults(res); setElapsed(d.elapsed_ms || 0);
-      const years = res.map(r => r.year).filter(Boolean);
-      if (years.length) { setYearMin(Math.min(...years)); setYearMax(Math.max(...years)); }
+      setResults(d.results || []); setElapsed(d.elapsed_ms || 0);
     } catch { setResults([]); }
     setLoading(false);
   };
@@ -593,7 +593,7 @@ function SearchTab({ totalChunks }) {
             <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
           </svg>
           <input className="search-input"
-            placeholder={`Search ${totalChunks ? totalChunks.toLocaleString() : '248,629'} paper and textbook chunks…`}
+            placeholder={`Search ${totalChunks ? totalChunks.toLocaleString() : '248,629'} paper and textbook embeddings…`}
             value={query} onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key==='Enter' && doSearch(query)}/>
           <button className="search-btn" onClick={() => doSearch(query)} disabled={loading || !query.trim()}>
@@ -618,7 +618,7 @@ function SearchTab({ totalChunks }) {
               From
               <input type="range" min="1970" max="2026" step="1" value={yearMin}
                 className="range-slider"
-                onChange={e => setYearMin(Math.min(Number(e.target.value), yearMax))}
+                onChange={e => { const v=Math.min(Number(e.target.value),yearMax); setYearMin(v); if(searched) doSearch(query,filter,topK,v,yearMax); }}
                 style={{background:`linear-gradient(to right,#b07820 0%,#b07820 ${(yearMin-1970)/56*100}%,#e5e7eb ${(yearMin-1970)/56*100}%,#e5e7eb 100%)`}}/>
               <span style={{fontWeight:600,color:'var(--text)',minWidth:32}}>{yearMin}</span>
             </label>
@@ -626,7 +626,7 @@ function SearchTab({ totalChunks }) {
               To
               <input type="range" min="1970" max="2026" step="1" value={yearMax}
                 className="range-slider"
-                onChange={e => setYearMax(Math.max(Number(e.target.value), yearMin))}
+                onChange={e => { const v=Math.max(Number(e.target.value),yearMin); setYearMax(v); if(searched) doSearch(query,filter,topK,yearMin,v); }}
                 style={{background:`linear-gradient(to right,#b07820 0%,#b07820 ${(yearMax-1970)/56*100}%,#e5e7eb ${(yearMax-1970)/56*100}%,#e5e7eb 100%)`}}/>
               <span style={{fontWeight:600,color:'var(--text)',minWidth:32}}>{yearMax}</span>
             </label>
@@ -645,12 +645,11 @@ function SearchTab({ totalChunks }) {
         )}
         {loading && <div className="loading-row"><Dots/><span>Searching BoneScholar…</span></div>}
         {!loading && searched && results.length > 0 && (() => {
-          const filtered = results.filter(r => !r.year || (r.year >= yearMin && r.year <= yearMax));
           return (
             <>
-              <div className="results-meta"><strong>{filtered.length} results</strong> for "{current}" · {elapsed}ms</div>
+              <div className="results-meta"><strong>{results.length} results</strong> for "{current}" · {elapsed}ms</div>
               <div className="results-list">
-                {filtered.map((r,i) => {
+                {results.map((r,i) => {
                   const tb = r.source_type === 'textbook';
                   const chunkPos = r.total_chunks ? `embedding ${r.chunk_index + 1} of ${r.total_chunks}` : null;
                   return (
@@ -962,7 +961,7 @@ function App() {
         <div className="sb-foot">
           <div className="corpus-badge">
             <div className="corpus-dot"/>
-            {stats ? `${stats.chunks.toLocaleString()} chunks indexed` : 'Loading…'}
+            {stats ? `${stats.chunks.toLocaleString()} embeddings indexed` : 'Loading…'}
           </div>
           {stats && (
             <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>

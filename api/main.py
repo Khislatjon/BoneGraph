@@ -450,13 +450,13 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
 
 
 @app.post("/api/search")
-def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = Form("All")):
+def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = Form("All"), year_min: int = Form(1970), year_max: int = Form(2026)):
     q = query.strip()
     if not q:
         return {"query": q, "elapsed_ms": 0, "results": []}
 
     t0 = time.time()
-    raw = retriever.query(q, top_k=top_k)
+    raw = retriever.query(q, top_k=top_k, year_min=year_min, year_max=year_max)
     elapsed_ms = (time.time() - t0) * 1000
 
     if source_filter == "Papers only":
