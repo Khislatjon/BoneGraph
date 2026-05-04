@@ -369,9 +369,9 @@ No changes needed to the core retrieval logic — SPECTER2 handles both. The onl
 
 ---
 
-## Step 6 — Gradio UI — new "Analyse Image" tab
+## Step 6 — UI — "Analyse Image" tab
 
-Add a third tab to `app.py`:
+Add to `frontend/index.html`:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐

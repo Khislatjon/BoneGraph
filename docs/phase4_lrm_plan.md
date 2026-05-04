@@ -420,7 +420,7 @@ This reuses the SPECTER2 embeddings already computed in Phase 2 — no additiona
 
 ## Step 6 — UI integration
 
-Add a fourth tab to `app.py` — **"Reason"** — alongside Ask, Search, and Analyse Image.
+Add a sidebar tab to `frontend/index.html` — **"Reason"** — alongside Ask, Search, and Analyse Image.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐

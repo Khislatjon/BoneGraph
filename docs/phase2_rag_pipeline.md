@@ -48,7 +48,7 @@ User query  ──────────────────────�
 | Adapter (queries) | `allenai/specter2_adhoc_query` — used at retrieval time |
 | Embedding dimensions | 768 |
 | Embeddings complete | **248,629 / 248,629** chunks embedded |
-| Retrieval interface | CLI (`python -m retrieval.query`) + Gradio web UI (`python app.py`) |
+| Retrieval interface | CLI (`python -m retrieval.query`) + React web UI (`python serve.py`) |
 | LLM | HuatuoGPT-o1-8B served via Ollama as `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt) — streams grounded answers from retrieved context |
 | Web UI tabs | **Ask BoneMind** (RAG + LLM streaming) · **Search Corpus** (raw retrieval, no LLM) |
 
@@ -108,7 +108,7 @@ python -m retrieval.query "cortical bone fracture toughness"
 python -m retrieval.query --interactive
 
 # Web UI (requires Ollama + huatuogpt-bone — HuatuoGPT-o1-8B with custom bone science system prompt)
-python app.py
+python serve.py
 ```
 
 ### Run retrieval benchmark

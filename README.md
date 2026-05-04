@@ -53,28 +53,6 @@ cp .env.example .env
 # Add CROSSREF_EMAIL and WILEY_TDM_TOKEN to .env
 ```
 
-#### Known issue — gradio_client crash on startup (legacy UI only)
-
-Some versions of `gradio_client` crash with `TypeError: argument of type 'bool' is not iterable` when building API info for components. This only affects `app.py` (the legacy Gradio UI). If you see this error, apply the following two-line patch:
-
-**File:** `.venv/lib/python3.9/site-packages/gradio_client/utils.py`
-
-**Fix 1** — in `get_type()` (around line 862), add a guard at the top of the function:
-```python
-def get_type(schema: dict):
-    if not isinstance(schema, dict):   # ← add this line
-        return "unknown"
-    if "const" in schema:
-```
-
-**Fix 2** — in `_json_schema_to_python_type()` (around line 955), guard the `additionalProperties` branch:
-```python
-# change this:
-if "additionalProperties" in schema:
-# to this:
-if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
-```
-
 ### Run paper ingestion
 
 ```bash
@@ -158,8 +136,6 @@ ollama run huatuogpt-bone  # HuatuoGPT-o1-8B with custom bone science system pro
 
 **Search Corpus tab** works without Ollama — pure semantic retrieval only.
 
-> Legacy Gradio UI is still available via `python app.py` (port 7860) but is no longer the primary interface.
-
 ### Run the retrieval benchmark
 
 ```bash
@@ -180,7 +156,7 @@ Results are saved to `eval/results.json`. Current scores (top_k=10):
 
 ## Phase 4 — LRM Reasoning Layer
 
-Steps 4.1–4.6 are complete. The knowledge graph is seeded, triple extraction has run on all 16 textbooks, and the full reasoning stack (physics engine, LRM, novelty classifier, Gradio "Reason" tab) is live.
+Steps 4.1–4.6 are complete. The knowledge graph is seeded, triple extraction has run on all 16 textbooks, and the full reasoning stack (physics engine, LRM, novelty classifier, Reason tab) is live.
 
 ### Check graph stats
 
@@ -289,7 +265,6 @@ BoneMind/
 │   ├── index.html           # Single-file React app (Babel in-browser transpilation)
 │   └── static/              # React, ReactDOM, Babel bundles
 ├── serve.py                 # Uvicorn launcher — starts FastAPI at http://localhost:8000
-├── app.py                   # Legacy Gradio UI (4 tabs) — kept for reference
 ├── docs/                    # Detailed documentation per phase
 ├── mypaper/                 # Paper draft (gitignored)
 └── tests/

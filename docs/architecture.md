@@ -106,7 +106,7 @@ Move from retrieval to reasoning. Steps 4.1–4.6 are complete:
 - **4.3 — Physics engine** (`reasoning/physics.py`): 71 directional guard-rail rules covering core bone mechanics relationships. Rules act as IMPLAUSIBLE filters only — a chain containing a physically impossible edge is discarded entirely. Five numerical law implementations: Currey's modulus (E = 7·ρ²), Frost mechanostat (6 strain zones), Paris crack growth (da/dN = C·ΔK^m), beam bending stress (σ = Mc/I), stress concentration (Kt = 1 + 2√(a/ρ)).
 - **4.4 — LRM reasoning engine** (`reasoning/lrm.py`): Anchors natural-language queries to graph nodes via token matching, traverses all shortest paths between anchor pairs, scores chains by path length (50%) + mean edge weight (40%) + novelty bonus (10%). Physics is penalty-only: IMPLAUSIBLE chains score 0 and are filtered out; all other chains are scored without a physics reward.
 - **4.5 — Novelty classifier** (`reasoning/novelty.py`): Two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative (less novel) tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
-- **4.6 — Reason tab** (`api/main.py` + `frontend/index.html`): Sidebar tab in the React UI with query box, physics-filter toggle, max-results slider, colour-coded hypothesis cards (novelty badge; IMPLAUSIBLE badge shown only when a chain is physically impossible), and research gap table. Also available as the fourth tab in the legacy Gradio UI (`app.py`).
+- **4.6 — Reason tab** (`api/main.py` + `frontend/index.html`): Sidebar tab in the React UI with query box, physics-filter toggle, max-results slider, colour-coded hypothesis cards (novelty badge; IMPLAUSIBLE badge shown only when a chain is physically impossible), and research gap table.
 
 Remaining: LRM benchmark evaluation.
 
@@ -216,7 +216,6 @@ BoneMind/
 │   └── static/                  React, ReactDOM, Babel bundles (vendored)
 │
 ├── serve.py                     Uvicorn launcher — FastAPI at http://localhost:8000
-├── app.py                       Legacy Gradio UI — 4 tabs: Ask · Search · Analyse Image · Reason
 ├── .env                         API keys (gitignored — never commit)
 ├── .env.example                 Template showing which keys are needed
 └── requirements.txt
