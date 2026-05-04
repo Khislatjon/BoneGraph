@@ -63,7 +63,10 @@ User query  ──────────────────────�
 | Recall@3 | **1.000** — all 30 questions have a relevant chunk in top 3 |
 | Recall@5 | **1.000** — Phase 3 readiness threshold passed |
 | Citation behaviour | Few-shot example in system prompt · mandatory `[N]` inline citations · DOI links auto-injected into References section |
+| Reference sort order | References section always sorted in ascending `[N]` order regardless of citation order in response body |
 | Reference formatting | Each `[N]` entry rendered on its own line with clickable Open paper link |
+| Multi-turn chat | `/api/ask` accepts `history` (prior question/answer pairs) for pronoun resolution across turns |
+| Context management | Sliding window (last 3 pairs) · thinking block and References stripped from history · keeps prompt under ~5,000 tokens |
 | Eval script | `eval/run_eval.py` — rerun any time corpus or retriever changes |
 
 ---
@@ -133,3 +136,16 @@ Many papers have English abstracts (translated for indexing) but non-English bod
 
 ### Citation enforcement
 The system prompt includes a few-shot example using real corpus references to demonstrate the required `[N]` inline citation format and mandatory `## References` section. The citation rule is placed at the top of the prompt as the "MOST IMPORTANT RULE" because smaller models (8B) weight earlier instructions more strongly.
+
+### Reference sort order
+The LLM sometimes cites references in non-sequential order (e.g. `[1]...[6]...[4]`). The server-side `_inject_ref_links` post-processing step discards the model's own References block entirely and rebuilds it from inline citations found in the answer body, sorted in ascending numerical order. This ensures the References section always reads `[1], [4], [6]` regardless of citation order in the text.
+
+### Multi-turn conversation and context management
+`/api/ask` accepts an optional `history` array of prior `{role, content}` pairs so the model can resolve pronouns and follow-up references across turns (e.g. "What causes *it*?" or "How long are *they* prescribed?").
+
+HuatuoGPT-o1-8B runs with an 8,192-token context window. Without history management, a six-turn conversation overflows this limit, causing hallucination or incorrect topic-guard rejections. Two measures keep the prompt bounded:
+
+1. **Content stripping** — before a prior assistant turn is added to history, the internal chain-of-thought (*Thinking* block) and the `## References` section are removed. Only the answer body is retained, which is all that is needed for pronoun resolution. This saves ~400–800 tokens per prior turn.
+2. **Sliding window** — only the most recent three question/answer pairs are sent as history. Older turns are dropped from the request (but remain visible in the UI). This caps history at ~1,800 tokens and keeps total prompt size comfortably within the context limit for typical sessions.
+
+**Why not automatic compression?** Production assistants such as Claude (Anthropic) handle long contexts by summarising old turns into a compact paragraph when the window fills, preserving early context at the cost of an extra LLM call. For BoneMind's short, domain-focused sessions the simpler sliding window provides the same practical benefit without added latency.

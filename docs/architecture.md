@@ -91,7 +91,7 @@ BoneMind is intentionally restricted to bone science. This is not a limitation �
 Collect the knowledge base. 54,634 papers from OpenAlex · 7,674 PDFs · 16 textbooks. 2-pass PDF download pipeline (OpenAlex OA URLs + CrossRef + Wiley TDM).
 
 ### Phase 2 — Text processing & RAG ✅
-Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B (served locally via Ollama as `huatuogpt-bone` — HuatuoGPT-o1-8B with a custom bone science system prompt) answers questions. Retrieval benchmark: MRR 0.928, Recall@5 1.000.
+Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedded with SPECTER2 (768-dim). RAG retrieval via cosine similarity. HuatuoGPT-o1-8B (served locally via Ollama as `huatuogpt-bone` — HuatuoGPT-o1-8B with a custom bone science system prompt) answers questions. Retrieval benchmark: MRR 0.928, Recall@5 1.000. Multi-turn chat supported via a sliding window (last 3 question/answer pairs) with thinking-block and References stripping to keep prompts within the 8,192-token context window. References section always sorted in ascending `[N]` order.
 
 ### Phase 3 — VLM integration 🔶 Partial
 Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab is live in both the React UI (`frontend/index.html`) and the legacy Gradio UI — users can upload an image and receive a structured radiological report. Full cross-modal retrieval (reports embedded with SPECTER2 and used to search the text corpus) is planned but not yet implemented.
