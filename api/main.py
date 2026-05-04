@@ -477,7 +477,7 @@ def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = F
             "source_type": r["source_type"],
             "page_number": r["page_number"],
             "doi":         r["doi"],
-            "excerpt":     r["text"].strip().replace("\n", " ")[:400],
+            "excerpt":     r["text"].strip().replace("\n", " "),
         })
 
     return {"query": q, "elapsed_ms": round(elapsed_ms), "results": results}
