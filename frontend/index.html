@@ -608,7 +608,16 @@ function SearchTab({ totalChunks }) {
                 return (
                   <div key={i} className="result-card">
                     <div className="result-top">
-                      <div className="result-title">[{r.rank}] {r.title}</div>
+                      <div className="result-title">
+                        [{r.rank}] {r.title}
+                        {r.doi && (
+                          <a href={`https://doi.org/${r.doi}`} target="_blank" rel="noopener"
+                            style={{marginLeft:'8px',fontSize:'11px',fontWeight:500,color:'#b07820',
+                              textDecoration:'none',borderBottom:'1px solid #b07820',whiteSpace:'nowrap'}}>
+                            Open ↗
+                          </a>
+                        )}
+                      </div>
                       <div className="score-wrap">
                         <span className="score-num">{r.score.toFixed(3)}</span>
                         <div className="score-track"><div className="score-fill" style={{width:`${r.score*100}%`}}/></div>
