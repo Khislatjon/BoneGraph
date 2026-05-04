@@ -368,6 +368,11 @@ function AskTab({ totalChunks }) {
       if (refIdx !== -1) content = content.slice(0, refIdx).trim();
       return { role: m.role, content };
     });
+    // All prior user questions (no window cap) — used only by the topic guard
+    // so it can resolve pronouns even when early turns fall outside the LLM window.
+    const allQuestions = messages
+      .filter(m => m.role === 'user')
+      .map(m => m.content);
     setMessages(prev => [...prev, { role:'user', content:t }]);
     setInput('');
     setLoading(true);
@@ -380,6 +385,7 @@ function AskTab({ totalChunks }) {
       fd.append('question', t);
       fd.append('top_k', '8');
       fd.append('history', JSON.stringify(history));
+      fd.append('all_questions', JSON.stringify(allQuestions));
       const resp = await fetch('/api/ask', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();

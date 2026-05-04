@@ -306,7 +306,7 @@ def get_stats():
 
 
 @app.post("/api/ask")
-async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Form("[]")):
+async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Form("[]"), all_questions: str = Form("[]")):
     """
     Server-Sent Events stream.
     Events:
@@ -319,6 +319,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
     Retrieval always uses only the latest question so sources stay relevant.
     """
     prior_turns: list[dict] = json.loads(history) if history else []
+    prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
 
     GUARD_PROMPT = (
         "{prior_block}"
@@ -367,19 +368,17 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             yield f"data: {json.dumps({'type':'error','message':'Empty question'})}\n\n"
             return
 
-        prior_user_questions = [
-            t["content"] for t in prior_turns
-            if t.get("role") == "user" and isinstance(t.get("content"), str)
-        ]
-
-        # Topic guard: dedicated small classifier model decides if question is on-topic.
-        # Runs before retrieval so off-topic questions cost nothing beyond the guard call.
-        if not _is_bone_science(q, prior_user_questions):
+        # Topic guard: uses the full question history (no sliding window) so it can
+        # resolve pronouns even when early turns fall outside the LLM context window.
+        if not _is_bone_science(q, prior_questions_all):
             out = (
                 "I'm BoneMind, a specialist assistant for bone science. "
                 "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
                 "or a closely related biomedical topic. Please ask something within that domain "
-                "and I'll do my best to answer from the literature."
+                "and I'll do my best to answer from the literature.\n\n"
+                "Note: BoneMind is a research tool and does not provide personal medical advice. "
+                "For clinical decisions — including starting, adjusting, or stopping any medication — "
+                "please consult a qualified healthcare professional."
             )
             yield f"data: {json.dumps({'type':'done','answer':out})}\n\n"
             return
