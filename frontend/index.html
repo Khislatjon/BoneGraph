@@ -355,8 +355,19 @@ function AskTab({ totalChunks }) {
     const t = text.trim();
     if (!t || loading) return;
     autoScroll.current = true;
-    // Capture history before adding the new user turn
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
+    // Capture history before adding the new user turn.
+    // For assistant turns: strip the thinking block and ## References section —
+    // the LLM only needs the answer body to resolve pronouns across turns.
+    // Sliding window: last 6 messages (3 pairs) keeps history bounded.
+    const history = messages.slice(-6).map(m => {
+      if (m.role !== 'assistant') return { role: m.role, content: m.content };
+      let content = m.content;
+      const thinkIdx = content.search(/final response\s*/i);
+      if (thinkIdx !== -1) content = content.slice(thinkIdx).replace(/final response\s*/i, '').trimStart();
+      const refIdx = content.search(/\n\n## References/i);
+      if (refIdx !== -1) content = content.slice(0, refIdx).trim();
+      return { role: m.role, content };
+    });
     setMessages(prev => [...prev, { role:'user', content:t }]);
     setInput('');
     setLoading(true);
