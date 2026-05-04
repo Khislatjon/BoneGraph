@@ -305,6 +305,59 @@ function Sources({ results }) {
   );
 }
 
+// ── Context ring ──────────────────────────────────────────────────────────────
+function CtxRing({ usage }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const pct = Math.min(100, Math.round((usage.prompt / usage.ctx) * 100));
+  const color = pct >= 90 ? '#c0392b' : pct >= 75 ? '#8a5010' : 'var(--amber)';
+  const r = 9, circ = 2 * Math.PI * r, dash = circ * (pct / 100);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{position:'relative',display:'inline-flex'}}>
+      <button onClick={() => setOpen(o => !o)}
+        title={`Context: ~${usage.prompt.toLocaleString()} / ${usage.ctx.toLocaleString()} tokens (${pct}%)`}
+        style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:6}}>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r={r} stroke="var(--border2)" strokeWidth="2.5"/>
+          <circle cx="12" cy="12" r={r} stroke={color} strokeWidth="2.5"
+            strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
+            transform="rotate(-90 12 12)"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'12px 14px',minWidth:215,boxShadow:'0 4px 20px rgba(0,0,0,.1)',zIndex:200}}>
+          <div style={{fontFamily:'var(--sans)',fontWeight:600,fontSize:13,color:'var(--text)',marginBottom:10}}>Context window</div>
+          <div style={{display:'flex',flexDirection:'column',gap:5,fontFamily:'var(--mono)',fontSize:12,color:'var(--text2)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
+              <span>Used</span><span style={{color,fontWeight:500}}>~{usage.prompt.toLocaleString()} tokens</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
+              <span>Limit</span><span style={{color:'var(--text)'}}>{usage.ctx.toLocaleString()} tokens</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',gap:16}}>
+              <span>Remaining</span><span style={{color:'var(--text)'}}>{Math.max(0, usage.ctx - usage.prompt).toLocaleString()} tokens</span>
+            </div>
+          </div>
+          <div style={{marginTop:10,height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${pct}%`,background:color,borderRadius:2}}/>
+          </div>
+          <div style={{marginTop:5,textAlign:'right',fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>
+            {pct}% used{usage.estimated ? ' · estimated' : ''}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ASK TAB ───────────────────────────────────────────────────────────────────
 function AskTab({ totalChunks }) {
   const [messages, setMessages] = useState([]);
@@ -464,20 +517,9 @@ function AskTab({ totalChunks }) {
         </div>
       </div>
       <div className="chat-bar">
-        <div style={{width:'100%',maxWidth:760,display:'flex',flexDirection:'column',gap:6}}>
-          {usage && (() => {
-            const pct = Math.min(100, Math.round((usage.prompt / usage.ctx) * 100));
-            const warn = pct >= 80;
-            return (
-              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:11,color:warn?'#b85a10':'var(--text3)',fontFamily:'var(--mono)'}}>
-                <span>Context: ~{usage.prompt.toLocaleString()} / {usage.ctx.toLocaleString()} tokens ({pct}%)</span>
-                <span style={{flex:1,height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}>
-                  <span style={{display:'block',height:'100%',width:`${pct}%`,background:warn?'#b85a10':'var(--amber)'}}/>
-                </span>
-              </div>
-            );
-          })()}
-          <div className="chat-wrap" style={{maxWidth:'none'}}>
+        <div style={{width:'100%',maxWidth:760,display:'flex',alignItems:'center',gap:6}}>
+          {usage && <CtxRing usage={usage}/>}
+          <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
             <input ref={inputRef} className="chat-input" placeholder="Ask a question about bone science…"
             value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
