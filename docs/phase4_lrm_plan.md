@@ -424,14 +424,14 @@ Add a sidebar tab to `frontend/index.html` — **"Reason"** — alongside Ask, S
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Ask BoneMind  │  Search BoneScholar  │  Analyse Image  │  Reason  ←new  │
+│  Ask BoneMind  │  Search BoneScholar  │  Reason  │    Analyse Image  │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  Question or hypothesis to reason about:                             │
 │  ┌────────────────────────────────────────────────────────────┐      │
-│  │ How does increased cortical porosity affect fracture risk?  │      │
+│  │ How does increased cortical porosity affect fracture risk? │      │
 │  └────────────────────────────────────────────────────────────┘      │
-│  [ 🧠 Reason ]                                                        │
+│  [ 🧠 Reason ]                                                       │
 │                                                                      │
 ├──────────────────────────────┬───────────────────────────────────────┤
 │  Reasoning chain             │  Generated hypothesis                 │
