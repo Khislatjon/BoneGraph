@@ -56,7 +56,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .chat-area{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
 .chat-inner{width:100%;max-width:760px;padding:32px 24px 16px}
 .empty-state{max-width:520px;margin:80px auto 0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
-.empty-avatar{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.empty-avatar{width:100px;height:100px;border-radius:26px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .empty-title{font-family:var(--sans);font-size:24px}
 .empty-sub{font-size:14px;color:var(--text3);margin-bottom:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
@@ -483,7 +483,7 @@ function AskTab({ totalChunks }) {
         <div className="chat-inner">
           {empty ? (
             <div className="empty-state">
-              <div className="empty-avatar"><BoneSVG size={56}/></div>
+              <div className="empty-avatar"><BoneSVG size={100}/></div>
               <div className="empty-title">Ask BoneMind</div>
               <div className="empty-sub">Grounded in {totalChunks ? totalChunks.toLocaleString() : '248,629'} indexed papers and textbooks</div>
               <div className="chips">
