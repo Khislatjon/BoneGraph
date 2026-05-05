@@ -160,6 +160,22 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .chain-expl{font-size:12px;color:var(--text3)}
 .chain-summary{font-size:13px;color:var(--text2);line-height:1.55;border-top:1px solid var(--border);padding-top:12px}
 .chain-disclaimer{display:flex;gap:8px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5010;line-height:1.55}
+/* physics-driven hypothesis card additions */
+.chain-law{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--text3)}
+.chain-law-name{font-weight:600;color:var(--text2)}
+.chain-law-form{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.chain-scenario{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.pred-box{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2)}
+.pred-half{flex:1;min-width:200px;padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.pred-half + .pred-half{border-left:1px solid var(--border)}
+.pred-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.pred-val{font-family:var(--mono);font-size:13.5px;color:var(--text)}
+.pred-val.amber{color:var(--amber);font-weight:600}
+.critic-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.critic-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-weight:600;font-size:11.5px;letter-spacing:.04em}
+.critic-pill.ok{background:#e8f4ec;color:#1a6b3b;border:1px solid #b7dcc1}
+.critic-pill.fail{background:#fdecec;color:#9a1f1f;border:1px solid #f1baba}
+.critic-fail-detail{font-size:12px;color:#9a1f1f;line-height:1.5}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:5px;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
 .badge-legend{display:flex;gap:32px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)}
 .legend-grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -744,7 +760,7 @@ function ReasonTab() {
   const [error, setError]             = useState('');
   const [clientElapsed, setClientElapsed] = useState(null);
 
-  const EXAMPLES = ['aging and fracture risk','collagen bone toughness','RANKL osteoclast resorption','cortical porosity elastic modulus'];
+  const EXAMPLES = ['cortical porosity and elastic modulus','BMD and bone strength','trabecular porosity stiffness','density change in cortical bone'];
 
   const reason = async (c) => {
     const term = (c || concept).trim();
@@ -766,7 +782,7 @@ function ReasonTab() {
     <div className="reason-tab">
       <div className="reason-hdr">
         <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a concept or question. BoneMind traverses its bone knowledge graph to generate causal hypothesis chains, each validated by the physics engine and scored for novelty.</div>
+        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law (currently Currey's law: E ∝ ρⁿ) over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a four-round adversarial physics critic before being shown.</div>
         <div className="reason-bar">
           <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
             <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
@@ -789,20 +805,33 @@ function ReasonTab() {
           </div>
         )}
 
-        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Traversing knowledge graph…</span></div>}
+        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
         {error && <div className="error-note">{error}</div>}
 
         {result && !loading && (
         <div className="reason-results">
-          <div className="results-title">Causal hypothesis chains for <em>"{result.concept}"</em></div>
+          <div className="results-title">Physics-derived hypotheses for <em>"{result.concept}"</em></div>
           {result.graph_stats && (
             <div className="graph-stats-line">
               {result.graph_stats.nodes?.toLocaleString()} nodes · {result.graph_stats.edges?.toLocaleString()} edges · {clientElapsed}s
             </div>
           )}
-          {result.chains && result.chains.length > 0 ? result.chains.map((ch,i) => (
+          {result.chains && result.chains.length > 0 ? result.chains.map((ch,i) => {
+            const survived = ch.critic_rounds_passed === ch.critic_rounds_total && ch.critic_rounds_total > 0;
+            return (
             <div key={i} className="chain-card">
-              <div className="chain-lbl">Hypothesis {i+1} · score {ch.score}</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+                <div className="chain-lbl">Hypothesis {i+1} · score {ch.score}</div>
+                {ch.scenario && <span className="chain-scenario">{ch.scenario}</span>}
+              </div>
+
+              {ch.law && (
+                <div className="chain-law">
+                  <span className="chain-law-name">{ch.law}</span>
+                  {ch.law_form && <span className="chain-law-form">{ch.law_form}</span>}
+                </div>
+              )}
+
               <div className="chain-nodes">
                 {ch.nodes.map((n,j) => (
                   <Fragment key={j}>
@@ -811,14 +840,36 @@ function ReasonTab() {
                   </Fragment>
                 ))}
               </div>
-              <div>
-                <div className="chain-badges">
-                  {ch.validity === 'IMPLAUSIBLE' && <Badge label="IMPLAUSIBLE" map={VALIDITY_STYLES}/>}
-                  <Badge label={ch.novelty} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[ch.novelty]}/>
+
+              {(ch.perturbation || ch.prediction) && (
+                <div className="pred-box">
+                  <div className="pred-half">
+                    <span className="pred-lbl">Perturbation</span>
+                    <span className="pred-val">{ch.perturbation}</span>
+                  </div>
+                  <div className="pred-half">
+                    <span className="pred-lbl">Predicted change</span>
+                    <span className="pred-val amber">{ch.prediction}</span>
+                  </div>
                 </div>
-                {ch.relations?.length > 0 && <div className="chain-rels" style={{marginTop:6}}>{ch.relations.join(' · ')}</div>}
-                {ch.explanation && <div className="chain-expl" style={{marginTop:4}}>{ch.explanation}</div>}
+              )}
+
+              <div className="critic-row">
+                <span className={`critic-pill ${survived?'ok':'fail'}`}>
+                  {survived
+                    ? `Survived ${ch.critic_rounds_passed}/${ch.critic_rounds_total} physics rounds`
+                    : `Falsified at round ${ch.critic_rounds_passed + 1}/${ch.critic_rounds_total}`}
+                </span>
+                <Badge label={ch.novelty} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[ch.novelty]}/>
+                {ch.relations?.length > 0 && (
+                  <span className="chain-rels">{ch.relations.join(' · ')}</span>
+                )}
               </div>
+
+              {!survived && ch.critic_failure && (
+                <div className="critic-fail-detail">{ch.critic_failure}</div>
+              )}
+              {ch.explanation && <div className="chain-expl">{ch.explanation}</div>}
               {ch.summary && <div className="chain-summary">{ch.summary}</div>}
               {ch.disclaimer && ch.corpus_disclaimer && (
                 <div className="chain-disclaimer">
@@ -831,7 +882,8 @@ function ReasonTab() {
                 </div>
               )}
             </div>
-          )) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No hypothesis chains found. Try different search terms.</div>}
+            );
+          }) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No physics-driven hypotheses match this query yet. Currey's law fires on porosity, density (BMD), elastic modulus, and strength — try those concepts.</div>}
 
           {result.chains?.length > 0 && (
             <div className="badge-legend">

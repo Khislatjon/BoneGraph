@@ -499,47 +499,97 @@ def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = F
 
 
 @app.post("/api/reason")
-def reason(query: str = Form(...), max_results: int = Form(8), physics_filter: bool = Form(True)):
+def reason(
+    query: str = Form(...),
+    max_results: int = Form(8),
+    physics_filter: bool = Form(True),
+    keep_falsified: bool = Form(False),
+):
+    """
+    Physics-driven hypothesis generation.
+
+    Pipeline (Items 1, 2, 5):
+      1. PhysicsGenerator runs each applicable physical law (currently
+         Currey's law) over a small perturbation grid and emits
+         candidate hypotheses with quantitative ΔY/Y predictions.
+      2. PhysicsCritic runs a four-round adversarial falsification
+         pass on each candidate.
+      3. Novelty classifier checks corpus presence on survivors.
+
+    The legacy graph-walk path (lrm.query) is no longer reached from
+    the UI, but remains in the codebase for the eval suite.
+    """
     q = query.strip()
     if not q:
         return {"concept": q, "chains": [], "elapsed": 0}
 
     t0 = time.perf_counter()
-    lrm.physics_filter = physics_filter
-    hypotheses = lrm.query(q, max_results=max_results)
+
+    hypotheses = lrm.query_physics(
+        q,
+        max_results=max_results,
+        novelty_classifier=novelty_clf,
+        keep_falsified=keep_falsified,
+    )
+
+    NOVELTY_DISPLAY = {
+        "GROUNDED":    "Grounded",
+        "SPECULATIVE": "Speculative",
+        "NOVEL":       "Novel",
+        "UNCERTAIN":   "Uncertain",
+    }
 
     chains = []
     for h in hypotheses:
-        nr = novelty_clf.classify(h)
-
-        # Map physics result to validity label
-        validity = "IMPLAUSIBLE" if h.physics.is_implausible else "PLAUSIBLE"
-
-        nodes = []
-        for nid in h.chain:
+        # Look up labels from the graph for nicer display, falling back
+        # to the snake_case → space form embedded on the hypothesis.
+        nodes_display = []
+        for nid, fallback in zip(h.chain, h.chain_labels):
             node = lrm._graph.get_node(nid)
-            nodes.append(node.label if node else nid.replace("_", " "))
+            nodes_display.append(node.label if node else fallback)
 
-        relations = [e.relation for e in h.edges]
-
-        novelty_display = {
-            "GROUNDED":    "Grounded",
-            "SPECULATIVE": "Speculative",
-            "NOVEL":       "Novel",
-            "UNCERTAIN":   "Uncertain",
-        }.get(nr.label, nr.label)
+        critique = h.critique
+        validity = (
+            "PLAUSIBLE" if (critique and critique.survived) else "IMPLAUSIBLE"
+        )
 
         chains.append({
-            "nodes":       nodes,
-            "relations":   relations,
-            "validity":    validity,
-            "novelty":     nr.label,
-            "novelty_display": novelty_display,
-            "score":       round(h.score, 3),
+            # Chain — kept compatible with existing UI fields
+            "nodes":         nodes_display,
+            "relations":     h.relations,
+
+            # Physics-driven additions (Items 1, 2)
+            "law":           h.law,
+            "law_form":      h.law_form,
+            "scenario":      h.scenario,
+            "perturbation":  h.perturbation,
+            "prediction":    h.prediction,
+            "input_var":     h.input_var,
+            "output_var":    h.output_var,
+            "delta_input":   h.delta_input,
+            "delta_output":  h.delta_output,
+            "assumed_inputs": h.assumed_inputs,
+
+            # Critic results (Item 5)
+            "validity":         validity,
+            "critic_rounds_total":  critique.rounds_total if critique else 0,
+            "critic_rounds_passed": critique.rounds_passed if critique else 0,
+            "critic_failure":   critique.failure_reason if critique else "",
+            "critic_checks": [
+                {"name": c.name, "passed": c.passed, "detail": c.detail}
+                for c in (critique.checks if critique else [])
+            ],
+
+            # Novelty / corpus grounding
+            "novelty":         h.novelty or "UNCERTAIN",
+            "novelty_display": NOVELTY_DISPLAY.get(h.novelty, h.novelty or "Uncertain"),
+            "explanation":     h.novelty_reason,
+            "disclaimer":      bool(h.corpus_disclaimer),
+            "corpus_disclaimer": h.corpus_disclaimer,
+
+            # Summary + score
             "summary":     h.summary,
-            "explanation": nr.explanation,
-            "disclaimer":  nr.show_disclaimer,
-            "corpus_disclaimer": CORPUS_DISCLAIMER if nr.show_disclaimer else None,
+            "score":       round(h.score, 3),
         })
 
     elapsed = round(time.perf_counter() - t0, 2)

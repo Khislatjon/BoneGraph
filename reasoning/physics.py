@@ -366,6 +366,104 @@ def currey_modulus(apparent_density_g_cm3: float) -> float:
     return 7.0 * (apparent_density_g_cm3 ** 2)
 
 
+def currey_delta_from_porosity(
+    porosity_baseline: float,
+    porosity_change_abs: float,
+    exponent: float = 2.5,
+) -> dict[str, float]:
+    """
+    Differential Currey prediction: how does ΔE/E depend on Δφ?
+
+    From Currey's law E ∝ ρⁿ and the definition ρ = ρ_full · (1 - φ):
+
+        E_new / E_old = ((1 - φ_new) / (1 - φ_old))ⁿ
+
+    Parameters
+    ----------
+    porosity_baseline : float
+        Starting porosity φ as a volume fraction (0–1).  E.g. 0.05 for
+        cortical bone, 0.80 for trabecular bone.
+    porosity_change_abs : float
+        Absolute change in porosity (added to baseline).  E.g. +0.10
+        means "10 percentage points more porous".  Negative values are
+        permitted.
+    exponent : float
+        Currey exponent n.  Default 2.5 — between Currey's bovine
+        cortical fit (n ≈ 1.78) and trabecular literature values (n ≈ 2–3).
+
+    Returns
+    -------
+    dict with keys:
+        phi_baseline   — input baseline porosity
+        phi_new        — baseline + change
+        rho_ratio      — ρ_new / ρ_old (linear in 1 − φ)
+        delta_E_ratio  — (E_new − E_old) / E_old
+        delta_E_pct    — same as delta_E_ratio but in percent
+        exponent       — exponent used
+
+    Raises
+    ------
+    ValueError
+        If φ_new is outside (0, 1).
+    """
+    phi_new = porosity_baseline + porosity_change_abs
+    if not 0.0 < phi_new < 1.0:
+        raise ValueError(
+            f"phi_new={phi_new:.3f} out of (0, 1); "
+            f"baseline={porosity_baseline}, change={porosity_change_abs}"
+        )
+    rho_ratio = (1.0 - phi_new) / (1.0 - porosity_baseline)
+    delta_E_ratio = (rho_ratio ** exponent) - 1.0
+    return {
+        "phi_baseline":  porosity_baseline,
+        "phi_new":       phi_new,
+        "rho_ratio":     rho_ratio,
+        "delta_E_ratio": delta_E_ratio,
+        "delta_E_pct":   delta_E_ratio * 100.0,
+        "exponent":      exponent,
+    }
+
+
+def currey_delta_from_density(
+    density_baseline_g_cm3: float,
+    density_change_pct: float,
+    exponent: float = 2.5,
+) -> dict[str, float]:
+    """
+    Differential Currey prediction driven by a relative density change.
+
+    From E ∝ ρⁿ:  E_new / E_old = (ρ_new / ρ_old)ⁿ
+
+    Parameters
+    ----------
+    density_baseline_g_cm3 : float
+        Starting apparent density.
+    density_change_pct : float
+        Relative change in density, in percent.  E.g. -10.0 for a 10%
+        decrease.
+    exponent : float
+        Currey exponent n (default 2.5).
+
+    Returns
+    -------
+    dict with keys:
+        rho_baseline, rho_new, rho_ratio, delta_E_ratio, delta_E_pct, exponent
+    """
+    rho_ratio = 1.0 + density_change_pct / 100.0
+    if rho_ratio <= 0:
+        raise ValueError(f"Density change {density_change_pct}% drives ρ ≤ 0.")
+    rho_new = density_baseline_g_cm3 * rho_ratio
+    delta_E_ratio = (rho_ratio ** exponent) - 1.0
+    return {
+        "rho_baseline":  density_baseline_g_cm3,
+        "rho_new":       rho_new,
+        "rho_ratio":     rho_ratio,
+        "delta_E_ratio": delta_E_ratio,
+        "delta_E_pct":   delta_E_ratio * 100.0,
+        "exponent":      exponent,
+    }
+
+
 def mechanostat_zone(strain_microstrain: float) -> dict[str, str]:
     """
     Classify a strain magnitude into a Frost mechanostat zone.

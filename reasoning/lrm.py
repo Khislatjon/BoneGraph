@@ -56,9 +56,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
+from reasoning.critic import CritiqueResult, PhysicsCritic
 from reasoning.graph_db import OntologyStore
 from reasoning.ontology import BoneKnowledgeGraph, Edge, Node
 from reasoning.physics import PhysicsEngine, ValidationResult
+from reasoning.physics_gen import PhysicsGenerator, PhysicsHypothesis
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +279,14 @@ class LRM:
         self.physics_filter = physics_filter
         self._physics = PhysicsEngine()
         self._graph = self._load_graph()
+
+        # Physics-driven generator + adversarial critic (Items 1, 2, 5).
+        # The graph node-ID set is captured here so the generator can pick
+        # canonical proxies that actually exist in the graph.
+        self._available_nodes: set[str] = {n.node_id for n in self._graph.iter_nodes()}
+        self._generator = PhysicsGenerator(self._available_nodes)
+        self._critic    = PhysicsCritic(self._physics)
+
         logger.info(
             "LRM ready — graph: %d nodes, %d edges | physics rules: %d",
             len(self._graph._nodes),
@@ -610,6 +620,112 @@ class LRM:
         # Sort by score descending
         results.sort(key=lambda h: h.score, reverse=True)
         return results[:max_results]
+
+    # ── Physics-driven hypothesis pipeline (Items 1, 2, 5) ───────────────────
+
+    def query_physics(
+        self,
+        question: str,
+        max_results: int = 8,
+        novelty_classifier=None,
+        keep_falsified: bool = False,
+    ) -> list[PhysicsHypothesis]:
+        """
+        Generate physics-derived hypotheses for ``question``.
+
+        Pipeline
+        --------
+        1. :class:`PhysicsGenerator` runs every applicable physical law
+           and emits candidate hypotheses with quantitative predictions.
+        2. :class:`PhysicsCritic` runs the four-round adversarial check
+           on each candidate.  Falsified candidates are discarded unless
+           ``keep_falsified`` is True.
+        3. The optional ``novelty_classifier`` is invoked on each
+           survivor to label it GROUNDED / SPECULATIVE / NOVEL based on
+           corpus presence.  When omitted, hypotheses are returned
+           without a novelty label.
+        4. Survivors are scored and sorted.  The score favours
+           hypotheses that survived all rounds, that predict a sizeable
+           magnitude, and that are NOT already covered by the corpus
+           (the physics-novel preference).
+
+        Parameters
+        ----------
+        question : str
+            User query.
+        max_results : int
+            Cap on the returned list.
+        novelty_classifier : NoveltyClassifier | None
+            If provided, used to label corpus presence.
+        keep_falsified : bool
+            If True, falsified hypotheses are kept (still annotated with
+            their failure reason) so the UI can show *why* they failed.
+
+        Returns
+        -------
+        list[PhysicsHypothesis]
+            Ranked by descending score.
+        """
+        candidates = self._generator.generate(question)
+        if not candidates:
+            logger.info(
+                "PhysicsGenerator returned 0 candidates for query %r", question
+            )
+            return []
+
+        kept: list[PhysicsHypothesis] = []
+        for h in candidates:
+            verdict = self._critic.critique(h)
+            h.critique = verdict
+            if not verdict.survived and not keep_falsified:
+                continue
+
+            # Novelty pass — corpus presence check (best-effort).
+            if novelty_classifier is not None:
+                try:
+                    nov = novelty_classifier.classify(h)
+                    h.novelty           = nov.label
+                    h.novelty_reason    = nov.explanation
+                    h.corpus_disclaimer = (
+                        getattr(nov, "corpus_disclaimer", None)
+                        if getattr(nov, "show_disclaimer", False) else None
+                    )
+                except Exception as exc:        # pragma: no cover
+                    logger.warning("Novelty classification failed: %s", exc)
+
+            h.score = self._score_physics(h)
+            kept.append(h)
+
+        kept.sort(key=lambda x: x.score, reverse=True)
+        return kept[:max_results]
+
+    # ── Scoring for the physics pipeline ─────────────────────────────────────
+
+    def _score_physics(self, h: PhysicsHypothesis) -> float:
+        """
+        Composite score for a physics-derived hypothesis.
+
+        Components (each contributes 0–1, weighted):
+          • critic survival    (60%)  — fraction of rounds passed
+          • magnitude          (25%)  — |ΔY/Y| capped at 50%, normalised
+          • novelty bonus      (15%)  — NOVEL > SPECULATIVE > GROUNDED
+        """
+        if h.critique:
+            survival = h.critique.rounds_passed / max(h.critique.rounds_total, 1)
+        else:
+            survival = 0.0
+
+        delta_pct = abs(h.delta_output.get("change_pct", 0.0))
+        magnitude = min(delta_pct / 50.0, 1.0)
+
+        novelty_bonus = {
+            "NOVEL":       1.0,
+            "SPECULATIVE": 0.6,
+            "GROUNDED":    0.2,
+            "":            0.5,    # unlabelled — neutral
+        }.get(h.novelty, 0.5)
+
+        return 0.60 * survival + 0.25 * magnitude + 0.15 * novelty_bonus
 
     def find_gaps(self, top_n: int = 10) -> list[GapResult]:
         """
