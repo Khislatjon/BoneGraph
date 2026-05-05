@@ -51,8 +51,11 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from reasoning.physics import (
-    currey_delta_from_porosity,
+    beam_bending_thickness_delta,
     currey_delta_from_density,
+    currey_delta_from_porosity,
+    mechanostat_adaptation,
+    paris_delta,
 )
 from reasoning.physics_vars import (
     VARS,
@@ -183,6 +186,45 @@ _CURREY_OUTPUTS: list[tuple[str, float]] = [
 ]
 
 
+# ── Frost mechanostat — strain points spanning the canonical zones ───────────
+#
+# Each value sits squarely inside one of Frost's adaptation regimes so
+# the generator can paint a complete picture of how loading magnitude
+# steers bone formation, maintenance, or resorption.
+
+_FROST_STRAIN_POINTS: list[tuple[str, float]] = [
+    ("chronic disuse",        100.0),     # 50–200 µɛ
+    ("homeostasis",          1000.0),     # 200–1500 µɛ
+    ("mild overload",        2200.0),     # 1500–3000 µɛ — formation window
+    ("pathological overload", 5000.0),     # 3000–25000 µɛ
+]
+
+
+# ── Paris law — physiological cyclic ΔK sweep around a baseline ──────────────
+
+_PARIS_BASELINE_DK = 0.6        # MPa·√m  (gentle physiological cyclic loading)
+_PARIS_PERTURBATIONS: list[tuple[str, float]] = [
+    # (label,             ΔK_new   in MPa·√m)
+    ("low cyclic",        0.5),
+    ("moderate cyclic",   1.0),
+    ("aggressive cyclic", 1.5),
+]
+
+
+# ── Beam bending — cortical-thinning sweep ───────────────────────────────────
+#
+# Outer radius held constant at a femoral-midshaft midpoint.  The
+# thickness perturbations approximate progressive osteoporotic thinning.
+
+_BEAM_OUTER_RADIUS_MM   = 16.0
+_BEAM_THICKNESS_BASE_MM = 5.0
+_BEAM_PERTURBATIONS: list[tuple[str, float]] = [
+    ("mild thinning",     -10.0),
+    ("moderate thinning", -20.0),
+    ("severe thinning",   -30.0),
+]
+
+
 # ── Generator ─────────────────────────────────────────────────────────────────
 
 
@@ -232,11 +274,10 @@ class PhysicsGenerator:
             return []
 
         results: list[PhysicsHypothesis] = []
-
-        # — Currey's law —
-        currey = self._apply_currey(query_vars, scenarios)
-        results.extend(currey[:max_per_law])
-
+        results.extend(self._apply_currey(query_vars, scenarios)[:max_per_law])
+        results.extend(self._apply_mechanostat(query_vars, scenarios)[:max_per_law])
+        results.extend(self._apply_paris(query_vars, scenarios)[:max_per_law])
+        results.extend(self._apply_beam(query_vars, scenarios)[:max_per_law])
         return results
 
     # ── Scenario selection ────────────────────────────────────────────────────
@@ -444,6 +485,257 @@ class PhysicsGenerator:
                         "scenario":     scenario,
                     },
                 ))
+        return out
+
+    # ── Frost mechanostat (strain → bone adaptation) ──────────────────────────
+
+    def _apply_mechanostat(
+        self,
+        query_vars: list[str],
+        scenarios: list[str],
+    ) -> list[PhysicsHypothesis]:
+        """
+        Frost mechanostat: peak strain → adaptation regime → ΔBMD/yr.
+
+        Activates whenever the query touches strain/loading or any of
+        the adaptation outputs.  The "perturbation" here is the choice
+        of strain magnitude — each point lands inside one of Frost's
+        canonical zones.
+        """
+        wants_strain = "peak_strain" in query_vars
+        wants_output = "bone_adaptation_rate" in query_vars
+        if not (wants_strain or wants_output):
+            return []
+
+        out: list[PhysicsHypothesis] = []
+        input_node = canonical_node("peak_strain", self._available)
+        if input_node is None:
+            return out
+
+        for scenario in scenarios:
+            for label, strain in _FROST_STRAIN_POINTS:
+                pred = mechanostat_adaptation(strain)
+                # The implied output node depends on which zone we hit.
+                output_node = pred["chain_output_node"]
+                if output_node not in self._available:
+                    # fall back to the canonical proxy from the registry
+                    output_node = canonical_node(
+                        "bone_adaptation_rate", self._available,
+                    )
+                    if output_node is None:
+                        continue
+
+                rate = pred["bmd_pct_per_year"]
+                # The variable-level relation: strain has a *positive*
+                # effect on bone adaptation rate (more loading drives
+                # net formation, within the working range).  In disuse
+                # / overload zones the perturbation sign in the
+                # prediction tells the user the regime is harmful.
+                relation = "increases"
+
+                out.append(self._build(
+                    input_node=input_node,
+                    output_node=output_node,
+                    relation=relation,
+                    law="Frost mechanostat",
+                    law_form="ε → adaptation regime  (ΔBMD/yr regime-dependent)",
+                    scenario=scenario,
+                    input_var="peak_strain",
+                    output_var="bone_adaptation_rate",
+                    perturbation=f"{label} (ε ≈ {strain:.0f} µɛ)",
+                    prediction=f"{pred['zone'].replace('_', ' ')}: {rate:+.1f}%/yr ΔBMD",
+                    delta_input={
+                        "variable":   "peak_strain",
+                        "value":      strain,
+                        "magnitude":  label,
+                    },
+                    delta_output={
+                        "variable":        "bone_adaptation_rate",
+                        # Frost rates are already absolute %/yr values, so
+                        # predicted_value is the rate itself rather than a
+                        # relative perturbation off a baseline.
+                        "predicted_value": rate,
+                        "change_pct":      rate,
+                        "zone":            pred["zone"],
+                        "response":        pred["response"],
+                    },
+                    assumed_inputs={
+                        "scenario":     scenario,
+                        "strain_µε":    strain,
+                    },
+                ))
+        return out
+
+    # ── Paris law (ΔK → da/dN) ────────────────────────────────────────────────
+
+    def _apply_paris(
+        self,
+        query_vars: list[str],
+        scenarios: list[str],
+    ) -> list[PhysicsHypothesis]:
+        """
+        Paris law:  da/dN = C · ΔKᵐ  (Vashishth 2004 cortical constants).
+
+        Activates when the query touches cyclic loading or fatigue
+        crack growth.  Sweeps a few representative ΔK values around a
+        physiological baseline and reports the change in growth rate
+        relative to the baseline.
+        """
+        if not (
+            "stress_intensity_range" in query_vars
+            or "crack_growth_rate"   in query_vars
+        ):
+            return []
+
+        out: list[PhysicsHypothesis] = []
+        input_node  = canonical_node("stress_intensity_range", self._available)
+        output_node = canonical_node("crack_growth_rate",      self._available)
+        if input_node is None or output_node is None:
+            return out
+
+        for scenario in scenarios:
+            baseline = _PARIS_BASELINE_DK
+            for label, dk_new in _PARIS_PERTURBATIONS:
+                try:
+                    pred = paris_delta(baseline, dk_new)
+                except ValueError:
+                    continue
+
+                ratio = pred["rate_ratio"]
+                # ΔK has a strictly positive effect on da/dN — Paris is
+                # monotonic, so the variable-level relation is always
+                # "increases" regardless of perturbation sign.
+                out.append(self._build(
+                    input_node=input_node,
+                    output_node=output_node,
+                    relation="increases",
+                    law="Paris law",
+                    law_form=f"da/dN = C · ΔK^{pred['exponent']}",
+                    scenario=scenario,
+                    input_var="stress_intensity_range",
+                    output_var="crack_growth_rate",
+                    perturbation=(
+                        f"{label} (ΔK: {baseline:.2f} → {dk_new:.2f} MPa·√m)"
+                    ),
+                    prediction=(
+                        f"da/dN × {ratio:.2f}  "
+                        f"({pred['da_dN_new']:.2e} m/cycle)"
+                    ),
+                    delta_input={
+                        "variable":   "stress_intensity_range",
+                        "from":       baseline,
+                        "to":         dk_new,
+                        "magnitude":  label,
+                    },
+                    delta_output={
+                        "variable":        "crack_growth_rate",
+                        "predicted_value": pred["da_dN_new"],   # absolute m/cycle
+                        "rate_ratio":      ratio,
+                        "log10_ratio":     pred["log10_ratio"],
+                        "da_dN_new":       pred["da_dN_new"],
+                        "change_pct":      pred["delta_rate_pct"],
+                    },
+                    assumed_inputs={
+                        "C":            pred["C"],
+                        "exponent":     pred["exponent"],
+                        "scenario":     scenario,
+                        "dK_baseline":  baseline,
+                    },
+                ))
+        return out
+
+    # ── Beam bending (cortical thickness → bending stress) ────────────────────
+
+    def _apply_beam(
+        self,
+        query_vars: list[str],
+        scenarios: list[str],
+    ) -> list[PhysicsHypothesis]:
+        """
+        Hollow-cylinder beam bending: σ = M · r_o / I.
+
+        Activates when the query touches cortical thickness or bending
+        stress / strength.  Holds outer radius constant at a femoral
+        midshaft midpoint and sweeps progressive cortical thinning.
+        Bending bears predominantly on the cortical compartment, so we
+        only generate the cortical scenario.
+        """
+        if not (
+            "cortical_thickness" in query_vars
+            or "bending_resistance" in query_vars
+        ):
+            return []
+
+        # Beam bending is a cortical-only phenomenon for the long-bone
+        # diaphysis model used here.
+        if "cortical" not in scenarios:
+            return []
+
+        out: list[PhysicsHypothesis] = []
+        input_node  = canonical_node("cortical_thickness",   self._available)
+        output_node = canonical_node("bending_resistance",   self._available)
+        if input_node is None or output_node is None:
+            return out
+
+        for label, dt_pct in _BEAM_PERTURBATIONS:
+            try:
+                pred = beam_bending_thickness_delta(
+                    outer_radius_mm=_BEAM_OUTER_RADIUS_MM,
+                    cortical_thickness_baseline_mm=_BEAM_THICKNESS_BASE_MM,
+                    thickness_change_pct=dt_pct,
+                )
+            except ValueError:
+                continue
+
+            # Cortical thickness has a *positive* effect on bending
+            # resistance (thicker cortex → larger I → more resistant to
+            # bending).  Thinning therefore reduces the section's bending
+            # resistance, which the prediction string captures.
+            I_ratio = pred["I_new_mm4"] / pred["I_baseline_mm4"]
+            delta_I_pct = (I_ratio - 1.0) * 100.0
+            out.append(self._build(
+                input_node=input_node,
+                output_node=output_node,
+                relation="increases",
+                law="Beam bending",
+                law_form="σ = M·r_o / I,  I = π/4·(r_o⁴ − r_i⁴)",
+                scenario="cortical",
+                input_var="cortical_thickness",
+                output_var="bending_resistance",
+                perturbation=(
+                    f"{label} (t: {pred['t_baseline_mm']:.1f} → "
+                    f"{pred['t_new_mm']:.1f} mm)"
+                ),
+                prediction=(
+                    f"{delta_I_pct:+.1f}% ΔI/I "
+                    f"(σ × {pred['stress_ratio']:.2f} for fixed M)"
+                ),
+                delta_input={
+                    "variable":     "cortical_thickness",
+                    "change_pct":   dt_pct,
+                    "from":         pred["t_baseline_mm"],
+                    "to":           pred["t_new_mm"],
+                    "magnitude":    label,
+                },
+                delta_output={
+                    "variable":        "bending_resistance",
+                    # Express section bending resistance as % of baseline
+                    # (I_new / I_old × 100), which lives inside the
+                    # `bending_resistance` physical range used by Round 2.
+                    "predicted_value": 100.0 * I_ratio,
+                    "I_ratio":         I_ratio,
+                    "stress_ratio":    pred["stress_ratio"],
+                    "change_pct":      delta_I_pct,
+                    "I_baseline":      pred["I_baseline_mm4"],
+                    "I_new":           pred["I_new_mm4"],
+                },
+                assumed_inputs={
+                    "outer_radius_mm":    _BEAM_OUTER_RADIUS_MM,
+                    "thickness_baseline": _BEAM_THICKNESS_BASE_MM,
+                    "scenario":           "cortical",
+                },
+            ))
+
         return out
 
     # ── Helpers ───────────────────────────────────────────────────────────────

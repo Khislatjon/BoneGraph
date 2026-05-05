@@ -28,6 +28,7 @@ entries when you add a new physical law that needs them.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 
@@ -58,6 +59,12 @@ class PhysicsVariable:
         If set, this variable is the inverse of another (e.g. porosity is
         the inverse of apparent density via ρ = ρ_full · (1 - φ)).  The
         generator uses this to convert between the two.
+    keywords : list[str]
+        Whole-word/phrase triggers a free-text query must contain to
+        anchor this variable.  Matched case-insensitively with word
+        boundaries — so ``"bone"`` does not match ``"bonemind"`` and
+        ``"strength"`` does not bleed across every variable that mentions
+        the word.  Curated; do not auto-derive from ``node_ids``.
     """
 
     name: str
@@ -68,6 +75,7 @@ class PhysicsVariable:
     trabecular_range: tuple[float, float]
     node_ids: list[str] = field(default_factory=list)
     inverse_of: str | None = None
+    keywords: list[str] = field(default_factory=list)
 
 
 # ── The registry ──────────────────────────────────────────────────────────────
@@ -98,6 +106,10 @@ VARS: dict[str, PhysicsVariable] = {
             "femoral_neck_bmd",
             "areal_bmd",
         ],
+        keywords=[
+            "apparent density", "bone density", "bone mineral density",
+            "mineral density", "bmd",
+        ],
     ),
     "porosity": PhysicsVariable(
         name="porosity",
@@ -115,6 +127,7 @@ VARS: dict[str, PhysicsVariable] = {
             "subchondral_bone_porosity",
         ],
         inverse_of="apparent_density",
+        keywords=["porosity", "porous", "pores", "void fraction"],
     ),
     "elastic_modulus": PhysicsVariable(
         name="elastic_modulus",
@@ -127,6 +140,10 @@ VARS: dict[str, PhysicsVariable] = {
             "elastic_modulus",
             "stiffness",
             "mechanical_stiffness",
+        ],
+        keywords=[
+            "elastic modulus", "young's modulus", "youngs modulus",
+            "stiffness", "modulus",
         ],
     ),
     "strength": PhysicsVariable(
@@ -141,6 +158,143 @@ VARS: dict[str, PhysicsVariable] = {
             "compressive_strength",
             "bone_strength",
             "tensile_strength",
+        ],
+        keywords=[
+            "ultimate strength", "compressive strength", "tensile strength",
+            "yield strength", "failure stress", "bone strength",
+        ],
+    ),
+
+    # ── Frost mechanostat variables ──────────────────────────────────────────
+    "peak_strain": PhysicsVariable(
+        name="peak_strain",
+        symbol="ε",
+        units="µε",                # microstrain
+        description="Peak principal strain magnitude during loading.",
+        # The "range" here is the full Frost band the generator may sweep.
+        cortical_range=(50.0, 5000.0),
+        trabecular_range=(50.0, 5000.0),
+        node_ids=[
+            "strain",
+            "mechanical_loading",
+            "mechanical_load",
+            "cyclic_loading",
+            "loading",
+            "fatigue_loading",
+            "minimum_effective_strain",
+        ],
+        keywords=[
+            "strain", "microstrain", "peak strain", "mechanostat",
+            "mechanical loading", "exercise loading", "disuse",
+        ],
+    ),
+    "bone_adaptation_rate": PhysicsVariable(
+        name="bone_adaptation_rate",
+        symbol="ΔBMD/yr",
+        units="%/year",
+        description=(
+            "Annual relative change in bone mineral density driven by "
+            "the Frost mechanostat regime."
+        ),
+        # Negative = net resorption, positive = net formation.
+        cortical_range=(-3.0, 3.0),
+        trabecular_range=(-5.0, 5.0),
+        node_ids=[
+            "bone_formation",
+            "bone_resorption",
+            "bone_remodeling",
+            "bone_loss",
+        ],
+        keywords=[
+            "bone formation", "bone resorption", "bone remodeling",
+            "bone remodelling", "bone loss", "bone gain",
+            "bone adaptation",
+        ],
+    ),
+
+    # ── Paris-law variables (fatigue crack growth) ───────────────────────────
+    "stress_intensity_range": PhysicsVariable(
+        name="stress_intensity_range",
+        symbol="ΔK",
+        units="MPa·√m",
+        description=(
+            "Cyclic stress-intensity factor range at a crack tip — the "
+            "input that drives Paris-law fatigue crack growth."
+        ),
+        cortical_range=(0.3, 2.0),         # physiological cyclic loading
+        trabecular_range=(0.1, 1.0),
+        node_ids=[
+            "cyclic_loading",
+            "fatigue_loading",
+            "mechanical_loading",
+            "loading",
+        ],
+        keywords=[
+            "cyclic loading", "cyclic stress", "fatigue loading",
+            "stress intensity", "delta k", "ΔK",
+        ],
+    ),
+    "crack_growth_rate": PhysicsVariable(
+        name="crack_growth_rate",
+        symbol="da/dN",
+        units="m/cycle",
+        description="Fatigue crack growth rate predicted by Paris law.",
+        # Wide range — physiological growth is ~1e-10 m/cycle, near-failure
+        # rates approach 1e-6 m/cycle.  We span the full band.
+        cortical_range=(1e-12, 1e-6),
+        trabecular_range=(1e-12, 1e-6),
+        node_ids=[
+            "fatigue_crack_growth_rate",
+            "crack_propagation",
+            "microcrack",
+            "bone_fatigue",
+        ],
+        keywords=[
+            "crack growth", "crack propagation", "microcrack",
+            "fatigue crack", "bone fatigue", "da/dn",
+        ],
+    ),
+
+    # ── Beam-bending variables ───────────────────────────────────────────────
+    "cortical_thickness": PhysicsVariable(
+        name="cortical_thickness",
+        symbol="t",
+        units="mm",
+        description="Cortical wall thickness of a long-bone diaphysis.",
+        cortical_range=(1.5, 6.0),         # human femoral midshaft typical
+        trabecular_range=(0.1, 0.5),       # trabecular elements
+        node_ids=[
+            "cortical_thickness",
+            "cortical_bone_thickness",
+            "thickness",
+        ],
+        keywords=[
+            "cortical thickness", "cortex thickness", "wall thickness",
+            "cortical wall",
+        ],
+    ),
+    "bending_resistance": PhysicsVariable(
+        name="bending_resistance",
+        symbol="EI",
+        units="% of baseline",
+        description=(
+            "Section bending resistance (∝ second moment of area I, "
+            "scaled to a baseline of 100%).  Thicker cortex → larger I → "
+            "more resistance to bending."
+        ),
+        # Wide bounds so Round 2 is essentially a sanity check rather
+        # than a regime gate — the law's domain is enforced by Round 3.
+        cortical_range=(5.0, 1000.0),
+        trabecular_range=(5.0, 1000.0),
+        node_ids=[
+            "bending_stiffness",
+            "bending_strength",
+            "mechanical_strength",
+            "bone_strength",
+        ],
+        keywords=[
+            "bending strength", "bending stiffness", "bending resistance",
+            "flexural", "second moment of area", "section modulus",
         ],
     ),
 }
@@ -178,24 +332,26 @@ def variables_in_query(query: str) -> list[str]:
     """
     Identify which physics variables a free-text query touches.
 
-    Matches by substring against each variable's node_ids and against
-    the variable name itself, so queries can use either graph-style
-    ("bmd", "porosity") or domain-style ("density", "modulus") wording.
+    Matches each variable's curated ``keywords`` list with word-boundary
+    regex (case-insensitive).  Multi-word phrases must appear as a
+    contiguous span — "bending strength" matches but "bending and
+    compressive strength" does not anchor the bending variable on the
+    word "strength" alone.  This keeps the gating tight: a query about
+    porosity and modulus no longer pulls in beam bending just because
+    the word "strength" appears somewhere.
     """
     q = query.lower()
     hits: list[str] = []
     for var_name, var in VARS.items():
-        # Match variable name's tokens
-        name_tokens = var_name.split("_")
-        if any(t in q for t in name_tokens if len(t) > 3):
-            hits.append(var_name)
-            continue
-        # Match any of the variable's node_ids by token
-        if any(
-            any(t in q for t in nid.split("_") if len(t) > 3)
-            for nid in var.node_ids
-        ):
-            hits.append(var_name)
+        for kw in var.keywords:
+            kw_lower = kw.lower()
+            # \b doesn't behave well around non-word characters such as
+            # "/" or "Δ"; pad with optional whitespace boundaries instead
+            # of relying solely on \b.
+            pattern = r"(?<!\w)" + re.escape(kw_lower) + r"(?!\w)"
+            if re.search(pattern, q):
+                hits.append(var_name)
+                break
     return hits
 
 

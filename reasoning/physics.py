@@ -645,6 +645,197 @@ def beam_bending_stress(
     }
 
 
+# ── Frost mechanostat — differential / regime predictor ──────────────────────
+
+
+# Annual BMD change rate associated with each Frost zone, expressed as
+# % BMD per year.  Conservative literature midpoints (Frost 2003,
+# Robling 2009, Burr 2002).  These are *typical* magnitudes — the
+# critic's Round-2 magnitude check enforces the broader physical band.
+_FROST_BMD_RATE_PCT_PER_YR: dict[str, float] = {
+    "acute_disuse":          -3.0,    # immobilisation, paraplegia
+    "chronic_disuse":        -1.5,
+    "adapted":                0.0,    # homeostasis
+    "mild_overload":         +1.5,    # exercise / loading
+    "pathological_overload": -1.0,    # microdamage > repair
+    "fracture":              -5.0,    # acute trauma
+}
+
+# Map each Frost zone to the conceptual graph node it implies.
+_FROST_OUTPUT_NODE: dict[str, str] = {
+    "acute_disuse":          "bone_resorption",
+    "chronic_disuse":        "bone_resorption",
+    "adapted":               "bone_remodeling",
+    "mild_overload":         "bone_formation",
+    "pathological_overload": "bone_resorption",
+    "fracture":              "bone_resorption",
+}
+
+
+def mechanostat_adaptation(strain_microstrain: float) -> dict:
+    """
+    Frost mechanostat regime prediction with a quantitative BMD/yr rate.
+
+    Wraps :func:`mechanostat_zone` and adds an annual BMD-change estimate
+    drawn from the literature midpoints for each zone.  The output
+    is suitable for the physics-driven generator pipeline.
+
+    Parameters
+    ----------
+    strain_microstrain : float
+        Peak principal strain magnitude (μɛ).  Must be ≥ 0.
+
+    Returns
+    -------
+    dict with keys:
+        zone                       — Frost zone name
+        response                   — biological response label
+        description                — plain-English explanation
+        bmd_pct_per_year           — typical annual BMD change for the zone
+        chain_output_node          — graph node_id implied by the zone
+                                     (``bone_formation`` / ``bone_resorption``
+                                     / ``bone_remodeling``)
+    """
+    base = mechanostat_zone(strain_microstrain)
+    zone = base["zone"]
+    return {
+        **base,
+        "bmd_pct_per_year":  _FROST_BMD_RATE_PCT_PER_YR.get(zone, 0.0),
+        "chain_output_node": _FROST_OUTPUT_NODE.get(zone, "bone_remodeling"),
+    }
+
+
+# ── Paris law — differential form ────────────────────────────────────────────
+
+
+def paris_delta(
+    delta_K_baseline: float,
+    delta_K_new: float,
+    C: float = 1.7e-9,
+    m: float = 3.9,
+) -> dict[str, float]:
+    """
+    Differential Paris-law prediction.
+
+    Compares fatigue crack growth rate at a baseline ΔK to that at a
+    perturbed ΔK.  Uses Vashishth et al. (2004) cortical-bone constants
+    by default.
+
+    Parameters
+    ----------
+    delta_K_baseline : float
+        Reference cyclic stress-intensity factor range (MPa·√m).
+    delta_K_new : float
+        Perturbed ΔK to compare against the baseline.
+    C, m : float
+        Paris constants.  Defaults from Vashishth (cortical bone).
+
+    Returns
+    -------
+    dict with keys:
+        dK_baseline, dK_new
+        da_dN_baseline, da_dN_new      (m/cycle)
+        rate_ratio                     (da_dN_new / da_dN_baseline)
+        log10_ratio                    (log₁₀ of the rate ratio)
+        delta_rate_pct                 ((rate_ratio − 1) × 100)
+        exponent, C
+    """
+    if delta_K_baseline <= 0 or delta_K_new <= 0:
+        raise ValueError("ΔK values must be positive.")
+    da_dN_base = paris_crack_growth(delta_K_baseline, C=C, m=m)
+    da_dN_new  = paris_crack_growth(delta_K_new,      C=C, m=m)
+    ratio = da_dN_new / da_dN_base
+    return {
+        "dK_baseline":    delta_K_baseline,
+        "dK_new":         delta_K_new,
+        "da_dN_baseline": da_dN_base,
+        "da_dN_new":      da_dN_new,
+        "rate_ratio":     ratio,
+        "log10_ratio":    math.log10(ratio) if ratio > 0 else float("-inf"),
+        "delta_rate_pct": (ratio - 1.0) * 100.0,
+        "exponent":       m,
+        "C":              C,
+    }
+
+
+# ── Beam bending — thickness-perturbation predictor ──────────────────────────
+
+
+def beam_bending_thickness_delta(
+    outer_radius_mm: float,
+    cortical_thickness_baseline_mm: float,
+    thickness_change_pct: float,
+) -> dict[str, float]:
+    """
+    Predict the change in bending stress when cortical thickness changes.
+
+    Holds the outer radius and the applied bending moment constant.
+    For a hollow cylinder with outer radius r_o and inner radius
+    r_i = r_o − t, the second moment of area is::
+
+        I = π/4 · (r_o⁴ − r_i⁴)
+
+    Bending stress σ = M · r_o / I, so for fixed M and r_o::
+
+        σ_new / σ_old = I_old / I_new
+
+    Parameters
+    ----------
+    outer_radius_mm : float
+        Outer (periosteal) radius, mm.  Typical femoral midshaft:
+        15–17 mm.
+    cortical_thickness_baseline_mm : float
+        Starting cortical wall thickness, mm.  Typical: 4–6 mm cortical,
+        thinning to 2–3 mm in osteoporosis.
+    thickness_change_pct : float
+        Relative change in thickness, in percent.  Negative for
+        thinning (osteoporotic progression).
+
+    Returns
+    -------
+    dict with keys:
+        ro_mm, t_baseline_mm, t_new_mm
+        ri_baseline_mm, ri_new_mm
+        I_baseline_mm4, I_new_mm4
+        stress_ratio                 (σ_new / σ_old)
+        delta_stress_pct             ((stress_ratio − 1) × 100)
+
+    Raises
+    ------
+    ValueError
+        If the perturbed thickness is non-positive or exceeds the outer
+        radius.
+    """
+    if outer_radius_mm <= 0 or cortical_thickness_baseline_mm <= 0:
+        raise ValueError("Outer radius and baseline thickness must be positive.")
+    if cortical_thickness_baseline_mm >= outer_radius_mm:
+        raise ValueError("Baseline thickness must be less than outer radius.")
+
+    t_new = cortical_thickness_baseline_mm * (1.0 + thickness_change_pct / 100.0)
+    if t_new <= 0:
+        raise ValueError(f"Thickness change drives t_new = {t_new} ≤ 0.")
+    if t_new >= outer_radius_mm:
+        raise ValueError("Perturbed thickness exceeds outer radius.")
+
+    ri_old = outer_radius_mm - cortical_thickness_baseline_mm
+    ri_new = outer_radius_mm - t_new
+    I_old = math.pi / 4 * (outer_radius_mm**4 - ri_old**4)
+    I_new = math.pi / 4 * (outer_radius_mm**4 - ri_new**4)
+
+    stress_ratio = I_old / I_new
+    return {
+        "ro_mm":            outer_radius_mm,
+        "t_baseline_mm":    cortical_thickness_baseline_mm,
+        "t_new_mm":         t_new,
+        "ri_baseline_mm":   ri_old,
+        "ri_new_mm":        ri_new,
+        "I_baseline_mm4":   I_old,
+        "I_new_mm4":        I_new,
+        "stress_ratio":     stress_ratio,
+        "delta_stress_pct": (stress_ratio - 1.0) * 100.0,
+    }
+
+
 def stress_concentration_kt(
     semi_major_axis_m: float,
     tip_radius_m: float,

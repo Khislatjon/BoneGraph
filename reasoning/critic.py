@@ -168,13 +168,15 @@ class PhysicsCritic:
 
     def _round_magnitude(self, h: PhysicsHypothesis) -> CheckRecord:
         """
-        Apply the predicted ΔY/Y to a baseline output value and check
-        the resulting absolute Y_new against the bone-physical range
-        for the chosen tissue scenario.
+        Check the predicted absolute output value against the bone-physical
+        range for the chosen tissue scenario.
 
-        We use the geometric mean of the canonical range as the baseline
-        (matching how the generator chose its inputs), so a "0% change"
-        prediction always lands inside the range.
+        Two ways to obtain the predicted absolute value:
+        1. ``delta_output["predicted_value"]`` is supplied by the generator
+           (preferred — every law explicitly states the absolute value).
+        2. Fallback for relative-change predictions: derive the absolute
+           value from the canonical baseline times (1 + change_pct/100).
+           Used only when the generator did not supply ``predicted_value``.
         """
         var = VARS.get(h.output_var)
         if var is None:
@@ -186,16 +188,28 @@ class PhysicsCritic:
         lo, hi = (
             var.cortical_range if h.scenario == "cortical" else var.trabecular_range
         )
-        baseline = (lo * hi) ** 0.5
-        delta_pct = h.delta_output.get("change_pct", 0.0)
-        new_value = baseline * (1.0 + delta_pct / 100.0)
+
+        if "predicted_value" in h.delta_output:
+            new_value = float(h.delta_output["predicted_value"])
+            source = "predicted"
+        else:
+            # Currey-style relative change.  Use the geometric mean of the
+            # canonical range as the baseline when both ends are positive,
+            # otherwise fall back to the arithmetic midpoint.
+            if lo > 0 and hi > 0:
+                baseline = (lo * hi) ** 0.5
+            else:
+                baseline = (lo + hi) / 2.0
+            delta_pct = h.delta_output.get("change_pct", 0.0)
+            new_value = baseline * (1.0 + delta_pct / 100.0)
+            source = "derived"
 
         if not in_physical_range(h.output_var, new_value, scenario=h.scenario):
             return CheckRecord(
                 "magnitude_range",
                 False,
                 (
-                    f"Predicted {var.symbol} = {new_value:.2f} {var.units} "
+                    f"Predicted {var.symbol} = {new_value:.3g} {var.units} "
                     f"falls outside the {h.scenario} range "
                     f"({lo:g}–{hi:g} {var.units})."
                 ),
@@ -204,8 +218,9 @@ class PhysicsCritic:
             "magnitude_range",
             True,
             (
-                f"Predicted {var.symbol} ≈ {new_value:.2f} {var.units} "
-                f"within {h.scenario} bone range."
+                f"Predicted {var.symbol} ≈ {new_value:.3g} {var.units} "
+                f"within {h.scenario} bone range "
+                f"({source})."
             ),
         )
 
@@ -213,42 +228,109 @@ class PhysicsCritic:
 
     def _round_powerlaw_domain(self, h: PhysicsHypothesis) -> CheckRecord:
         """
-        Reject perturbations that push the underlying ρ out of physical
-        bounds, or push φ to ≥ 1.  Currey's power-law fit is calibrated
-        for moderate perturbations; very large ones are not meaningful.
+        Law-aware domain check.
+
+        Each physical law is calibrated for a particular regime, and a
+        perturbation that pushes the input outside that regime makes
+        the prediction meaningless even if directionality and magnitude
+        round-1/2 happen to agree.  This round dispatches by law name.
         """
-        rho_ratio = h.delta_output.get("rho_ratio")
-        if rho_ratio is None:
-            # Not a Currey-style hypothesis — pass.
+        law = (h.law or "").lower()
+
+        # ── Currey: density-ratio bounds ─────────────────────────────────
+        if "currey" in law:
+            rho_ratio = h.delta_output.get("rho_ratio")
+            if rho_ratio is None:
+                return CheckRecord("powerlaw_domain", True, "No ρ-ratio.")
+            if rho_ratio <= 0:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    f"Implied ρ_new/ρ_old = {rho_ratio:.3f} ≤ 0 — non-physical.",
+                )
+            if rho_ratio > 2.0:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    (
+                        f"Implied ρ_new/ρ_old = {rho_ratio:.2f} doubles "
+                        "density — outside the Currey calibration range."
+                    ),
+                )
+            if rho_ratio < 0.3:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    (
+                        f"Implied ρ_new/ρ_old = {rho_ratio:.2f} loses >70% "
+                        "of density — outside the Currey calibration range."
+                    ),
+                )
             return CheckRecord(
                 "powerlaw_domain", True,
-                "No power-law domain check applicable.",
+                f"Density ratio {rho_ratio:.2f} within Currey bounds.",
             )
 
-        if rho_ratio <= 0:
+        # ── Paris: ΔK must stay below cortical KIc (~6 MPa·√m) ───────────
+        if "paris" in law:
+            dk_new = h.delta_input.get("to") or h.delta_input.get("value")
+            if dk_new is None:
+                return CheckRecord("powerlaw_domain", True, "No ΔK supplied.")
+            kic_cortical = 6.0    # MPa·√m, conservative cortical KIc
+            if dk_new >= kic_cortical:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    (
+                        f"ΔK = {dk_new:.2f} MPa·√m meets or exceeds "
+                        f"cortical KIc ≈ {kic_cortical} MPa·√m — failure "
+                        "is single-cycle, Paris law is no longer valid."
+                    ),
+                )
             return CheckRecord(
-                "powerlaw_domain", False,
-                f"Implied ρ_new/ρ_old = {rho_ratio:.3f} ≤ 0 — non-physical.",
+                "powerlaw_domain", True,
+                f"ΔK = {dk_new:.2f} MPa·√m below KIc — Paris regime valid.",
             )
-        if rho_ratio > 2.0:
+
+        # ── Frost mechanostat: input strain must be physiologically bounded ─
+        if "mechanostat" in law:
+            strain = h.delta_input.get("value")
+            if strain is None:
+                return CheckRecord("powerlaw_domain", True, "No strain value.")
+            if strain < 0:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    f"Strain {strain:.0f} µɛ is negative — non-physical.",
+                )
+            if strain > 25_000:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    (
+                        f"Strain {strain:.0f} µɛ exceeds the fracture "
+                        "threshold; the mechanostat adaptation framework "
+                        "no longer applies."
+                    ),
+                )
             return CheckRecord(
-                "powerlaw_domain", False,
-                (
-                    f"Implied ρ_new/ρ_old = {rho_ratio:.2f} doubles density — "
-                    "outside the Currey calibration range."
-                ),
+                "powerlaw_domain", True,
+                f"Strain {strain:.0f} µɛ within mechanostat domain.",
             )
-        if rho_ratio < 0.3:
+
+        # ── Beam bending: thickness change must keep r_i > 0 ─────────────
+        if "beam" in law:
+            t_new = h.delta_input.get("to")
+            if t_new is None:
+                return CheckRecord("powerlaw_domain", True, "No thickness.")
+            if t_new <= 0:
+                return CheckRecord(
+                    "powerlaw_domain", False,
+                    f"Cortical thickness {t_new:.2f} mm ≤ 0 — non-physical.",
+                )
             return CheckRecord(
-                "powerlaw_domain", False,
-                (
-                    f"Implied ρ_new/ρ_old = {rho_ratio:.2f} loses >70% of "
-                    "density — outside the Currey calibration range."
-                ),
+                "powerlaw_domain", True,
+                f"Thickness {t_new:.2f} mm within bending-model bounds.",
             )
+
+        # Unknown law — pass through with a permissive check.
         return CheckRecord(
             "powerlaw_domain", True,
-            f"Density ratio {rho_ratio:.2f} within Currey calibration bounds.",
+            f"No domain check defined for law: {h.law!r}.",
         )
 
     # ── Round 4 — scenario internal consistency ───────────────────────────────
