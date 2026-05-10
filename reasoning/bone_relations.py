@@ -35,7 +35,242 @@ from __future__ import annotations
 
 import sympy as sp
 
-from reasoning.relation import Prior, Relation, RelationRegistry, Variable
+from reasoning.relation import (
+    CovariateShift, Prior, Relation, RelationRegistry, Variable,
+)
+
+
+# ── Covariate-shift library ───────────────────────────────────────────────────
+#
+# Each shift is a small, citation-anchored function that adjusts a
+# parameter's prior mean/std based on the active covariates supplied at
+# inference time.  Covariates are a flat dict; recognised keys are:
+#
+#   age:     float years (0 means "not supplied" → no age effect)
+#   sex:     "M" / "F" / None
+#   site:    "femur_cortical" / "tibia_cortical" / "vertebra" / "radius" / None
+#   disease: list of strings, recognised tokens:
+#               "osteoporosis"
+#               "glucocorticoid"
+#               "osteogenesis_imperfecta"
+#
+# Each shift is conservative — it only fires when the relevant covariate
+# is actually present.  Composition is left-to-right: a parameter that
+# carries (age, sex, site, disease) shifts will see them applied in
+# declaration order, so all four can compound on the same Prior.
+
+
+def _cov_age(cov: dict) -> float:
+    age = cov.get("age")
+    return float(age) if age is not None else 0.0
+
+
+def _cov_site(cov: dict) -> str | None:
+    site = cov.get("site")
+    return str(site) if site else None
+
+
+def _cov_disease(cov: dict, token: str) -> bool:
+    diseases = cov.get("disease") or []
+    if isinstance(diseases, str):
+        diseases = [diseases]
+    return token in diseases
+
+
+def _shift_currey_a_age() -> CovariateShift:
+    """Currey pre-factor declines ≈ 10 %/decade past age 30 (cortical bone)."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        age = _cov_age(cov)
+        if age <= 30.0:
+            return mean, std
+        # Linear, capped at age 95.
+        decades_past_30 = min(age, 95.0) - 30.0
+        factor = max(0.30, 1.0 - 0.10 * (decades_past_30 / 10.0))
+        return mean * factor, std * factor
+    return CovariateShift(
+        name="currey_a_age",
+        description="Modulus pre-factor drops ≈10 %/decade past age 30",
+        citation="Burstein 1976; McCalden 1993 (cortical bone modulus vs age)",
+        apply=apply,
+    )
+
+
+def _shift_currey_a_sex() -> CovariateShift:
+    """Modest female-vs-male offset; literature reports ~5 % lower in females."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if cov.get("sex") == "F":
+            return mean * 0.95, std * 0.95
+        return mean, std
+    return CovariateShift(
+        name="currey_a_sex",
+        description="Females ≈5 % lower modulus pre-factor",
+        citation="Smith 1976; Riggs 1981 — sex differences in cortical modulus",
+        apply=apply,
+    )
+
+
+def _shift_currey_a_site() -> CovariateShift:
+    """Trabecular sites (vertebra) have a much lower pre-factor."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        site = _cov_site(cov)
+        if site == "vertebra":
+            # Trabecular bone modulus prefactor is roughly half that
+            # of cortical at the same apparent density.
+            return mean * 0.55, std * 0.55
+        if site == "radius":
+            return mean * 0.9, std * 0.9
+        return mean, std
+    return CovariateShift(
+        name="currey_a_site",
+        description="Trabecular sites have lower modulus pre-factor (~0.55× cortical)",
+        citation="Carter–Hayes 1977; Keller 1994 — site-specific Currey constants",
+        apply=apply,
+    )
+
+
+def _shift_currey_n_site() -> CovariateShift:
+    """Trabecular sites have steeper density-modulus exponent (n ≈ 3 vs 2.5)."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        site = _cov_site(cov)
+        if site == "vertebra":
+            return mean + 0.5, std       # ≈ 3.0 instead of 2.5
+        return mean, std
+    return CovariateShift(
+        name="currey_n_site",
+        description="Trabecular bone uses n ≈ 3.0 vs cortical n ≈ 2.5",
+        citation="Keller 1994; Rho 1995 — power-law exponent across sites",
+        apply=apply,
+    )
+
+
+def _shift_currey_a_oi() -> CovariateShift:
+    """Osteogenesis imperfecta reduces matrix modulus dramatically."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if _cov_disease(cov, "osteogenesis_imperfecta"):
+            return mean * 0.6, std * 0.6
+        return mean, std
+    return CovariateShift(
+        name="currey_a_oi",
+        description="OI lowers modulus pre-factor by ≈40 %",
+        citation="Imbert 2014 — modulus reduction in OI cortical bone",
+        apply=apply,
+    )
+
+
+def _shift_paris_c0_age() -> CovariateShift:
+    """
+    Paris pre-factor rises with age — fatigue crack growth ≈ doubles per
+    decade past 50.  C_0 is stored in *log space* (lognormal), so we add
+    log(2) per decade to the log-mean.
+
+    log(2) ≈ 0.693, so 0.069 per year past 50.
+    """
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        age = _cov_age(cov)
+        if age <= 50.0:
+            return mean, std
+        decades_past_50 = (min(age, 95.0) - 50.0) / 10.0
+        return mean + 0.693 * decades_past_50, std
+    return CovariateShift(
+        name="paris_c0_age",
+        description="da/dN pre-factor roughly doubles per decade past 50",
+        citation="Diab & Vashishth 2005 — fatigue resistance vs donor age",
+        apply=apply,
+    )
+
+
+def _shift_paris_c0_osteoporosis() -> CovariateShift:
+    """Osteoporotic bone fatigues faster at fixed ΔK (≈1.5× rate)."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if _cov_disease(cov, "osteoporosis"):
+            # log(1.5) ≈ 0.405 added in log space (lognormal mean).
+            return mean + 0.405, std
+        return mean, std
+    return CovariateShift(
+        name="paris_c0_osteoporosis",
+        description="Osteoporotic bone ≈1.5× faster crack growth at same ΔK",
+        citation="Vashishth 2003 — fatigue in osteoporotic cortical bone",
+        apply=apply,
+    )
+
+
+def _shift_frost_eps_set_age() -> CovariateShift:
+    """Frost setpoint rises with age (mechanostat desensitisation)."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        age = _cov_age(cov)
+        if age <= 40.0:
+            return mean, std
+        decades_past_40 = (min(age, 95.0) - 40.0) / 10.0
+        return mean + 150.0 * decades_past_40, std
+    return CovariateShift(
+        name="frost_eps_set_age",
+        description="Adaptation setpoint rises ≈150 µε/decade past 40",
+        citation="Frost 2003 — mechanostat desensitisation with age",
+        apply=apply,
+    )
+
+
+def _shift_frost_k_form_age() -> CovariateShift:
+    """Anabolic capacity halves by age 75."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        age = _cov_age(cov)
+        if age <= 30.0:
+            return mean, std
+        # Linear ramp from 1.0 at age 30 to 0.5 at age 75, then capped.
+        t = min(max((age - 30.0) / 45.0, 0.0), 1.0)
+        factor = 1.0 - 0.5 * t
+        return mean * factor, std * factor
+    return CovariateShift(
+        name="frost_k_form_age",
+        description="Max BMD adaptation rate halves between ages 30 and 75",
+        citation="Lanyon 1994; Frost 2003 — age-related anabolic capacity",
+        apply=apply,
+    )
+
+
+def _shift_frost_eps_set_osteoporosis() -> CovariateShift:
+    """Osteoporosis raises the Frost setpoint substantially."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if _cov_disease(cov, "osteoporosis"):
+            return mean + 500.0, std
+        return mean, std
+    return CovariateShift(
+        name="frost_eps_set_osteoporosis",
+        description="Osteoporotic setpoint shifts +500 µε (resorption-biased)",
+        citation="Robling 2009 — disuse-osteopenia setpoint shift",
+        apply=apply,
+    )
+
+
+def _shift_frost_k_form_glucocorticoid() -> CovariateShift:
+    """Chronic glucocorticoid use suppresses formation to ≈20 % of baseline."""
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if _cov_disease(cov, "glucocorticoid"):
+            return mean * 0.2, std * 0.2
+        return mean, std
+    return CovariateShift(
+        name="frost_k_form_glucocorticoid",
+        description="Glucocorticoid therapy cuts anabolic rate to ≈20 %",
+        citation="Weinstein 2001 — glucocorticoid-induced osteoblast apoptosis",
+        apply=apply,
+    )
+
+
+def _shift_density_from_porosity_site() -> CovariateShift:
+    """
+    Trabecular tissue is slightly less mineralised than cortical (≈ 1.80
+    vs 1.90 g/cm³ matrix density).  Affects the apparent-density bridge.
+    """
+    def apply(mean: float, std: float, cov: dict) -> tuple[float, float]:
+        if _cov_site(cov) == "vertebra":
+            return 1.80, std
+        return mean, std
+    return CovariateShift(
+        name="density_rhofull_site",
+        description="Trabecular tissue density ≈ 1.80 g/cm³ vs cortical 1.90",
+        citation="Cowin 2001 — site-specific matrix densities",
+        apply=apply,
+    )
 
 
 # ── Variable definitions ──────────────────────────────────────────────────────
@@ -145,6 +380,7 @@ def _density_from_porosity() -> Relation:
             "rho_full": Prior(
                 mean=1.90, std=0.0, distribution="fixed",
                 citation="Cowin 2001 — bone matrix density ≈ 1.90 g/cm³",
+                shifts=(_shift_density_from_porosity_site(),),
             ),
         },
         citation="Geometric definition (ρ = ρ_full · (1 − φ))",
@@ -163,10 +399,17 @@ def _currey_modulus() -> Relation:
             "a": Prior(
                 mean=7.0, std=0.8, distribution="normal",
                 citation="Currey 1988 — pre-factor for the E–ρ relation",
+                shifts=(
+                    _shift_currey_a_site(),
+                    _shift_currey_a_age(),
+                    _shift_currey_a_sex(),
+                    _shift_currey_a_oi(),
+                ),
             ),
             "n": Prior(
                 mean=2.5, std=0.20, distribution="normal",
                 citation="Currey 1988 / Hernandez 2001 — exponent ≈ 2.5",
+                shifts=(_shift_currey_n_site(),),
             ),
         },
         citation="Currey 1988 (E ∝ ρⁿ)",
@@ -188,6 +431,10 @@ def _vashishth_paris() -> Relation:
             "C_0": Prior(
                 mean=-20.20, std=0.40, distribution="lognormal",
                 citation="Vashishth 2004 — C ≈ 1.7×10⁻⁹ m/cycle baseline",
+                shifts=(
+                    _shift_paris_c0_age(),
+                    _shift_paris_c0_osteoporosis(),
+                ),
             ),
             "m": Prior(
                 mean=3.9, std=0.25, distribution="normal",
@@ -300,10 +547,18 @@ def _frost_mechanostat() -> Relation:
             "k_form": Prior(
                 mean=2.0, std=0.5, distribution="normal",
                 citation="Frost 2003 / Burr 2002 — saturation BMD rate ≈ ±2 %/yr",
+                shifts=(
+                    _shift_frost_k_form_age(),
+                    _shift_frost_k_form_glucocorticoid(),
+                ),
             ),
             "eps_set": Prior(
                 mean=1000.0, std=200.0, distribution="normal",
                 citation="Frost 2003 — adapted-window centre ≈ 1000 µε",
+                shifts=(
+                    _shift_frost_eps_set_age(),
+                    _shift_frost_eps_set_osteoporosis(),
+                ),
             ),
             "eps_width": Prior(
                 mean=700.0, std=150.0, distribution="normal",
@@ -316,6 +571,68 @@ def _frost_mechanostat() -> Relation:
             "peak strain, centred on the Frost setpoint."
         ),
     )
+
+
+# ── Covariate UI metadata ─────────────────────────────────────────────────────
+
+
+COVARIATE_SCHEMA: dict = {
+    "age": {
+        "type":  "number",
+        "label": "Patient age",
+        "unit":  "years",
+        "min":   18,
+        "max":   95,
+        "step":  1,
+        "default": 30,
+        "description": (
+            "Drives age-dependent shifts in Currey's pre-factor, Paris C₀ "
+            "(≈ ×2/decade past 50, Diab & Vashishth 2005), the Frost setpoint "
+            "(rises with desensitisation), and the anabolic rate (halves by 75)."
+        ),
+    },
+    "sex": {
+        "type":    "enum",
+        "label":   "Sex",
+        "default": "M",
+        "options": [
+            {"value": "M", "label": "Male"},
+            {"value": "F", "label": "Female"},
+        ],
+        "description": "Modest baseline modulus offset for females (≈ −5 %).",
+    },
+    "site": {
+        "type":    "enum",
+        "label":   "Anatomical site",
+        "default": "femur_cortical",
+        "options": [
+            {"value": "femur_cortical", "label": "Femur — cortical midshaft"},
+            {"value": "tibia_cortical", "label": "Tibia — cortical midshaft"},
+            {"value": "radius",         "label": "Distal radius"},
+            {"value": "vertebra",       "label": "Lumbar vertebra (trabecular)"},
+        ],
+        "description": (
+            "Site sets trabecular vs cortical parameterisation: vertebra uses "
+            "Currey's trabecular constants (a ≈ 0.55× cortical, n ≈ 3.0)."
+        ),
+    },
+    "disease": {
+        "type":    "multi",
+        "label":   "Disease state",
+        "default": [],
+        "options": [
+            {"value": "osteoporosis",
+             "label": "Osteoporosis",
+             "description": "Setpoint +500 µε; Paris C₀ ×1.5 (Vashishth 2003)."},
+            {"value": "glucocorticoid",
+             "label": "Chronic glucocorticoid therapy",
+             "description": "Anabolic rate cut to ≈20 % (Weinstein 2001)."},
+            {"value": "osteogenesis_imperfecta",
+             "label": "Osteogenesis imperfecta",
+             "description": "Modulus pre-factor ×0.6 (Imbert 2014)."},
+        ],
+    },
+}
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────

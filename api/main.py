@@ -45,7 +45,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneMindRetriever
-from reasoning.bone_relations import build_bone_registry
+from reasoning.bone_relations import build_bone_registry, COVARIATE_SCHEMA
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -735,6 +735,56 @@ _V2_PRESETS: dict[str, dict] = {
             "porosity — how much does da/dN climb via the Paris exponent?"
         ),
     },
+
+    # ── Phase 3: covariate-aware demos ────────────────────────────────────
+    "cov_old_vertebra_modulus": {
+        "mode": "forward",
+        "label": "Phase 3 · Same porosity, two patients: E in 75 F vertebra",
+        "target": "E",
+        "given": {"phi": 0.15},
+        "covariates": {
+            "age": 75, "sex": "F", "site": "vertebra",
+            "disease": ["osteoporosis"],
+        },
+        "description": (
+            "Predict elastic modulus at φ = 0.15 for a 75-year-old female "
+            "osteoporotic vertebra. Compare against the same φ on a young "
+            "femur — v2 gives ~3× different answer, v0 cannot."
+        ),
+    },
+    "cov_abductive_clinical_flip": {
+        "mode": "abductive",
+        "label": "Phase 3 · E = 12 GPa observation, infer φ in 75 F vertebra",
+        "target": "E",
+        "observed": 12.0,
+        "observed_std": 1.0,
+        "infer": ["phi"],
+        "covariates": {
+            "age": 75, "sex": "F", "site": "vertebra",
+            "disease": ["osteoporosis"],
+        },
+        "description": (
+            "Same observed E = 12 GPa, but in an elderly vertebra the "
+            "literature-shifted Currey constants imply φ is near-zero — "
+            "an entirely different clinical reading than the young-femur case."
+        ),
+    },
+    "cov_glucocorticoid_remodeling": {
+        "mode": "counterfactual",
+        "label": "Phase 3 · do(thickness ↓) on remodeling — with vs without steroids",
+        "target": "dBMD_dt",
+        "given": {"phi": 0.10, "R": 13.0, "t": 5.5, "M": 40_000.0},
+        "intervention": {"t": 2.5},
+        "covariates": {
+            "age": 65, "sex": "F",
+            "disease": ["glucocorticoid"],
+        },
+        "description": (
+            "Cortical thinning normally drives a strong anabolic response "
+            "(Frost). On chronic glucocorticoids the anabolic rate is cut "
+            "to ≈20 %, so the same intervention produces a much weaker Δ."
+        ),
+    },
 }
 
 
@@ -755,8 +805,13 @@ def _v2_var(reg, symbol: str) -> dict:
     }
 
 
-def _v2_render_forward(reg, target: str, given: dict[str, float]) -> dict:
-    fr = reg.forward(target, given=given, n_samples=4000, seed=12345)
+def _v2_render_forward(
+    reg, target: str, given: dict[str, float],
+    covariates: dict | None = None,
+) -> dict:
+    fr = reg.forward(
+        target, given=given, n_samples=4000, seed=12345, covariates=covariates,
+    )
     rel_by_name = {r.name: r for r in reg.relations()}
     steps = []
     for s in fr.steps:
@@ -775,12 +830,15 @@ def _v2_render_forward(reg, target: str, given: dict[str, float]) -> dict:
             "output_p95":    s.output_p95,
         })
     target_var = reg.variable(target)
+    chain = reg._find_chain(target, set(given.keys())) or []
     return {
         "mode":          "forward",
         "target":        target,
         "target_info":   _v2_var(reg, target),
         "given":         given,
         "given_info":    {k: _v2_var(reg, k) for k in given},
+        "covariates":    covariates or {},
+        "applied_shifts": reg.applied_shifts(chain, covariates),
         "chain_vars":    [_v2_var(reg, v) for v in fr.chain_vars],
         "steps":         steps,
         "result": {
@@ -804,6 +862,7 @@ def _v2_render_abductive(
     observed_std: float | None,
     infer: list[str] | None,
     given: dict[str, float] | None,
+    covariates: dict | None = None,
 ) -> dict:
     ar = reg.abductive(
         target,
@@ -813,6 +872,7 @@ def _v2_render_abductive(
         given=given,
         n_samples=8000,
         seed=12345,
+        covariates=covariates,
     )
     inferred = [
         {
@@ -827,6 +887,9 @@ def _v2_render_abductive(
         }
         for p in ar.inferred
     ]
+    # Re-resolve chain so we can attach the applied-shifts trace.
+    chain_given = {**(given or {}), **{v: 0.0 for v in (infer or [])}}
+    chain = reg._find_chain(target, set(chain_given.keys())) or []
     return {
         "mode":         "abductive",
         "target":       target,
@@ -835,6 +898,8 @@ def _v2_render_abductive(
         "observed_std": ar.observed_std,
         "given":        given or {},
         "given_info":   {k: _v2_var(reg, k) for k in (given or {})},
+        "covariates":   covariates or {},
+        "applied_shifts": reg.applied_shifts(chain, covariates),
         "chain_vars":   [_v2_var(reg, v) for v in ar.chain_vars],
         "inferred":     inferred,
         "result": {
@@ -850,12 +915,14 @@ def _v2_render_counterfactual(
     target: str,
     given: dict[str, float],
     intervention: dict[str, float],
+    covariates: dict | None = None,
 ) -> dict:
     cf = reg.counterfactual(
         target, given=given, intervention=intervention,
-        n_samples=4000, seed=12345,
+        n_samples=4000, seed=12345, covariates=covariates,
     )
     target_var = reg.variable(target)
+    chain = reg._find_chain(target, set(given.keys())) or []
     return {
         "mode":             "counterfactual",
         "target":           target,
@@ -864,6 +931,8 @@ def _v2_render_counterfactual(
         "given_info":       {k: _v2_var(reg, k) for k in given},
         "intervention":     intervention,
         "intervention_info": {k: _v2_var(reg, k) for k in intervention},
+        "covariates":       covariates or {},
+        "applied_shifts":   reg.applied_shifts(chain, covariates),
         "chain_vars":       [_v2_var(reg, v) for v in cf.chain_vars],
         "result": {
             "variable":        target,
@@ -895,6 +964,7 @@ def reason_v2_presets():
             {"id": pid, **p}
             for pid, p in _V2_PRESETS.items()
         ],
+        "covariates": COVARIATE_SCHEMA,
         "variables": [
             {
                 "symbol":      v.symbol,
@@ -932,6 +1002,35 @@ def _coerce_float_dict(d: dict, field_name: str) -> dict[str, float]:
         raise ValueError(f"Bad '{field_name}' values: {exc}") from exc
 
 
+def _normalise_covariates(raw) -> dict | None:
+    """
+    Accept the UI's loose covariate dict (age, sex, site, disease list)
+    and return a clean version, dropping unknown keys and coercing types.
+    Returns ``None`` if nothing meaningful was supplied so the registry
+    can short-circuit to the no-shift fast path.
+    """
+    if not raw:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("Field 'covariates' must be an object.")
+    out: dict = {}
+    if "age" in raw and raw["age"] is not None:
+        try:
+            out["age"] = float(raw["age"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Bad 'covariates.age': {exc}") from exc
+    if raw.get("sex") in {"M", "F"}:
+        out["sex"] = raw["sex"]
+    if raw.get("site"):
+        out["site"] = str(raw["site"])
+    diseases = raw.get("disease")
+    if diseases:
+        if isinstance(diseases, str):
+            diseases = [diseases]
+        out["disease"] = [str(d) for d in diseases]
+    return out or None
+
+
 @app.post("/api/reason_v2")
 def reason_v2(payload: dict):
     """
@@ -964,9 +1063,12 @@ def reason_v2(payload: dict):
 
     t0 = time.perf_counter()
     try:
+        covariates = _normalise_covariates(payload.get("covariates"))
         if mode == "forward":
             given = _coerce_float_dict(payload.get("given") or {}, "given")
-            out = _v2_render_forward(bone_registry, target, given)
+            out = _v2_render_forward(
+                bone_registry, target, given, covariates=covariates,
+            )
         elif mode == "abductive":
             observed = payload.get("observed")
             if observed is None:
@@ -985,6 +1087,7 @@ def reason_v2(payload: dict):
                 observed_std=observed_std,
                 infer=[str(v) for v in infer] if infer else None,
                 given=given,
+                covariates=covariates,
             )
         elif mode == "counterfactual":
             given = _coerce_float_dict(payload.get("given") or {}, "given")
@@ -995,6 +1098,7 @@ def reason_v2(payload: dict):
                 return {"error": "Field 'intervention' is required for counterfactual mode."}
             out = _v2_render_counterfactual(
                 bone_registry, target, given, intervention,
+                covariates=covariates,
             )
         else:
             return {"error": f"Unknown mode: {mode!r}. Use forward, abductive, or counterfactual."}

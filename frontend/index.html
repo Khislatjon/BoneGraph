@@ -244,6 +244,38 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
 .v2-posterior-stats .v2-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 
+/* Covariate panel */
+.v2-cov-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:920px;width:100%}
+.v2-cov-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.v2-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.v2-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.v2-cov-summary b{color:var(--text)}
+.v2-cov-row{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center}
+.v2-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
+.v2-cov-age{display:flex;align-items:center;gap:12px}
+.v2-cov-age input[type=range]{flex:1;accent-color:var(--amber)}
+.v2-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:right}
+.v2-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2)}
+.v2-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
+.v2-cov-sex button.active{background:var(--text);color:#fff}
+.v2-cov-site{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-family:var(--sans);font-size:12.5px;color:var(--text);min-width:220px}
+.v2-cov-diseases{display:flex;flex-wrap:wrap;gap:8px}
+.v2-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
+.v2-cov-disease.active{background:#fef5e4;border-color:var(--amber-border);color:#5a3a06}
+.v2-cov-disease input{accent-color:var(--amber)}
+.v2-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
+.v2-cov-reset:hover{color:var(--amber)}
+
+/* Applied-shifts banner */
+.v2-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.v2-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.v2-shifts-list{display:flex;flex-direction:column;gap:4px}
+.v2-shift-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:12px;color:#5a3a06}
+.v2-shift-key{font-family:var(--mono);font-weight:600;color:#7a5010;white-space:nowrap}
+.v2-shift-desc{color:#5a3a06}
+.v2-shift-cite{font-size:11px;color:#7a5010;font-style:italic}
+.v2-shift-vals{font-family:var(--mono);font-size:11.5px;color:#7a5010;white-space:nowrap}
+
 /* Counterfactual — baseline / intervened / delta cards */
 .v2-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 .v2-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
@@ -846,6 +878,25 @@ const V2_PRESETS = [
     label: 'do(ΔK ×2) on fatigue crack growth',
     desc: 'Doubling the cyclic stress-intensity range — how much does da/dN climb via the Paris exponent?',
   },
+  // Phase 3 — covariate-aware
+  {
+    id: 'cov_old_vertebra_modulus', mode: 'forward',
+    label: 'Phase 3 · Same φ, two patients: E in a 75 F vertebra',
+    desc: 'Same porosity, but covariate shifts (site, age, sex) drop E ≈ 3× — a contrast v0 cannot produce.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_abductive_clinical_flip', mode: 'abductive',
+    label: 'Phase 3 · E = 12 GPa → φ in young femur vs 75 F vertebra',
+    desc: 'Same observation, opposite porosity inference — clinical reading flips with patient context.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_glucocorticoid_remodeling', mode: 'counterfactual',
+    label: 'Phase 3 · do(thinning) on remodeling — under steroids',
+    desc: 'Same intervention, but glucocorticoid therapy suppresses the anabolic response to ≈20 %.',
+    syncCovariates: {age: 65, sex: 'F', disease: ['glucocorticoid']},
+  },
 ];
 
 const V2_MODE_META = {
@@ -859,6 +910,118 @@ const V2_MODE_META = {
                    hdr: 'Counterfactual inference',
                    blurb: 'Compare the target distribution under a do(...) intervention against the baseline state.'},
 };
+
+const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
+
+const V2_SITES = [
+  {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
+  {value: 'tibia_cortical', label: 'Tibia — cortical midshaft'},
+  {value: 'radius',         label: 'Distal radius'},
+  {value: 'vertebra',       label: 'Lumbar vertebra (trabecular)'},
+];
+
+const V2_DISEASES = [
+  {value: 'osteoporosis',            label: 'Osteoporosis'},
+  {value: 'glucocorticoid',          label: 'Glucocorticoids'},
+  {value: 'osteogenesis_imperfecta', label: 'OI'},
+];
+
+function v2IsDefaultCovariates(c) {
+  if (!c) return true;
+  if (c.age !== V2_DEFAULT_COVARIATES.age) return false;
+  if (c.sex !== V2_DEFAULT_COVARIATES.sex) return false;
+  if (c.site !== V2_DEFAULT_COVARIATES.site) return false;
+  const dis = c.disease || [];
+  return dis.length === 0;
+}
+
+function v2CovSummary(c) {
+  if (!c) return 'default — 30-year-old male femur, no disease';
+  const site = V2_SITES.find(s => s.value === c.site)?.label || c.site;
+  const dis = (c.disease || []).map(d => V2_DISEASES.find(x => x.value === d)?.label || d);
+  return `${c.age}-yr ${c.sex === 'F' ? 'female' : 'male'} · ${site}` + (dis.length ? ` · ${dis.join(', ')}` : '');
+}
+
+function V2CovariatePanel({covariates, onChange}) {
+  const c = covariates || V2_DEFAULT_COVARIATES;
+  const update = (patch) => onChange({...c, ...patch});
+  const toggleDisease = (value) => {
+    const cur = new Set(c.disease || []);
+    if (cur.has(value)) cur.delete(value); else cur.add(value);
+    update({disease: Array.from(cur)});
+  };
+  return (
+    <div className="v2-cov-panel">
+      <div className="v2-cov-hdr">
+        <span className="v2-cov-title">Patient covariates</span>
+        <span className="v2-cov-summary">{v2CovSummary(c)}</span>
+        {!v2IsDefaultCovariates(c) && (
+          <button className="v2-cov-reset" onClick={() => onChange({...V2_DEFAULT_COVARIATES})}>reset</button>
+        )}
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Age</div>
+        <div className="v2-cov-age">
+          <input type="range" min="18" max="95" step="1" value={c.age}
+            onChange={e => update({age: Number(e.target.value)})}/>
+          <span className="v2-cov-age-val">{c.age} yr</span>
+        </div>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Sex</div>
+        <div className="v2-cov-sex">
+          <button className={c.sex === 'M' ? 'active' : ''} onClick={() => update({sex: 'M'})}>Male</button>
+          <button className={c.sex === 'F' ? 'active' : ''} onClick={() => update({sex: 'F'})}>Female</button>
+        </div>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Site</div>
+        <select className="v2-cov-site" value={c.site} onChange={e => update({site: e.target.value})}>
+          {V2_SITES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Disease</div>
+        <div className="v2-cov-diseases">
+          {V2_DISEASES.map(d => {
+            const on = (c.disease || []).includes(d.value);
+            return (
+              <label key={d.value} className={`v2-cov-disease ${on ? 'active' : ''}`}>
+                <input type="checkbox" checked={on} onChange={() => toggleDisease(d.value)}/>
+                {d.label}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function V2ShiftsBanner({shifts, covariates}) {
+  if (!shifts || shifts.length === 0) return null;
+  // Group consecutive shifts on the same parameter so the cascade
+  // (e.g. Currey a: 7 → 3.85 → 2.12 → 2.01) reads as one trace.
+  return (
+    <div className="v2-shifts-banner">
+      <div className="v2-shifts-hdr">
+        Covariate-driven parameter shifts · {v2CovSummary(covariates)}
+      </div>
+      <div className="v2-shifts-list">
+        {shifts.map((s, i) => (
+          <div key={i} className="v2-shift-row">
+            <span className="v2-shift-key">{s.relation}·{s.parameter}</span>
+            <span className="v2-shift-desc">
+              {s.description}
+              {' '}<span className="v2-shift-cite">— {s.citation}</span>
+            </span>
+            <span className="v2-shift-vals">{v2Fmt(s.before_mean)} → {v2Fmt(s.after_mean)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Map a value in [lo, hi] to a percentage along a bar.
 function v2Pct(x, lo, hi) {
@@ -909,6 +1072,8 @@ function V2ForwardCard({result, elapsed}) {
 
       <V2ChainRow result={result}/>
 
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
       {result.steps.map((s, i) => (
         <div key={i} className="v2-step">
           <div className="v2-step-hdr">
@@ -954,6 +1119,8 @@ function V2AbductiveCard({result, elapsed}) {
       </div>
 
       <V2ChainRow result={result}/>
+
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
 
       <div className="v2-abd-hdr">
         <span>Observed <b>{result.target_info.symbol}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
@@ -1035,6 +1202,8 @@ function V2CounterfactualCard({result, elapsed}) {
 
       <V2ChainRow result={result}/>
 
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
       <div className="v2-cf-intervention">
         do(
         {Object.entries(result.intervention).map(([k, v], i) => (
@@ -1083,7 +1252,8 @@ function V2CounterfactualCard({result, elapsed}) {
   );
 }
 
-function V2Section({presets, onRun, loading, result, error, elapsed}) {
+function V2Section({presets, onRun, loading, result, error, elapsed,
+                    covariates, onCovariatesChange}) {
   const groups = [
     {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
     {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
@@ -1098,6 +1268,8 @@ function V2Section({presets, onRun, loading, result, error, elapsed}) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
+
       <div className="v2-preset-groups">
         {groups.map(g => {
           const meta = V2_MODE_META[g.mode];
@@ -1106,10 +1278,11 @@ function V2Section({presets, onRun, loading, result, error, elapsed}) {
               <div className="v2-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
               <div className="v2-presets" style={{justifyContent:'flex-start'}}>
                 {g.items.map(p => (
-                  <button key={p.id} className="v2-preset" onClick={() => onRun(p.id)} disabled={loading}>
+                  <button key={p.id} className="v2-preset" onClick={() => onRun(p)} disabled={loading}>
                     <span className="v2-preset-label">
                       <span className={`v2-mode-tag ${meta.cls}`}>{meta.tag}</span>
                       {p.label}
+                      {p.syncCovariates && <span className="v2-mode-tag v2-mode-counterfactual" style={{marginLeft:8}}>covariates</span>}
                     </span>
                     <span className="v2-preset-desc">{p.desc}</span>
                   </button>
@@ -1163,6 +1336,7 @@ function ReasonTab() {
   const [v2Loading, setV2Loading]     = useState(false);
   const [v2Error, setV2Error]         = useState('');
   const [v2Elapsed, setV2Elapsed]     = useState(null);
+  const [v2Covariates, setV2Covariates] = useState({...V2_DEFAULT_COVARIATES});
 
   const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
@@ -1182,15 +1356,23 @@ function ReasonTab() {
     setLoading(false);
   };
 
-  const reasonV2 = async (presetId) => {
+  const reasonV2 = async (preset) => {
     if (v2Loading) return;
+    // If the preset pins specific covariates (Phase 3 demos), sync the
+    // panel to them so the user can see what the run is actually using.
+    // The payload always reflects the (post-sync) panel state.
+    let covariatesForRequest = v2Covariates;
+    if (preset.syncCovariates) {
+      covariatesForRequest = {...V2_DEFAULT_COVARIATES, ...preset.syncCovariates};
+      setV2Covariates(covariatesForRequest);
+    }
     setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
     const t0 = performance.now();
     try {
       const r = await fetch('/api/reason_v2', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({preset: presetId}),
+        body: JSON.stringify({preset: preset.id, covariates: covariatesForRequest}),
       });
       const data = await r.json();
       setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
@@ -1215,7 +1397,7 @@ function ReasonTab() {
         </div>
         <div className="reason-desc">
           {v2Mode
-            ? 'Three inference modes over a single typed equation graph: forward (predict downstream from upstream), abductive (infer upstream from an observation), and counterfactual (do(...) interventions). Chains emerge from variables shared across laws; uncertainty is propagated by Monte-Carlo on every prediction.'
+            ? 'Three inference modes (forward / abductive / counterfactual) over a single typed equation graph, conditioned on patient covariates (age, sex, site, disease). Each law’s parameters are reshaped by literature-anchored shifts before propagation, so the same physical query yields different predictions for a 30-year-old femur and a 75-year-old vertebra.'
             : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
         </div>
         {!v2Mode && (
@@ -1243,6 +1425,8 @@ function ReasonTab() {
             result={v2Result}
             error={v2Error}
             elapsed={v2Elapsed}
+            covariates={v2Covariates}
+            onCovariatesChange={setV2Covariates}
           />
         )}
 

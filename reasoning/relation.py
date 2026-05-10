@@ -105,14 +105,43 @@ class Variable:
 
 
 @dataclass(frozen=True)
+class CovariateShift:
+    """
+    How a biological covariate (age, sex, anatomical site, disease state)
+    adjusts a Relation parameter's prior.
+
+    Each shift is a small, citation-anchored function
+    ``apply(base_mean, base_std, covariates) -> (mean, std)``.  Multiple
+    shifts on the same Prior compose in declaration order, so e.g.
+    Currey's pre-factor can absorb age, sex, site and disease effects
+    sequentially without any one shift knowing about the others.
+
+    For UI provenance, the registry records which shifts fired for the
+    active covariates so the user can see "Currey a: 7.0 → 4.2 because
+    site=vertebra, age=75, sex=F".
+    """
+
+    name: str                       # short id, e.g. "currey_a_age"
+    description: str                # one-liner for the UI / tooltip
+    citation: str
+    apply: Callable[[float, float, dict], tuple[float, float]]
+
+    def __call__(
+        self, mean: float, std: float, covariates: dict,
+    ) -> tuple[float, float]:
+        return self.apply(mean, std, covariates)
+
+
+@dataclass(frozen=True)
 class Prior:
     """
     A simple uncertainty specification for a Relation parameter.
 
-    Phase 1 keeps the distribution family small on purpose — we only
-    need enough variation to surface meaningful uncertainty in forward
-    predictions.  Phase 2 will swap this for proper Bayesian priors
-    once abductive inference is wired in.
+    Phase 1/2 kept Priors fixed-by-default.  Phase 3 allows each Prior
+    to declare a tuple of :class:`CovariateShift` adjusters that
+    reshape ``(mean, std)`` based on the active covariates supplied at
+    inference time.  When no covariates are given the shifts are
+    skipped and the Prior behaves exactly as in Phase 2.
 
     distribution
         ``"normal"``     — truncated normal with mean ``mean`` and std ``std``.
@@ -124,16 +153,66 @@ class Prior:
     std: float = 0.0
     distribution: str = "normal"
     citation: str = ""
+    shifts: tuple[CovariateShift, ...] = ()
 
-    def sample(self, rng: np.random.Generator, n: int) -> np.ndarray:
-        """Draw ``n`` samples from the prior."""
-        if self.distribution == "fixed" or self.std == 0.0:
-            return np.full(n, self.mean, dtype=float)
+    # ── Covariate resolution ──────────────────────────────────────────────
+
+    def resolve(self, covariates: dict | None) -> tuple[float, float]:
+        """Apply every shift and return the effective ``(mean, std)``."""
+        m, s = float(self.mean), float(self.std)
+        if not covariates or not self.shifts:
+            return m, s
+        for shift in self.shifts:
+            m, s = shift(m, s, covariates)
+        return m, s
+
+    def resolve_trace(
+        self, covariates: dict | None,
+    ) -> tuple[float, float, list[dict]]:
+        """
+        Like :meth:`resolve` but records the per-shift before/after values.
+
+        Only shifts that *actually changed* the parameter are recorded —
+        a shift that returns its inputs unchanged is treated as inactive
+        for the active covariates.  This keeps the UI banner free of
+        clutter when, say, ``disease=osteoporosis`` is unchecked.
+        """
+        m, s = float(self.mean), float(self.std)
+        trace: list[dict] = []
+        if not covariates or not self.shifts:
+            return m, s, trace
+        for shift in self.shifts:
+            new_m, new_s = shift(m, s, covariates)
+            if not (np.isclose(new_m, m) and np.isclose(new_s, s)):
+                trace.append({
+                    "name":        shift.name,
+                    "description": shift.description,
+                    "citation":    shift.citation,
+                    "before_mean": m,
+                    "before_std":  s,
+                    "after_mean":  new_m,
+                    "after_std":   new_s,
+                })
+            m, s = new_m, new_s
+        return m, s, trace
+
+    # ── Sampling ──────────────────────────────────────────────────────────
+
+    def sample(
+        self,
+        rng: np.random.Generator,
+        n: int,
+        covariates: dict | None = None,
+    ) -> np.ndarray:
+        """Draw ``n`` samples from the (possibly covariate-shifted) prior."""
+        mean, std = self.resolve(covariates)
+        if self.distribution == "fixed" or std == 0.0:
+            return np.full(n, mean, dtype=float)
         if self.distribution == "normal":
-            return rng.normal(self.mean, self.std, size=n)
+            return rng.normal(mean, std, size=n)
         if self.distribution == "lognormal":
             # mean/std parameterise the underlying normal in log space.
-            return rng.lognormal(self.mean, self.std, size=n)
+            return rng.lognormal(mean, std, size=n)
         raise ValueError(f"Unknown distribution: {self.distribution!r}")
 
 
@@ -222,6 +301,7 @@ class Relation:
         inputs: dict[str, np.ndarray | float],
         rng: np.random.Generator,
         n_samples: int,
+        covariates: dict | None = None,
     ) -> np.ndarray:
         """
         Sample ``n_samples`` predictions for :attr:`output`.
@@ -231,13 +311,17 @@ class Relation:
         length ``n_samples``.  Parameters are drawn fresh from their
         priors on every call so independent runs report independent
         uncertainty bands.
+
+        ``covariates`` is passed to each :class:`Prior` so that any
+        declared :class:`CovariateShift`\\ s reshape the parameter
+        distributions before sampling.
         """
         self._ensure_lambda()
         assert self._lambdified is not None
         assert self._arg_order is not None
 
         param_samples = {
-            name: prior.sample(rng, n_samples)
+            name: prior.sample(rng, n_samples, covariates=covariates)
             for name, prior in self.parameters.items()
         }
 
@@ -252,6 +336,23 @@ class Relation:
                 else:
                     args.append(np.asarray(v, dtype=float))
         return np.asarray(self._lambdified(*args), dtype=float)
+
+    def parameter_shift_trace(
+        self, covariates: dict | None,
+    ) -> dict[str, list[dict]]:
+        """
+        Per-parameter list of shifts that actually fired for ``covariates``.
+
+        Used by the API to populate the "covariate-driven parameter
+        shifts" banner under each derivation.  Returns the empty dict
+        when no shifts fire.
+        """
+        trace: dict[str, list[dict]] = {}
+        for name, prior in self.parameters.items():
+            _, _, items = prior.resolve_trace(covariates)
+            if items:
+                trace[name] = items
+        return trace
 
     # ── Display helpers ───────────────────────────────────────────────────────
 
@@ -473,6 +574,7 @@ class RelationRegistry:
         *,
         n_samples: int = 2000,
         seed: int | None = None,
+        covariates: dict | None = None,
     ) -> ForwardResult:
         """
         Predict ``target`` from ``given`` via Monte Carlo over the chain.
@@ -488,6 +590,10 @@ class RelationRegistry:
             Number of Monte Carlo samples for uncertainty propagation.
         seed : int | None
             Optional RNG seed for reproducibility.
+        covariates : dict | None
+            Biological covariates (age, sex, site, disease flags) that
+            reshape parameter priors via :class:`CovariateShift`.  ``None``
+            means "use literature-midpoint priors as in Phase 2".
 
         Raises
         ------
@@ -497,7 +603,9 @@ class RelationRegistry:
         chain = self._resolve_chain(target, given)
         rng = np.random.default_rng(seed)
         state = self._state_from_given(given, n_samples)
-        steps = self._run_chain(chain, state, rng, n_samples, record=True)
+        steps = self._run_chain(
+            chain, state, rng, n_samples, record=True, covariates=covariates,
+        )
         return self._build_forward_result(target, given, chain, state, steps)
 
     # ── Shared chain-evaluation primitives ────────────────────────────────────
@@ -544,6 +652,7 @@ class RelationRegistry:
         n_samples: int,
         *,
         record: bool,
+        covariates: dict | None = None,
     ) -> list[DerivationStep]:
         """
         Walk ``chain`` in order, evaluating each relation and pushing the
@@ -556,6 +665,7 @@ class RelationRegistry:
                 inputs={k: state[k] for k in rel.inputs},
                 rng=rng,
                 n_samples=n_samples,
+                covariates=covariates,
             )
             state[rel.output] = samples
             if record:
@@ -570,6 +680,28 @@ class RelationRegistry:
                     output_p95=float(np.percentile(samples, 95)),
                 ))
         return steps
+
+    def applied_shifts(
+        self,
+        chain: list[Relation],
+        covariates: dict | None,
+    ) -> list[dict]:
+        """
+        Collect every CovariateShift that fired across a chain.
+
+        Each entry: ``{relation, parameter, name, description, citation,
+        before_mean, before_std, after_mean, after_std}``.  Returned in
+        chain-order so the UI can render the shifts under the matching
+        derivation step.
+        """
+        out: list[dict] = []
+        if not covariates:
+            return out
+        for rel in chain:
+            for param, items in rel.parameter_shift_trace(covariates).items():
+                for it in items:
+                    out.append({"relation": rel.name, "parameter": param, **it})
+        return out
 
     @staticmethod
     def _chain_vars(chain: list[Relation]) -> list[str]:
@@ -630,6 +762,7 @@ class RelationRegistry:
         given: dict[str, float] | None = None,
         n_samples: int = 8000,
         seed: int | None = None,
+        covariates: dict | None = None,
     ) -> AbductiveResult:
         """
         Infer likely upstream causes of an observed downstream value.
@@ -697,7 +830,9 @@ class RelationRegistry:
                 )
 
         # Forward propagate (no per-step records — we only need target samples).
-        self._run_chain(chain, state, rng, n_samples, record=False)
+        self._run_chain(
+            chain, state, rng, n_samples, record=False, covariates=covariates,
+        )
         pred = state[target]
 
         if observed_std is None or observed_std <= 0:
@@ -762,6 +897,7 @@ class RelationRegistry:
         *,
         n_samples: int = 4000,
         seed: int | None = None,
+        covariates: dict | None = None,
     ) -> CounterfactualResult:
         """
         Compare target distributions under baseline vs intervened root values.
@@ -791,14 +927,20 @@ class RelationRegistry:
         chain = self._resolve_chain(target, given)
         rng_base = np.random.default_rng(seed)
         state_b = self._state_from_given(given, n_samples)
-        self._run_chain(chain, state_b, rng_base, n_samples, record=False)
+        self._run_chain(
+            chain, state_b, rng_base, n_samples,
+            record=False, covariates=covariates,
+        )
         base = state_b[target]
 
-        # Intervened pass — same seed, same chain.
+        # Intervened pass — same seed, same chain, same covariates.
         intervened_given = {**given, **intervention}
         rng_int = np.random.default_rng(seed)
         state_i = self._state_from_given(intervened_given, n_samples)
-        self._run_chain(chain, state_i, rng_int, n_samples, record=False)
+        self._run_chain(
+            chain, state_i, rng_int, n_samples,
+            record=False, covariates=covariates,
+        )
         interv = state_i[target]
 
         delta = interv - base
