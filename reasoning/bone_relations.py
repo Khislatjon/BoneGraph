@@ -282,35 +282,59 @@ _VARIABLES: list[Variable] = [
         name="porosity",
         unit="",
         lo=0.0, hi=0.95,
-        description="Volume fraction of pores in the tissue.",
+        description=(
+            "Volume fraction of pores (porosity, void fraction) in the bone "
+            "matrix. Cortical bone is roughly 5–15 % porous; trabecular "
+            "regions span 50–95 %."
+        ),
     ),
     Variable(
         symbol="rho",
         name="apparent density",
         unit="g/cm³",
         lo=0.05, hi=2.10,
-        description="Mass per unit total volume (including pores).",
+        description=(
+            "Apparent density — mass per unit total volume including pores. "
+            "Clinically reported as bone mineral density (BMD); structural "
+            "stiffness scales as a power of this quantity."
+        ),
     ),
     Variable(
         symbol="E",
         name="elastic modulus",
         unit="GPa",
         lo=0.001, hi=30.0,
-        description="Stiffness under uniaxial loading.",
+        description=(
+            "Elastic (Young's) modulus — the stiffness coefficient relating "
+            "stress to strain under uniaxial loading. A measure of how rigid "
+            "or soft the bone tissue is."
+        ),
     ),
     Variable(
         symbol="dK",
         name="stress-intensity range",
         unit="MPa·√m",
         lo=0.0, hi=6.0,
-        description="Per-cycle stress-intensity factor driving fatigue.",
+        description=(
+            "Cyclic load parameter ΔK (delta K) — the stress-intensity range "
+            "experienced by a bone microcrack under each loading cycle. The "
+            "input variable of Paris-law fatigue analysis: higher cyclic "
+            "load → larger ΔK → faster fatigue damage. Used for predicting "
+            "stiffness loss or fracture risk under repeated mechanical "
+            "loading."
+        ),
     ),
     Variable(
         symbol="da_dN",
         name="crack growth rate",
         unit="m/cycle",
         lo=1.0e-14, hi=1.0e-3,
-        description="Fatigue crack extension per loading cycle.",
+        description=(
+            "Fatigue crack growth rate da/dN — how far a microcrack extends "
+            "per cycle of cyclic mechanical loading in cortical bone. The "
+            "outcome variable of Paris-law fatigue. Drives long-term "
+            "stiffness loss and bone-failure risk under repeated loading."
+        ),
     ),
     # Cross-section geometry — femoral midshaft regime.
     Variable(
@@ -318,50 +342,75 @@ _VARIABLES: list[Variable] = [
         name="cortical outer radius",
         unit="mm",
         lo=5.0, hi=25.0,
-        description="Periosteal radius of the cortical shell.",
+        description=(
+            "Periosteal (outer) radius of the cortical shell. Sets the "
+            "diaphyseal cross-section's outer geometry."
+        ),
     ),
     Variable(
         symbol="t",
         name="cortical thickness",
         unit="mm",
         lo=0.5, hi=8.0,
-        description="Wall thickness of the cortical shell (R − R_inner).",
+        description=(
+            "Cortical wall thickness — the thickness of the cortical shell "
+            "(outer radius minus inner radius). Thins progressively in "
+            "osteoporosis."
+        ),
     ),
     Variable(
         symbol="I_section",
         name="second moment of area",
         unit="mm⁴",
         lo=1.0, hi=1.0e5,
-        description="Geometric stiffness of the hollow-cylinder cross section.",
+        description=(
+            "Second moment of area — geometric stiffness of a hollow "
+            "cortical cross-section. Drives bending stiffness and flexural "
+            "rigidity of the diaphysis."
+        ),
     ),
     Variable(
         symbol="M",
         name="bending moment",
         unit="N·mm",
         lo=0.0, hi=1.0e6,
-        description="Applied bending moment on the cross section.",
+        description=(
+            "Applied bending moment on the cross-section — the mechanical "
+            "loading magnitude during gait, fall, or exercise."
+        ),
     ),
     Variable(
         symbol="sigma",
         name="bending stress",
         unit="MPa",
         lo=0.0, hi=300.0,
-        description="Maximum fibre stress under bending.",
+        description=(
+            "Maximum fibre bending stress — the peak compressive or tensile "
+            "stress at the outer surface under bending. Related to bending "
+            "strength."
+        ),
     ),
     Variable(
         symbol="eps",
         name="peak strain",
         unit="µε",
         lo=0.0, hi=10000.0,
-        description="Peak principal strain magnitude in microstrain.",
+        description=(
+            "Peak principal strain magnitude in microstrain (µε). The input "
+            "to Frost's mechanostat — sets whether the bone responds with "
+            "formation, homeostasis, or resorption."
+        ),
     ),
     Variable(
         symbol="dBMD_dt",
-        name="BMD adaptation rate",
+        name="bone adaptation rate",
         unit="%/yr",
         lo=-5.0, hi=5.0,
-        description="Annual change in bone mineral density "
-                    "(positive = formation, negative = resorption).",
+        description=(
+            "Annual percentage rate of bone-density change. Captures bone "
+            "remodeling outcomes: net formation, net resorption, or "
+            "homeostasis. The Frost-mechanostat outcome variable."
+        ),
     ),
 ]
 

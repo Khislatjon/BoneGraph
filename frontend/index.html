@@ -266,6 +266,27 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
 .v2-cov-reset:hover{color:var(--amber)}
 
+/* Free-text v2 query bar */
+.v2-ask-bar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 6px 6px 18px;max-width:920px;width:100%}
+.v2-ask-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--sans);font-size:14px;color:var(--text);padding:10px 4px}
+.v2-ask-input::placeholder{color:var(--text3)}
+.v2-ask-btn{background:var(--text);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
+.v2-ask-btn:disabled{opacity:.5;cursor:not-allowed}
+.v2-ask-hint{font-size:11px;color:var(--text3);text-align:center;max-width:920px;font-style:italic}
+
+/* Routing banner */
+.v2-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.v2-routing-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.v2-routing-hdr b{color:var(--text);font-family:var(--mono)}
+.v2-routing-rationale{font-size:12.5px;color:var(--text2);font-style:italic;line-height:1.45}
+.v2-routing-matches{display:flex;flex-wrap:wrap;gap:6px}
+.v2-routing-match{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-family:var(--mono)}
+.v2-routing-match b{color:var(--text)}
+.v2-routing-score{color:var(--text3);font-size:10.5px}
+.v2-routing-source{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px}
+.v2-routing-source.llm{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.v2-routing-source.fallback{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
 /* Applied-shifts banner */
 .v2-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .v2-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
@@ -998,6 +1019,38 @@ function V2CovariatePanel({covariates, onChange}) {
   );
 }
 
+function V2RoutingBanner({routing}) {
+  if (!routing) return null;
+  return (
+    <div className="v2-routing">
+      <div className="v2-routing-hdr">
+        <span className={`v2-routing-source ${routing.source}`}>{routing.source}</span>
+        <span>routed as <b>{routing.mode}</b> → target <b>{routing.target}</b></span>
+        {routing.target_score > 0 && (
+          <span className="v2-routing-score">(target match {(routing.target_score * 100).toFixed(0)}%)</span>
+        )}
+        {routing.confidence > 0 && (
+          <span className="v2-routing-score">· confidence {(routing.confidence * 100).toFixed(0)}%</span>
+        )}
+      </div>
+      {routing.rationale && (
+        <div className="v2-routing-rationale">{routing.rationale}</div>
+      )}
+      {routing.matched_variables && routing.matched_variables.length > 0 && (
+        <div className="v2-routing-matches">
+          {routing.matched_variables.map((m, i) => (
+            <span key={i} className="v2-routing-match">
+              <b>{m.symbol}</b> · {m.name}
+              {m.unit && <span style={{color:'var(--text3)'}}> · {m.unit}</span>}
+              <span className="v2-routing-score">{(m.score * 100).toFixed(0)}%</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function V2ShiftsBanner({shifts, covariates}) {
   if (!shifts || shifts.length === 0) return null;
   // Group consecutive shifts on the same parameter so the cascade
@@ -1070,6 +1123,8 @@ function V2ForwardCard({result, elapsed}) {
         </div>
       </div>
 
+      <V2RoutingBanner routing={result.routing}/>
+
       <V2ChainRow result={result}/>
 
       <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
@@ -1117,6 +1172,8 @@ function V2AbductiveCard({result, elapsed}) {
           ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
         </div>
       </div>
+
+      <V2RoutingBanner routing={result.routing}/>
 
       <V2ChainRow result={result}/>
 
@@ -1200,6 +1257,8 @@ function V2CounterfactualCard({result, elapsed}) {
         </div>
       </div>
 
+      <V2RoutingBanner routing={result.routing}/>
+
       <V2ChainRow result={result}/>
 
       <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
@@ -1252,8 +1311,16 @@ function V2CounterfactualCard({result, elapsed}) {
   );
 }
 
+const V2_ASK_EXAMPLES = [
+  'bone stiffness under cyclic load',
+  'how does porosity affect modulus in a 70-year-old female?',
+  'why is this patient’s E only 12 GPa?',
+  'what if porosity dropped to 5%?',
+];
+
 function V2Section({presets, onRun, loading, result, error, elapsed,
-                    covariates, onCovariatesChange}) {
+                    covariates, onCovariatesChange,
+                    query, onQueryChange, onAsk}) {
   const groups = [
     {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
     {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
@@ -1268,6 +1335,34 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <div className="v2-ask-bar">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" style={{color:'var(--text3)'}}>
+          <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+          <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        </svg>
+        <input
+          className="v2-ask-input"
+          placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+          value={query || ''}
+          onChange={e => onQueryChange(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onAsk()}
+          disabled={loading}/>
+        <button className="v2-ask-btn" onClick={() => onAsk()}
+                disabled={loading || !(query || '').trim()}>
+          {loading ? <Spinner/> : 'Reason'}
+        </button>
+      </div>
+      <div className="v2-ask-hint">
+        One LLM call routes the query to a mode; SPECTER2 anchors the variables; the reasoner stays deterministic.
+        Try: {V2_ASK_EXAMPLES.map((ex, i) => (
+          <Fragment key={i}>
+            {i > 0 && ' · '}
+            <a href="#" onClick={e => { e.preventDefault(); onQueryChange(ex); onAsk(ex); }}
+               style={{color:'var(--amber)',textDecoration:'none'}}>{ex}</a>
+          </Fragment>
+        ))}
+      </div>
+
       <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
 
       <div className="v2-preset-groups">
@@ -1337,6 +1432,7 @@ function ReasonTab() {
   const [v2Error, setV2Error]         = useState('');
   const [v2Elapsed, setV2Elapsed]     = useState(null);
   const [v2Covariates, setV2Covariates] = useState({...V2_DEFAULT_COVARIATES});
+  const [v2Query, setV2Query]           = useState('');
 
   const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
@@ -1354,6 +1450,26 @@ function ReasonTab() {
       setResult(data);
     } catch { setError('Could not generate hypothesis chains. Please try again.'); }
     setLoading(false);
+  };
+
+  const reasonV2Ask = async (queryOverride) => {
+    const q = (queryOverride ?? v2Query).trim();
+    if (!q || v2Loading) return;
+    setV2Query(q);
+    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason_v2/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, covariates: v2Covariates}),
+      });
+      const data = await r.json();
+      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setV2Error(data.error);
+      else setV2Result(data);
+    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
+    setV2Loading(false);
   };
 
   const reasonV2 = async (preset) => {
@@ -1427,6 +1543,9 @@ function ReasonTab() {
             elapsed={v2Elapsed}
             covariates={v2Covariates}
             onCovariatesChange={setV2Covariates}
+            query={v2Query}
+            onQueryChange={setV2Query}
+            onAsk={reasonV2Ask}
           />
         )}
 

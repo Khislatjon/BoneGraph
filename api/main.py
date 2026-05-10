@@ -26,6 +26,9 @@ POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
 POST /api/reason_v2        — v2 equation-graph reasoner (forward / abductive /
                               counterfactual), JSON response
+POST /api/reason_v2/ask    — Phase 4 free-text entry: single LLM call routes
+                              the query, SPECTER2 anchors the variables, the
+                              deterministic reasoner runs.
 GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
@@ -46,6 +49,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneMindRetriever
 from reasoning.bone_relations import build_bone_registry, COVARIATE_SCHEMA
+from reasoning.semantic_anchor import SemanticVariableAnchor
+from reasoning.query_router import QueryRouter
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -149,6 +154,12 @@ lrm = LRM()
 
 print("Building v2 equation-graph registry...")
 bone_registry = build_bone_registry()
+
+print("Wiring v2 semantic anchor (SPECTER2)...")
+semantic_anchor = SemanticVariableAnchor(bone_registry, retriever=retriever)
+
+print("Wiring v2 query router (Ollama)...")
+query_router = QueryRouter(ollama_url=OLLAMA_URL, model=GUARD_MODEL)
 
 print("Loading novelty classifier...")
 novelty_clf = NoveltyClassifier(
@@ -1106,6 +1117,221 @@ def reason_v2(payload: dict):
         return {"error": str(exc)}
     out["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return out
+
+
+# ── Phase 4: free-text routing → semantic anchor → deterministic reasoner ────
+
+
+# Literature midpoints used when the router/anchor doesn't supply a value.
+# Chain roots only — derived variables are never given directly.
+_V2_DEFAULT_VALUES: dict[str, float] = {
+    "phi": 0.10,
+    "dK":  1.0,
+    "R":   13.0,
+    "t":   4.5,
+    "M":   40_000.0,
+}
+
+# Minimum cosine similarity for a SPECTER2 match to be trusted as an
+# anchor.  Below this we fall back to the top-1 result regardless —
+# the threshold guards against the router emitting an empty hint.
+_V2_ANCHOR_MIN_SCORE = 0.30
+
+
+def _v2_anchor_symbol(
+    text: str | None, fallback_symbol: str | None = None,
+) -> tuple[str | None, float]:
+    """Map a free-text hint to a variable symbol via SPECTER2 cosine."""
+    if not text:
+        return fallback_symbol, 0.0
+    match = semantic_anchor.best_match(text, min_score=_V2_ANCHOR_MIN_SCORE)
+    if match is None:
+        return fallback_symbol, 0.0
+    return match.symbol, match.score
+
+
+def _v2_pick_target(
+    target_hint: str | None,
+    candidate_matches: list,
+) -> tuple[str, float]:
+    """
+    Choose a forward-inference target that the registry can actually solve for.
+
+    The semantic anchor sometimes ranks a chain root highest (e.g.
+    ``phi`` for "how does porosity affect modulus?").  Chain roots can
+    never be a forward target because no Relation produces them, so we
+    walk down the top-k list until we hit a variable that has at least
+    one producer.  Falls back to ``"E"`` if nothing qualifies.
+    """
+    producers = bone_registry._producers
+    # First try the explicit hint.
+    if target_hint:
+        candidates = semantic_anchor.top_k(target_hint, k=5)
+        for m in candidates:
+            if m.symbol in producers and m.score >= _V2_ANCHOR_MIN_SCORE:
+                return m.symbol, m.score
+    # Then fall back to the query-wide top-k that the router already attached.
+    for m in candidate_matches or []:
+        if m.symbol in producers:
+            return m.symbol, m.score
+    return "E", 0.0
+
+
+def _v2_chain_roots(target: str) -> list[str]:
+    """Chain roots required to reach ``target``; literature defaults fill them."""
+    given_set = set(_V2_DEFAULT_VALUES.keys())
+    chain = bone_registry._find_chain(target, given_set)
+    if chain is None:
+        return []
+    return bone_registry.chain_root_inputs(chain)
+
+
+def _v2_build_ask_payload(
+    decision, query: str,
+) -> tuple[dict, dict]:
+    """
+    Translate a :class:`RouterDecision` into a /api/reason_v2 payload.
+
+    Returns ``(payload, routing_block)``.  ``payload`` is suitable for
+    direct dispatch through :func:`reason_v2`; ``routing_block`` is
+    surfaced in the response so the UI can show *why* a particular
+    mode + target was chosen.
+    """
+    mode = decision.mode if decision.mode in {"forward", "abductive", "counterfactual"} \
+        else "forward"
+
+    # 1) Target: trust the router's text hint, fall back to the top
+    #    semantic match against the raw query.  Constrained to variables
+    #    that have a producer so the chain finder can actually solve it.
+    target, target_score = _v2_pick_target(
+        decision.target_hint, decision.matched_variables,
+    )
+
+    payload: dict = {"mode": mode, "target": target}
+
+    # 2) Mode-specific extraction.
+    given_overrides: dict[str, float] = {}
+    for phrase, value in (decision.given_hints or {}).items():
+        sym, _ = _v2_anchor_symbol(phrase)
+        if sym in _V2_DEFAULT_VALUES:
+            given_overrides[sym] = float(value)
+
+    if mode == "forward":
+        roots = _v2_chain_roots(target)
+        given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+        given.update(given_overrides)
+        payload["given"] = given
+
+    elif mode == "abductive":
+        if decision.observed_value is None:
+            # Without a number we cannot do abduction; fall back to forward.
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            payload = {"mode": "forward", "target": target, "given": given}
+        else:
+            payload["observed"] = float(decision.observed_value)
+            if decision.observed_units:
+                payload["observed_units"] = decision.observed_units
+            # Infer porosity by default — the canonical clinical upstream.
+            # Pin every other chain root at literature midpoints.
+            roots = _v2_chain_roots(target)
+            infer = ["phi"] if "phi" in roots else (roots[:1] if roots else [])
+            payload["infer"] = infer
+            given = {
+                r: _V2_DEFAULT_VALUES.get(r, 0.0)
+                for r in roots if r not in infer
+            }
+            given.update({k: v for k, v in given_overrides.items() if k not in infer})
+            payload["given"] = given
+
+    elif mode == "counterfactual":
+        interv_sym, _ = _v2_anchor_symbol(decision.intervention_hint)
+        if interv_sym is None or decision.intervention_value is None or \
+                interv_sym not in _V2_DEFAULT_VALUES:
+            # Missing intervention — degrade to forward.
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            payload = {"mode": "forward", "target": target, "given": given}
+        else:
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            # Ensure the intervention key has a meaningful baseline.
+            if interv_sym not in given:
+                given[interv_sym] = _V2_DEFAULT_VALUES.get(interv_sym, 0.0)
+            payload["given"] = given
+            payload["intervention"] = {interv_sym: float(decision.intervention_value)}
+
+    routing_block = {
+        "query":      query,
+        "mode":       payload["mode"],
+        "target":     target,
+        "target_info": _v2_var(bone_registry, target),
+        "target_score": round(target_score, 3),
+        "rationale":  decision.rationale,
+        "confidence": round(decision.confidence, 3),
+        "source":     decision.source,
+        "matched_variables": [
+            {
+                "symbol":      m.symbol,
+                "name":        m.name,
+                "unit":        m.unit,
+                "score":       round(m.score, 3),
+            }
+            for m in decision.matched_variables
+        ],
+    }
+    return payload, routing_block
+
+
+@app.post("/api/reason_v2/ask")
+def reason_v2_ask(payload: dict):
+    """
+    Free-text entry point into the v2 reasoner.
+
+    Request shape::
+
+        {"query": "bone stiffness under cyclic load",
+         "covariates": {"age": 60, "sex": "F", "site": "femur_cortical", "disease": []}}
+
+    Pipeline:
+      1. One Ollama call classifies mode and extracts numeric anchors.
+      2. SPECTER2 cosine similarity maps text hints (and the raw query)
+         to Variable symbols.
+      3. Any chain roots not supplied by the user are filled from
+         literature midpoints so the deterministic reasoner has a
+         complete payload.
+      4. The existing forward / abductive / counterfactual renderer
+         runs unchanged.
+
+    The response is the standard v2 result plus a ``routing`` block
+    describing which mode / target the router chose, the matched
+    variables (with cosine scores) and the rationale string.
+    """
+    query = (payload.get("query") or "").strip()
+    if not query:
+        return {"error": "Field 'query' is required."}
+
+    t0 = time.perf_counter()
+    try:
+        decision = query_router.route(query, anchor=semantic_anchor)
+    except Exception as exc:
+        return {"error": f"Query router failed: {exc}"}
+
+    inner_payload, routing_block = _v2_build_ask_payload(decision, query)
+    # Forward covariates through verbatim — the router does not touch them.
+    if payload.get("covariates"):
+        inner_payload["covariates"] = payload["covariates"]
+
+    result = reason_v2(inner_payload)
+    if "error" in result:
+        result["routing"] = routing_block
+        return result
+    result["routing"] = routing_block
+    result["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return result
 
 
 @app.post("/api/analyse")
