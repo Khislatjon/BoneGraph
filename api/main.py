@@ -24,7 +24,8 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
-POST /api/reason_v2        — v2 equation-graph forward inference, JSON response
+POST /api/reason_v2        — v2 equation-graph reasoner (forward / abductive /
+                              counterfactual), JSON response
 GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
@@ -612,58 +613,150 @@ def reason(
 
 
 # ── v2 equation-graph reasoner ────────────────────────────────────────────────
-# Phase 1: forward inference over a typed equation graph (Currey + density-
-# modulated Paris + density-from-porosity bridge).  The chain of relations is
-# discovered by traversing shared variable symbols, not pre-encoded.
+# Phase 2: forward / abductive / counterfactual inference over a typed equation
+# graph (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus the
+# density / inertia / strain bridges).  The chain of Relations is discovered
+# by traversing shared variable symbols, not pre-encoded.
 
 _V2_PRESETS: dict[str, dict] = {
-    "porosity_to_modulus": {
-        "label": "Porosity → elastic modulus",
+    # ── Forward ────────────────────────────────────────────────────────────
+    "fwd_porosity_to_modulus": {
+        "mode": "forward",
+        "label": "Forward · Porosity → elastic modulus",
         "target": "E",
         "given": {"phi": 0.10},
         "description": (
-            "How a 10% porosity sample maps to elastic modulus via "
+            "How a 10 % porosity sample maps to elastic modulus via "
             "the density bridge and Currey's law."
         ),
     },
-    "porosity_to_crack_growth": {
-        "label": "Porosity → fatigue crack growth (at ΔK = 1.0 MPa·√m)",
+    "fwd_porosity_to_crack_growth": {
+        "mode": "forward",
+        "label": "Forward · Porosity → crack growth (at ΔK = 1.0 MPa·√m)",
         "target": "da_dN",
         "given": {"phi": 0.10, "dK": 1.0},
         "description": (
-            "How a 10% porosity sample maps to fatigue crack growth via "
+            "How a 10 % porosity sample maps to fatigue crack growth via "
             "the density bridge and the Vashishth-modulated Paris law."
         ),
     },
-    "low_density_paris": {
-        "label": "Trabecular regime → fatigue crack growth (φ=0.5, ΔK=0.6)",
-        "target": "da_dN",
-        "given": {"phi": 0.50, "dK": 0.6},
+    "fwd_geometry_to_remodeling": {
+        "mode": "forward",
+        "label": "Forward · Loading + geometry → BMD adaptation rate",
+        "target": "dBMD_dt",
+        "given": {"phi": 0.10, "R": 13.0, "t": 4.5, "M": 150_000.0},
         "description": (
-            "Demonstration of the chain in the trabecular regime, where "
-            "lower density inflates the Paris prefactor."
+            "Femoral midshaft under a 150 N·m bending moment: full chain "
+            "through inertia → stress → strain → Frost mechanostat."
+        ),
+    },
+
+    # ── Abductive ──────────────────────────────────────────────────────────
+    "abd_low_modulus": {
+        "mode": "abductive",
+        "label": "Abductive · Patient with low elastic modulus (E = 12 GPa)",
+        "target": "E",
+        "observed": 12.0,
+        "observed_std": 1.0,
+        "infer": ["phi"],
+        "description": (
+            "A cortical sample measures E = 12 ± 1 GPa. Invert Currey + "
+            "density bridge to recover the most likely porosity."
+        ),
+    },
+    "abd_high_crack_growth": {
+        "mode": "abductive",
+        "label": "Abductive · Elevated fatigue crack growth (da/dN = 5e-9 m/cycle)",
+        "target": "da_dN",
+        "observed": 5.0e-9,
+        "observed_std": 1.0e-9,
+        "infer": ["phi"],
+        "given": {"dK": 1.0},
+        "description": (
+            "Observed da/dN at ΔK = 1.0 MPa·√m is high. Invert "
+            "Paris–Vashishth to recover the porosity that explains it."
+        ),
+    },
+    "abd_moderate_remodeling": {
+        "mode": "abductive",
+        "label": "Abductive · Mid-zone adaptation response (dBMD/dt = +1.0 %/yr)",
+        "target": "dBMD_dt",
+        # +1.0 %/yr sits in the Frost transition window, so the chosen
+        # cyclic moment is genuinely informative.  Inferring only M (with
+        # cortex thickness held at the literature midpoint) keeps the
+        # marginal interpretable; saturation values like +1.8 would flatten
+        # the posterior.
+        "observed": 1.0,
+        "observed_std": 0.2,
+        "infer": ["M"],
+        "given": {"phi": 0.10, "R": 13.0, "t": 4.5},
+        "description": (
+            "A patient gains 1.0 ± 0.2 %/yr cortical BMD. With porosity, "
+            "radius and cortex thickness pinned at literature midpoints, "
+            "infer the cyclic bending moment that explains the response."
+        ),
+    },
+
+    # ── Counterfactual ─────────────────────────────────────────────────────
+    "cf_drop_porosity": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(porosity = 0.05) on elastic modulus",
+        "target": "E",
+        "given": {"phi": 0.30},
+        "intervention": {"phi": 0.05},
+        "description": (
+            "If we could reduce porosity from 30 % to 5 % (sealed cortex), "
+            "how much would elastic modulus change?"
+        ),
+    },
+    "cf_thinner_cortex": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(cortical thickness = 2.5 mm) on remodeling",
+        "target": "dBMD_dt",
+        # Baseline picks a moderate moment so peak strain sits in the
+        # Frost transition window — otherwise the system is saturated
+        # and the intervention can't show a visible Δ.
+        "given": {"phi": 0.10, "R": 13.0, "t": 5.5, "M": 40_000.0},
+        "intervention": {"t": 2.5},
+        "description": (
+            "Thinning the cortex from 5.5 mm to 2.5 mm (osteoporotic "
+            "progression) raises bending stress and strain — does the "
+            "Frost response intensify?"
+        ),
+    },
+    "cf_double_load": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(moment ×2) on fatigue crack growth",
+        "target": "da_dN",
+        "given": {"phi": 0.10, "dK": 0.8},
+        "intervention": {"dK": 1.6},
+        "description": (
+            "Doubling the cyclic stress-intensity range under the same "
+            "porosity — how much does da/dN climb via the Paris exponent?"
         ),
     },
 }
 
 
-def _v2_render(reg, target: str, given: dict[str, float]) -> dict:
-    """Run a forward inference and shape the result for the front-end."""
+# ── Result-shape helpers ─────────────────────────────────────────────────────
+
+
+def _v2_var(reg, symbol: str) -> dict:
+    v = reg.variable(symbol)
+    if v is None:
+        return {"symbol": symbol, "name": symbol, "unit": ""}
+    return {
+        "symbol":      v.symbol,
+        "name":        v.name,
+        "unit":        v.unit,
+        "lo":          v.lo,
+        "hi":          v.hi,
+        "description": v.description,
+    }
+
+
+def _v2_render_forward(reg, target: str, given: dict[str, float]) -> dict:
     fr = reg.forward(target, given=given, n_samples=4000, seed=12345)
-
-    def _var(symbol: str) -> dict:
-        v = reg.variable(symbol)
-        if v is None:
-            return {"symbol": symbol, "name": symbol, "unit": ""}
-        return {
-            "symbol": v.symbol,
-            "name": v.name,
-            "unit": v.unit,
-            "lo": v.lo,
-            "hi": v.hi,
-            "description": v.description,
-        }
-
     rel_by_name = {r.name: r for r in reg.relations()}
     steps = []
     for s in fr.steps:
@@ -681,14 +774,14 @@ def _v2_render(reg, target: str, given: dict[str, float]) -> dict:
             "output_p5":     s.output_p5,
             "output_p95":    s.output_p95,
         })
-
     target_var = reg.variable(target)
     return {
+        "mode":          "forward",
         "target":        target,
-        "target_info":   _var(target),
+        "target_info":   _v2_var(reg, target),
         "given":         given,
-        "given_info":    {k: _var(k) for k in given},
-        "chain_vars":    [_var(v) for v in fr.chain_vars],
+        "given_info":    {k: _v2_var(reg, k) for k in given},
+        "chain_vars":    [_v2_var(reg, v) for v in fr.chain_vars],
         "steps":         steps,
         "result": {
             "variable":             target,
@@ -704,13 +797,102 @@ def _v2_render(reg, target: str, given: dict[str, float]) -> dict:
     }
 
 
+def _v2_render_abductive(
+    reg,
+    target: str,
+    observed: float,
+    observed_std: float | None,
+    infer: list[str] | None,
+    given: dict[str, float] | None,
+) -> dict:
+    ar = reg.abductive(
+        target,
+        observed=observed,
+        observed_std=observed_std,
+        infer=infer,
+        given=given,
+        n_samples=8000,
+        seed=12345,
+    )
+    inferred = [
+        {
+            "variable":       _v2_var(reg, p.variable),
+            "prior_mean":     p.prior_mean,
+            "prior_p5":       p.prior_p5,
+            "prior_p95":      p.prior_p95,
+            "posterior_mean": p.posterior_mean,
+            "posterior_p5":   p.posterior_p5,
+            "posterior_p95":  p.posterior_p95,
+            "shift_score":    p.shift_score,
+        }
+        for p in ar.inferred
+    ]
+    return {
+        "mode":         "abductive",
+        "target":       target,
+        "target_info":  _v2_var(reg, target),
+        "observed":     ar.observed,
+        "observed_std": ar.observed_std,
+        "given":        given or {},
+        "given_info":   {k: _v2_var(reg, k) for k in (given or {})},
+        "chain_vars":   [_v2_var(reg, v) for v in ar.chain_vars],
+        "inferred":     inferred,
+        "result": {
+            "effective_sample_size": ar.effective_sample_size,
+            "n_samples":             ar.n_samples,
+        },
+        "citations":    ar.citations,
+    }
+
+
+def _v2_render_counterfactual(
+    reg,
+    target: str,
+    given: dict[str, float],
+    intervention: dict[str, float],
+) -> dict:
+    cf = reg.counterfactual(
+        target, given=given, intervention=intervention,
+        n_samples=4000, seed=12345,
+    )
+    target_var = reg.variable(target)
+    return {
+        "mode":             "counterfactual",
+        "target":           target,
+        "target_info":      _v2_var(reg, target),
+        "given":            given,
+        "given_info":       {k: _v2_var(reg, k) for k in given},
+        "intervention":     intervention,
+        "intervention_info": {k: _v2_var(reg, k) for k in intervention},
+        "chain_vars":       [_v2_var(reg, v) for v in cf.chain_vars],
+        "result": {
+            "variable":        target,
+            "unit":            target_var.unit if target_var else "",
+            "baseline_mean":   cf.baseline_mean,
+            "baseline_p5":     cf.baseline_p5,
+            "baseline_p95":    cf.baseline_p95,
+            "intervened_mean": cf.intervened_mean,
+            "intervened_p5":   cf.intervened_p5,
+            "intervened_p95":  cf.intervened_p95,
+            "delta_mean":      cf.delta_mean,
+            "delta_p5":        cf.delta_p5,
+            "delta_p95":       cf.delta_p95,
+            "relative_delta":  cf.relative_delta,
+            "n_samples":       cf.n_samples,
+        },
+        "citations":        cf.citations,
+    }
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+
 @app.get("/api/reason_v2/presets")
 def reason_v2_presets():
     """Return the preset demo queries available to the v2 UI."""
     return {
         "presets": [
-            {"id": pid, **{k: v for k, v in p.items() if k != "given"},
-             "given": p["given"]}
+            {"id": pid, **p}
             for pid, p in _V2_PRESETS.items()
         ],
         "variables": [
@@ -741,42 +923,81 @@ def reason_v2_presets():
     }
 
 
+def _coerce_float_dict(d: dict, field_name: str) -> dict[str, float]:
+    if not isinstance(d, dict):
+        raise ValueError(f"Field '{field_name}' must be an object.")
+    try:
+        return {str(k): float(v) for k, v in d.items()}
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Bad '{field_name}' values: {exc}") from exc
+
+
 @app.post("/api/reason_v2")
 def reason_v2(payload: dict):
     """
-    Forward inference over the typed equation graph.
+    Forward / abductive / counterfactual inference over the equation graph.
 
-    Request shape::
+    Common fields::
 
-        {"target": "E", "given": {"phi": 0.10}}
-        {"target": "da_dN", "given": {"phi": 0.10, "dK": 1.0}}
-        {"preset": "porosity_to_modulus"}
+        {"preset": "<preset_id>"}                  # any mode, fully specified
+        {"mode": "forward",        "target": "E", "given": {"phi": 0.10}}
+        {"mode": "abductive",      "target": "E", "observed": 12.0,
+                                   "observed_std": 1.0, "infer": ["phi"]}
+        {"mode": "counterfactual", "target": "E", "given": {"phi": 0.30},
+                                   "intervention": {"phi": 0.05}}
 
-    Returns the discovered derivation chain, per-step intermediate values
-    with 5–95th percentile bands, and a final prediction with uncertainty.
+    The response shape varies with ``mode`` — see the renderers above.
     """
+    # Preset shortcut: copy fields into payload and continue down the
+    # normal dispatch path.
     preset_id = payload.get("preset")
     if preset_id is not None:
         preset = _V2_PRESETS.get(preset_id)
         if preset is None:
             return {"error": f"Unknown preset: {preset_id!r}"}
-        target = preset["target"]
-        given = dict(preset["given"])
-    else:
-        target = payload.get("target")
-        given = payload.get("given") or {}
-        if not target:
-            return {"error": "Field 'target' is required."}
-        if not isinstance(given, dict):
-            return {"error": "Field 'given' must be an object."}
-        try:
-            given = {str(k): float(v) for k, v in given.items()}
-        except (TypeError, ValueError) as exc:
-            return {"error": f"Bad 'given' values: {exc}"}
+        payload = {**preset, **{k: v for k, v in payload.items() if k != "preset"}}
+
+    mode = (payload.get("mode") or "forward").lower()
+    target = payload.get("target")
+    if not target:
+        return {"error": "Field 'target' is required."}
 
     t0 = time.perf_counter()
     try:
-        out = _v2_render(bone_registry, target, given)
+        if mode == "forward":
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            out = _v2_render_forward(bone_registry, target, given)
+        elif mode == "abductive":
+            observed = payload.get("observed")
+            if observed is None:
+                return {"error": "Field 'observed' is required for abductive mode."}
+            observed = float(observed)
+            observed_std = payload.get("observed_std")
+            if observed_std is not None:
+                observed_std = float(observed_std)
+            infer = payload.get("infer")
+            if infer is not None and not isinstance(infer, list):
+                return {"error": "Field 'infer' must be a list of variable names."}
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            out = _v2_render_abductive(
+                bone_registry, target,
+                observed=observed,
+                observed_std=observed_std,
+                infer=[str(v) for v in infer] if infer else None,
+                given=given,
+            )
+        elif mode == "counterfactual":
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            intervention = _coerce_float_dict(
+                payload.get("intervention") or {}, "intervention",
+            )
+            if not intervention:
+                return {"error": "Field 'intervention' is required for counterfactual mode."}
+            out = _v2_render_counterfactual(
+                bone_registry, target, given, intervention,
+            )
+        else:
+            return {"error": f"Unknown mode: {mode!r}. Use forward, abductive, or counterfactual."}
     except ValueError as exc:
         return {"error": str(exc)}
     out["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)

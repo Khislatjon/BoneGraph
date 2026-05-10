@@ -28,7 +28,6 @@ against the same Relation registry.
 from __future__ import annotations
 
 import logging
-from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -36,6 +35,30 @@ import numpy as np
 import sympy as sp
 
 logger = logging.getLogger(__name__)
+
+
+def _weighted_quantile(
+    samples: np.ndarray, weights: np.ndarray, q: float,
+) -> float:
+    """
+    Quantile of ``samples`` with importance ``weights``.
+
+    Sorts samples, walks the cumulative weight, and linearly
+    interpolates the breakpoint at fraction ``q``.  Used by
+    :class:`RelationRegistry.abductive` to summarise the importance-
+    weighted posterior of every inferred root variable.
+    """
+    if samples.size == 0:
+        return float("nan")
+    order = np.argsort(samples)
+    s = samples[order]
+    w = weights[order]
+    cdf = np.cumsum(w)
+    total = cdf[-1]
+    if total <= 0:
+        return float(np.mean(samples))
+    cdf /= total
+    return float(np.interp(q, cdf, s))
 
 
 # ── Variables and priors ──────────────────────────────────────────────────────
@@ -274,6 +297,56 @@ class ForwardResult:
     citations: list[str]            # deduplicated, in chain order
 
 
+@dataclass
+class AbductivePosterior:
+    """Per-variable posterior summary from an abductive inference run."""
+
+    variable: str
+    prior_mean: float
+    prior_p5: float
+    prior_p95: float
+    posterior_mean: float
+    posterior_p5: float
+    posterior_p95: float
+    shift_score: float              # (prior_band - post_band) / prior_band ∈ [0, 1]
+
+
+@dataclass
+class AbductiveResult:
+    """Outcome of an abductive inference run."""
+
+    target: str
+    observed: float
+    observed_std: float
+    inferred: list[AbductivePosterior]   # ranked by shift_score, descending
+    chain_vars: list[str]
+    citations: list[str]
+    effective_sample_size: float         # 1 / sum(w²) after normalisation
+    n_samples: int
+
+
+@dataclass
+class CounterfactualResult:
+    """Outcome of a do(...) intervention compared against baseline."""
+
+    target: str
+    given: dict[str, float]
+    intervention: dict[str, float]
+    chain_vars: list[str]
+    baseline_mean: float
+    baseline_p5: float
+    baseline_p95: float
+    intervened_mean: float
+    intervened_p5: float
+    intervened_p95: float
+    delta_mean: float                    # mean(intervened) − mean(baseline)
+    delta_p5: float                      # paired delta percentiles
+    delta_p95: float
+    relative_delta: float                # delta_mean / baseline_mean
+    citations: list[str]
+    n_samples: int
+
+
 class RelationRegistry:
     """
     Holds Relations and exposes forward inference over the variable graph.
@@ -318,90 +391,78 @@ class RelationRegistry:
         given: set[str],
     ) -> list[Relation] | None:
         """
-        Backward BFS from ``target`` toward variables in ``given``.
+        Recursive backward search from ``target`` toward ``given``.
 
-        Returns the chain in *forward* execution order (each Relation's
-        inputs are produced by earlier steps or supplied by the user).
-        Returns ``None`` if no derivation exists.
+        A variable resolves if it is in ``given`` or some producer has
+        every input recursively resolvable.  The chain returned is the
+        concatenation of sub-chains (de-duplicated, dependency-first)
+        followed by the producer of the target itself.
+
+        Returns ``None`` if no chain exists, e.g. because a required
+        root variable has no producer and was not supplied.
         """
         if target in given:
             return []
 
-        # parent[var] = (relation_used, [prev_var, ...])
-        parent: dict[str, Relation] = {}
-        queue: deque[str] = deque([target])
-        visited: set[str] = {target}
-
-        while queue:
-            current = queue.popleft()
-            for rel in self._producers.get(current, []):
-                missing = [v for v in rel.inputs if v not in given]
-                # Always record the relation we're considering so we
-                # can reconstruct the chain even when more upstream
-                # steps are required.
-                if current not in parent:
-                    parent[current] = rel
-                # If every input is given, we can stop expanding this
-                # branch — the chain terminates here.
-                if not missing:
-                    return self._reconstruct(target, parent)
-                # Otherwise, queue each missing input for resolution.
-                for inp in missing:
-                    if inp not in visited:
-                        visited.add(inp)
-                        queue.append(inp)
-
-        # Loop ended without resolving every input; check if we can
-        # still produce a chain whose remaining inputs are all given.
-        if target in parent:
-            chain = self._reconstruct(target, parent)
-            if chain is not None and self._chain_inputs(chain).issubset(given):
-                return chain
-        return None
-
-    def _reconstruct(
-        self, target: str, parent: dict[str, Relation],
-    ) -> list[Relation] | None:
-        """Walk back from target through ``parent`` and return forward order."""
-        if target not in parent:
-            return None
-        ordered: list[Relation] = []
-        seen: set[str] = set()
-        stack: list[str] = [target]
-        # DFS post-order so every input is emitted before its consumer.
+        memo: dict[str, list[Relation] | None] = {}
         visiting: set[str] = set()
 
-        def visit(var: str) -> bool:
-            if var in seen or var not in parent:
-                return var in seen or var not in parent
+        def resolve(var: str) -> list[Relation] | None:
+            if var in given:
+                return []
+            if var in memo:
+                return memo[var]
             if var in visiting:
-                # Cycle — should never happen for a DAG of physical
-                # laws, but bail out gracefully.
-                return False
+                # Cycle — physical laws form a DAG, so we bail out.
+                return None
             visiting.add(var)
-            rel = parent[var]
-            for inp in rel.inputs:
-                if not visit(inp):
-                    return True   # input is a leaf (user-supplied)
-            ordered.append(rel)
-            seen.add(var)
-            visiting.discard(var)
-            return True
+            try:
+                producers = self._producers.get(var, [])
+                for rel in producers:
+                    sub_chains: list[list[Relation]] = []
+                    ok = True
+                    for inp in rel.inputs:
+                        sub = resolve(inp)
+                        if sub is None:
+                            ok = False
+                            break
+                        sub_chains.append(sub)
+                    if not ok:
+                        continue
+                    merged: list[Relation] = []
+                    seen_names: set[str] = set()
+                    for sub in sub_chains:
+                        for r in sub:
+                            if r.name not in seen_names:
+                                seen_names.add(r.name)
+                                merged.append(r)
+                    if rel.name not in seen_names:
+                        merged.append(rel)
+                    memo[var] = merged
+                    return merged
+                memo[var] = None
+                return None
+            finally:
+                visiting.discard(var)
 
-        if not visit(target):
-            return None
-        return ordered
+        return resolve(target)
 
-    @staticmethod
-    def _chain_inputs(chain: list[Relation]) -> set[str]:
-        """Variables a chain expects to be supplied externally."""
+    def chain_root_inputs(self, chain: list[Relation]) -> list[str]:
+        """
+        Variables a chain expects the caller to supply externally.
+
+        Order is stable (first encountered in chain order).  Useful for
+        modes like abduction that need to sample over chain roots.
+        """
         produced = {rel.output for rel in chain}
-        needed: set[str] = set()
+        seen: set[str] = set()
+        ordered: list[str] = []
         for rel in chain:
             for inp in rel.inputs:
-                if inp not in produced:
-                    needed.add(inp)
-        return needed
+                if inp not in produced and inp not in seen:
+                    seen.add(inp)
+                    ordered.append(inp)
+        return ordered
 
     # ── Forward inference ─────────────────────────────────────────────────────
 
@@ -433,9 +494,20 @@ class RelationRegistry:
         ValueError
             If no derivation chain from ``given`` to ``target`` exists.
         """
+        chain = self._resolve_chain(target, given)
+        rng = np.random.default_rng(seed)
+        state = self._state_from_given(given, n_samples)
+        steps = self._run_chain(chain, state, rng, n_samples, record=True)
+        return self._build_forward_result(target, given, chain, state, steps)
+
+    # ── Shared chain-evaluation primitives ────────────────────────────────────
+
+    def _resolve_chain(
+        self, target: str, given: dict[str, float],
+    ) -> list[Relation]:
+        """Find a chain or raise a descriptive ValueError."""
         if target not in self._producers and target not in given:
             raise ValueError(f"No Relation produces variable {target!r}.")
-
         chain = self._find_chain(target, set(given.keys()))
         if chain is None:
             raise ValueError(
@@ -443,14 +515,41 @@ class RelationRegistry:
                 f"Check that the registry contains a path of Relations whose "
                 f"inputs are all eventually supplied.",
             )
+        return chain
 
-        rng = np.random.default_rng(seed)
-        # Running state: name → np.ndarray of length n_samples
-        state: dict[str, np.ndarray] = {
-            name: np.full(n_samples, float(val))
-            for name, val in given.items()
-        }
+    @staticmethod
+    def _state_from_given(
+        given: dict[str, float | np.ndarray], n_samples: int,
+    ) -> dict[str, np.ndarray]:
+        """Broadcast each given value (scalar or array) into a state array."""
+        state: dict[str, np.ndarray] = {}
+        for name, val in given.items():
+            if np.isscalar(val):
+                state[name] = np.full(n_samples, float(val))
+            else:
+                arr = np.asarray(val, dtype=float)
+                if arr.size != n_samples:
+                    raise ValueError(
+                        f"Array for {name!r} has length {arr.size}, "
+                        f"expected {n_samples}.",
+                    )
+                state[name] = arr
+        return state
 
+    def _run_chain(
+        self,
+        chain: list[Relation],
+        state: dict[str, np.ndarray],
+        rng: np.random.Generator,
+        n_samples: int,
+        *,
+        record: bool,
+    ) -> list[DerivationStep]:
+        """
+        Walk ``chain`` in order, evaluating each relation and pushing the
+        result into ``state``.  If ``record`` is true, build a
+        :class:`DerivationStep` per relation for the UI.
+        """
         steps: list[DerivationStep] = []
         for rel in chain:
             samples = rel.evaluate(
@@ -459,40 +558,56 @@ class RelationRegistry:
                 n_samples=n_samples,
             )
             state[rel.output] = samples
-            step_inputs = {k: float(np.mean(state[k])) for k in rel.inputs}
-            steps.append(DerivationStep(
-                relation_name=rel.name,
-                citation=rel.citation,
-                inputs=step_inputs,
-                output_var=rel.output,
-                output_mean=float(np.mean(samples)),
-                output_p5=float(np.percentile(samples, 5)),
-                output_p95=float(np.percentile(samples, 95)),
-            ))
+            if record:
+                step_inputs = {k: float(np.mean(state[k])) for k in rel.inputs}
+                steps.append(DerivationStep(
+                    relation_name=rel.name,
+                    citation=rel.citation,
+                    inputs=step_inputs,
+                    output_var=rel.output,
+                    output_mean=float(np.mean(samples)),
+                    output_p5=float(np.percentile(samples, 5)),
+                    output_p95=float(np.percentile(samples, 95)),
+                ))
+        return steps
 
+    @staticmethod
+    def _chain_vars(chain: list[Relation]) -> list[str]:
+        """Ordered, de-duplicated list of variables touched by the chain."""
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for rel in chain:
+            for v in (*rel.inputs, rel.output):
+                if v not in seen:
+                    seen.add(v)
+                    ordered.append(v)
+        return ordered
+
+    @staticmethod
+    def _chain_citations(chain: list[Relation]) -> list[str]:
+        citations: list[str] = []
+        for rel in chain:
+            if rel.citation and rel.citation not in citations:
+                citations.append(rel.citation)
+        return citations
+
+    def _build_forward_result(
+        self,
+        target: str,
+        given: dict[str, float],
+        chain: list[Relation],
+        state: dict[str, np.ndarray],
+        steps: list[DerivationStep],
+    ) -> ForwardResult:
         final = state[target]
         mean = float(np.mean(final))
         p5 = float(np.percentile(final, 5))
         p95 = float(np.percentile(final, 95))
         rel_unc = (p95 - p5) / abs(mean) if abs(mean) > 1e-12 else float("nan")
-
-        chain_vars: list[str] = []
-        seen_var: set[str] = set()
-        for rel in chain:
-            for v in (*rel.inputs, rel.output):
-                if v not in seen_var:
-                    chain_vars.append(v)
-                    seen_var.add(v)
-
-        citations: list[str] = []
-        for rel in chain:
-            if rel.citation and rel.citation not in citations:
-                citations.append(rel.citation)
-
         return ForwardResult(
             target=target,
             given=given,
-            chain_vars=chain_vars,
+            chain_vars=self._chain_vars(chain),
             steps=steps,
             samples=final,
             mean=mean,
@@ -500,7 +615,214 @@ class RelationRegistry:
             p5=p5,
             p95=p95,
             relative_uncertainty=rel_unc,
-            citations=citations,
+            citations=self._chain_citations(chain),
+        )
+
+    # ── Abductive inference ──────────────────────────────────────────────────
+
+    def abductive(
+        self,
+        target: str,
+        observed: float,
+        *,
+        observed_std: float | None = None,
+        infer: list[str] | None = None,
+        given: dict[str, float] | None = None,
+        n_samples: int = 8000,
+        seed: int | None = None,
+    ) -> AbductiveResult:
+        """
+        Infer likely upstream causes of an observed downstream value.
+
+        Implementation
+        --------------
+        Importance sampling.  For each variable in ``infer`` we draw a
+        uniform sample over its declared physical range; for all other
+        chain roots we fix the value from ``given``.  We run the chain
+        forward to get a predicted target distribution, then weight each
+        Monte Carlo sample by a Gaussian likelihood centred on
+        ``observed`` with std ``observed_std`` (default: 5 % of the
+        absolute observed value, floored at 1 % of the prior band).
+        The weighted samples form the posterior over each ``infer``
+        variable.
+
+        ``shift_score`` measures how much the observation tightened the
+        prior — high for variables the observation is informative about,
+        near zero for variables it cannot distinguish.
+
+        Stop-condition note
+        -------------------
+        Phase 2 spec: if Bayesian inversion is too slow, fall back to a
+        discrete top-k forward sweep.  Importance sampling at n=8 000 is
+        sub-second on the current graph, so we stay with the full
+        posterior; if scaling later becomes a problem the same chain
+        can be re-used by a grid/top-k version without API changes.
+        """
+        given = dict(given or {})
+        chain = self._resolve_chain(target, {**given,
+                                            **{v: 0.0 for v in (infer or [])}})
+
+        roots = self.chain_root_inputs(chain)
+        if infer is None or not infer:
+            # Default: every root not explicitly given is a candidate.
+            infer = [r for r in roots if r not in given]
+        infer = [v for v in infer if v in roots]
+        if not infer:
+            raise ValueError(
+                f"No upstream variables to infer for target {target!r}; "
+                f"chain roots are {roots} and all are pinned in 'given'.",
+            )
+
+        rng = np.random.default_rng(seed)
+
+        # Build initial state: sample over infer variables, broadcast given.
+        state: dict[str, np.ndarray] = {}
+        prior_samples: dict[str, np.ndarray] = {}
+        for r in roots:
+            if r in infer:
+                v = self._variables.get(r)
+                if v is None:
+                    raise ValueError(
+                        f"Variable {r!r} is required for abduction but has "
+                        f"no registered Variable metadata (range unknown).",
+                    )
+                draws = rng.uniform(v.lo, v.hi, size=n_samples)
+                state[r] = draws
+                prior_samples[r] = draws
+            elif r in given:
+                state[r] = np.full(n_samples, float(given[r]))
+            else:
+                raise ValueError(
+                    f"Chain root {r!r} is neither in 'given' nor in 'infer'.",
+                )
+
+        # Forward propagate (no per-step records — we only need target samples).
+        self._run_chain(chain, state, rng, n_samples, record=False)
+        pred = state[target]
+
+        if observed_std is None or observed_std <= 0:
+            observed_std = max(abs(observed) * 0.05, 1e-12)
+
+        # Gaussian likelihood weights.
+        residual = (pred - observed) / observed_std
+        log_w = -0.5 * residual * residual
+        log_w -= np.max(log_w)
+        w = np.exp(log_w)
+        w_sum = float(np.sum(w))
+        if not np.isfinite(w_sum) or w_sum <= 0.0:
+            raise ValueError(
+                "Likelihood weights collapsed — observation lies far "
+                "outside what the chain can produce over the declared "
+                "variable ranges.",
+            )
+        w_norm = w / w_sum
+        ess = 1.0 / float(np.sum(w_norm * w_norm))
+
+        posteriors: list[AbductivePosterior] = []
+        for var_name in infer:
+            samples = prior_samples[var_name]
+            prior_p5  = float(np.percentile(samples, 5))
+            prior_p95 = float(np.percentile(samples, 95))
+            post_mean = float(np.sum(samples * w_norm))
+            post_p5   = float(_weighted_quantile(samples, w_norm, 0.05))
+            post_p95  = float(_weighted_quantile(samples, w_norm, 0.95))
+            prior_band = max(prior_p95 - prior_p5, 1e-12)
+            post_band  = max(post_p95 - post_p5, 0.0)
+            shift = 1.0 - min(post_band / prior_band, 1.0)
+            posteriors.append(AbductivePosterior(
+                variable=var_name,
+                prior_mean=float(np.mean(samples)),
+                prior_p5=prior_p5,
+                prior_p95=prior_p95,
+                posterior_mean=post_mean,
+                posterior_p5=post_p5,
+                posterior_p95=post_p95,
+                shift_score=shift,
+            ))
+        posteriors.sort(key=lambda p: p.shift_score, reverse=True)
+
+        return AbductiveResult(
+            target=target,
+            observed=float(observed),
+            observed_std=float(observed_std),
+            inferred=posteriors,
+            chain_vars=self._chain_vars(chain),
+            citations=self._chain_citations(chain),
+            effective_sample_size=ess,
+            n_samples=n_samples,
+        )
+
+    # ── Counterfactual inference ─────────────────────────────────────────────
+
+    def counterfactual(
+        self,
+        target: str,
+        given: dict[str, float],
+        intervention: dict[str, float],
+        *,
+        n_samples: int = 4000,
+        seed: int | None = None,
+    ) -> CounterfactualResult:
+        """
+        Compare target distributions under baseline vs intervened root values.
+
+        Uses the same RNG seed for both passes so that parameter draws
+        (Currey's a, n; Paris C₀, m, k_ρ; Frost setpoint, etc.) are
+        identical between baseline and intervened states.  This makes
+        the paired ``Δtarget = intervened − baseline`` distribution
+        reflect *only* the intervention, not parameter noise.
+
+        ``intervention`` must contain at least one variable; values
+        replace the corresponding ``given`` entry (the intervention is
+        treated as do(var = value), i.e. no other inputs are touched).
+        """
+        if not intervention:
+            raise ValueError("Intervention must specify at least one variable.")
+
+        unknown = [k for k in intervention if k not in given]
+        if unknown:
+            raise ValueError(
+                f"Intervention variables not in 'given': {unknown}. "
+                f"do(...) only re-binds existing inputs; add them to "
+                f"'given' first if you want to introduce new ones.",
+            )
+
+        # Baseline pass.
+        chain = self._resolve_chain(target, given)
+        rng_base = np.random.default_rng(seed)
+        state_b = self._state_from_given(given, n_samples)
+        self._run_chain(chain, state_b, rng_base, n_samples, record=False)
+        base = state_b[target]
+
+        # Intervened pass — same seed, same chain.
+        intervened_given = {**given, **intervention}
+        rng_int = np.random.default_rng(seed)
+        state_i = self._state_from_given(intervened_given, n_samples)
+        self._run_chain(chain, state_i, rng_int, n_samples, record=False)
+        interv = state_i[target]
+
+        delta = interv - base
+        base_mean = float(np.mean(base))
+        delta_mean = float(np.mean(delta))
+        rel_delta = delta_mean / base_mean if abs(base_mean) > 1e-12 else float("nan")
+
+        return CounterfactualResult(
+            target=target,
+            given=given,
+            intervention=intervention,
+            chain_vars=self._chain_vars(chain),
+            baseline_mean=base_mean,
+            baseline_p5=float(np.percentile(base, 5)),
+            baseline_p95=float(np.percentile(base, 95)),
+            intervened_mean=float(np.mean(interv)),
+            intervened_p5=float(np.percentile(interv, 5)),
+            intervened_p95=float(np.percentile(interv, 95)),
+            delta_mean=delta_mean,
+            delta_p5=float(np.percentile(delta, 5)),
+            delta_p95=float(np.percentile(delta, 95)),
+            relative_delta=rel_delta,
+            citations=self._chain_citations(chain),
+            n_samples=n_samples,
         )
 
     # ── Introspection ─────────────────────────────────────────────────────────

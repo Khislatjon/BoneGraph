@@ -220,6 +220,50 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
 .v2-experimental-tag{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);background:#fef5e4;border:1px solid var(--amber-border);border-radius:4px;padding:1px 7px;margin-left:8px}
 
+/* v2 preset groups */
+.v2-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
+.v2-preset-group{display:flex;flex-direction:column;gap:8px}
+.v2-preset-group-hdr{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:left;padding-left:4px}
+.v2-mode-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.v2-mode-forward{background:#eaf5ec;color:#2e6b3a;border:1px solid #bcdcc4}
+.v2-mode-abductive{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.v2-mode-counterfactual{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
+/* Abductive — ranked posterior bars */
+.v2-abd-hdr{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--text2)}
+.v2-abd-hdr b{color:var(--text);font-family:var(--mono)}
+.v2-posterior-row{display:grid;grid-template-columns:140px 1fr 90px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.v2-posterior-row:first-of-type{border-top:none}
+.v2-posterior-name{font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:2px}
+.v2-posterior-name .v2-pn-sub{font-size:11px;color:var(--text3);font-weight:400}
+.v2-posterior-bar{position:relative;height:34px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.v2-posterior-prior{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#eee2c8 0 4px,#f6ecd6 4px 8px);opacity:.7}
+.v2-posterior-post{position:absolute;top:4px;bottom:4px;background:var(--amber);border-radius:4px;border:1px solid #d18b1f}
+.v2-posterior-mean{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5a3a06}
+.v2-posterior-ticks{position:absolute;bottom:-16px;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:var(--mono)}
+.v2-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
+.v2-posterior-stats .v2-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+/* Counterfactual — baseline / intervened / delta cards */
+.v2-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.v2-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.v2-cf-col.delta{background:#fef5e4;border-color:var(--amber-border)}
+.v2-cf-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.v2-cf-col.delta .v2-cf-lbl{color:#7a5010}
+.v2-cf-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.v2-cf-col.delta .v2-cf-val{color:#5a3a06}
+.v2-cf-val.up{color:#2e6b3a}
+.v2-cf-val.down{color:#8d3e28}
+.v2-cf-band{font-family:var(--mono);font-size:11.5px;color:var(--text3)}
+.v2-cf-col.delta .v2-cf-band{color:#7a5010}
+.v2-cf-rel{font-family:var(--mono);font-size:12px;color:#5a3a06;font-weight:600}
+.v2-cf-intervention{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12.5px;color:var(--text2)}
+.v2-cf-intervention b{color:var(--text)}
+@media (max-width:760px){
+  .v2-cf-grid{grid-template-columns:1fr}
+  .v2-posterior-row{grid-template-columns:1fr}
+}
+
 /* Analyse tab */
 .analyse-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
 .dropzone{max-width:560px;border:2px dashed var(--border2);border-radius:14px;padding:60px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;background:var(--surface);transition:border-color .15s,background .15s;text-align:center}
@@ -754,106 +798,352 @@ function v2Fmt(x, sig=3) {
 }
 
 const V2_PRESETS = [
+  // Forward
   {
-    id: 'porosity_to_modulus',
+    id: 'fwd_porosity_to_modulus', mode: 'forward',
     label: 'Porosity → elastic modulus',
-    desc: 'φ = 0.10 → ρ → E.  Cites: density bridge + Currey 1988.',
+    desc: 'φ = 0.10 → ρ → E.  Density bridge + Currey 1988.',
   },
   {
-    id: 'porosity_to_crack_growth',
-    label: 'Porosity → crack growth (at ΔK = 1.0 MPa·√m)',
-    desc: 'φ = 0.10, ΔK = 1.0 → ρ → da/dN.  Cites: density bridge + Vashishth 2003 / Paris 1963.',
+    id: 'fwd_porosity_to_crack_growth', mode: 'forward',
+    label: 'Porosity → crack growth (ΔK = 1.0 MPa·√m)',
+    desc: 'φ = 0.10, ΔK = 1.0 → ρ → da/dN.  Density bridge + Vashishth 2003 / Paris 1963.',
   },
   {
-    id: 'low_density_paris',
-    label: 'Trabecular regime → crack growth (φ = 0.5, ΔK = 0.6)',
-    desc: 'Same chain in the trabecular regime — lower density inflates the Paris prefactor.',
+    id: 'fwd_geometry_to_remodeling', mode: 'forward',
+    label: 'Loading + geometry → BMD adaptation rate',
+    desc: 'φ, R, t, M → I, σ, ε → dBMD/dt.  Six-step chain through bending, Hooke, Frost.',
+  },
+  // Abductive
+  {
+    id: 'abd_low_modulus', mode: 'abductive',
+    label: 'Patient with low elastic modulus (E = 12 GPa)',
+    desc: 'Invert Currey + density bridge to recover the most likely porosity.',
+  },
+  {
+    id: 'abd_high_crack_growth', mode: 'abductive',
+    label: 'Elevated fatigue crack growth (da/dN = 5×10⁻⁹ m/cycle)',
+    desc: 'Invert Vashishth–Paris at ΔK = 1.0 to recover porosity.',
+  },
+  {
+    id: 'abd_moderate_remodeling', mode: 'abductive',
+    label: 'Mid-zone adaptation response (dBMD/dt = +1.0 %/yr)',
+    desc: 'Recover the joint (cortical thickness, bending moment) most consistent with the response.',
+  },
+  // Counterfactual
+  {
+    id: 'cf_drop_porosity', mode: 'counterfactual',
+    label: 'do(porosity = 0.05) on elastic modulus',
+    desc: 'How much does E change if porosity drops from 30 % to 5 %?',
+  },
+  {
+    id: 'cf_thinner_cortex', mode: 'counterfactual',
+    label: 'do(cortical thickness = 2.5 mm) on remodeling rate',
+    desc: 'Osteoporotic thinning from 5.5 mm to 2.5 mm — does the Frost response intensify?',
+  },
+  {
+    id: 'cf_double_load', mode: 'counterfactual',
+    label: 'do(ΔK ×2) on fatigue crack growth',
+    desc: 'Doubling the cyclic stress-intensity range — how much does da/dN climb via the Paris exponent?',
   },
 ];
 
-function V2Section({presets, onRun, loading, result, error, elapsed}) {
+const V2_MODE_META = {
+  forward:        {tag: 'Forward',        cls: 'v2-mode-forward',
+                   hdr: 'Forward inference',
+                   blurb: 'Given upstream variables, predict the target with a Monte-Carlo uncertainty band.'},
+  abductive:      {tag: 'Abductive',      cls: 'v2-mode-abductive',
+                   hdr: 'Abductive inference',
+                   blurb: 'Given an observed value, infer the upstream variables most likely to explain it.'},
+  counterfactual: {tag: 'Counterfactual', cls: 'v2-mode-counterfactual',
+                   hdr: 'Counterfactual inference',
+                   blurb: 'Compare the target distribution under a do(...) intervention against the baseline state.'},
+};
+
+// Map a value in [lo, hi] to a percentage along a bar.
+function v2Pct(x, lo, hi) {
+  if (hi <= lo) return 0;
+  const p = ((x - lo) / (hi - lo)) * 100;
+  return Math.max(0, Math.min(100, p));
+}
+
+function V2ChainRow({result}) {
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8}}>
-      <div className="v2-presets">
-        {presets.map(p => (
-          <button key={p.id} className="v2-preset" onClick={() => onRun(p.id)} disabled={loading}>
-            <span className="v2-preset-label">{p.label}</span>
-            <span className="v2-preset-desc">{p.desc}</span>
-          </button>
-        ))}
+    <div className="v2-chain-row">
+      {result.chain_vars.map((v, i) => {
+        const isGiven    = result.given_info && result.given_info[v.symbol];
+        const isInterv   = result.intervention_info && result.intervention_info[v.symbol];
+        const isTarget   = v.symbol === result.target;
+        const isInferred = result.inferred && result.inferred.some(p => p.variable.symbol === v.symbol);
+        const cls = 'v2-var-pill'
+          + (isGiven    ? ' v2-given-pill'  : '')
+          + (isTarget   ? ' v2-target-pill' : '')
+          + (isInterv   ? ' v2-target-pill' : '')
+          + (isInferred ? ' v2-target-pill' : '');
+        return (
+          <Fragment key={i}>
+            <span className={cls}>
+              {v.symbol}
+              <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
+            </span>
+            {i < result.chain_vars.length - 1 && <ChainArrow/>}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function V2ForwardCard({result, elapsed}) {
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Forward inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+        </div>
+        <div className="v2-meta">
+          {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
+        </div>
       </div>
 
-      {loading && <div className="loading-row" style={{marginTop:24}}><Dots/><span>Solving equation graph and sampling priors…</span></div>}
+      <V2ChainRow result={result}/>
+
+      {result.steps.map((s, i) => (
+        <div key={i} className="v2-step">
+          <div className="v2-step-hdr">
+            <div className="v2-step-name">{i + 1}. {s.relation_name}</div>
+            <div className="v2-step-citation">{s.citation}</div>
+          </div>
+          {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
+          {s.latex && <div className="v2-step-eq">{s.latex}</div>}
+          <div className="v2-step-io">
+            {Object.entries(s.inputs).map(([k, v]) => (
+              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{k} = {v2Fmt(v)}</span>
+            ))}
+            <span className="v2-io-arrow">→</span>
+            <span className="v2-step-out">{s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
+            <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="v2-final">
+        <div className="v2-final-lbl">Predicted {result.target_info.name}</div>
+        <div className="v2-final-val">{v2Fmt(result.result.mean)} {result.result.unit}</div>
+        <div className="v2-final-band">
+          90% band: [{v2Fmt(result.result.p5)}, {v2Fmt(result.result.p95)}] {result.result.unit}
+          {' · '}spread {v2Fmt(result.result.relative_uncertainty * 100, 2)}% of mean
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function V2AbductiveCard({result, elapsed}) {
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Abductive inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+        </div>
+        <div className="v2-meta">
+          ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
+        </div>
+      </div>
+
+      <V2ChainRow result={result}/>
+
+      <div className="v2-abd-hdr">
+        <span>Observed <b>{result.target_info.symbol}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
+        {Object.entries(result.given || {}).length > 0 && (
+          <span>Held fixed: {Object.entries(result.given).map(([k, v], i) =>
+            <span key={k} style={{marginRight:8}}>{k} = <b>{v2Fmt(v)}</b></span>
+          )}</span>
+        )}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:0}}>
+        {result.inferred.map((p, i) => {
+          const lo = Math.min(p.prior_p5, p.posterior_p5);
+          const hi = Math.max(p.prior_p95, p.posterior_p95);
+          const priorL = v2Pct(p.prior_p5, lo, hi);
+          const priorW = v2Pct(p.prior_p95, lo, hi) - priorL;
+          const postL  = v2Pct(p.posterior_p5, lo, hi);
+          const postW  = v2Pct(p.posterior_p95, lo, hi) - postL;
+          const meanX  = v2Pct(p.posterior_mean, lo, hi);
+          const shiftPct = (p.shift_score * 100).toFixed(0);
+          return (
+            <div key={i} className="v2-posterior-row">
+              <div className="v2-posterior-name">
+                {p.variable.symbol}
+                <span className="v2-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
+              </div>
+              <div>
+                <div className="v2-posterior-bar">
+                  <div className="v2-posterior-prior" style={{left:`${priorL}%`,width:`${priorW}%`}}/>
+                  <div className="v2-posterior-post"  style={{left:`${postL}%`,width:`${postW}%`}}/>
+                  <div className="v2-posterior-mean"  style={{left:`${meanX}%`}}/>
+                </div>
+                <div className="v2-posterior-ticks">
+                  <span>{v2Fmt(lo)}</span>
+                  <span>{v2Fmt(hi)}</span>
+                </div>
+              </div>
+              <div className="v2-posterior-stats">
+                <span>{v2Fmt(p.posterior_mean)}</span>
+                <span style={{color:'var(--text3)'}}>[{v2Fmt(p.posterior_p5)}, {v2Fmt(p.posterior_p95)}]</span>
+                <span className="v2-shift">shift {shiftPct}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:8,borderTop:'1px solid var(--border)'}}>
+        Bars: striped tan = prior 90 % range, solid amber = posterior 90 % band, dark tick = posterior mean.
+        Shift score = how much the observation tightened the prior (100 % means the band collapsed to a point).
+      </div>
+    </div>
+  );
+}
+
+function V2CounterfactualCard({result, elapsed}) {
+  const r = result.result;
+  const deltaDir = r.delta_mean >= 0 ? 'up' : 'down';
+  const deltaSign = r.delta_mean >= 0 ? '+' : '';
+  const relSign = r.relative_delta >= 0 ? '+' : '';
+  // Suppress the percent when baseline is close to zero relative to Δ
+  // (sign-flip cases like resorption → formation), or when the ratio
+  // explodes — the absolute Δ is the meaningful quantity there.
+  const relIsMeaningful =
+    Number.isFinite(r.relative_delta) &&
+    Math.abs(r.baseline_mean) > 0.2 * Math.abs(r.delta_mean) &&
+    Math.abs(r.relative_delta) < 50;
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Counterfactual inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+        </div>
+        <div className="v2-meta">
+          n = {r.n_samples.toLocaleString()} paired samples · {elapsed}s
+        </div>
+      </div>
+
+      <V2ChainRow result={result}/>
+
+      <div className="v2-cf-intervention">
+        do(
+        {Object.entries(result.intervention).map(([k, v], i) => (
+          <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.intervention_info[k]?.unit ? ` ${result.intervention_info[k].unit}` : ''}</span>
+        ))}
+        )
+        {Object.keys(result.given).length > 0 && (
+          <span style={{color:'var(--text3)'}}>
+            holding {Object.entries(result.given).filter(([k]) => !(k in result.intervention)).map(([k, v], i, arr) => (
+              <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.given_info[k]?.unit ? ` ${result.given_info[k].unit}` : ''}</span>
+            ))}
+          </span>
+        )}
+      </div>
+
+      <div className="v2-cf-grid">
+        <div className="v2-cf-col">
+          <div className="v2-cf-lbl">Baseline</div>
+          <div className="v2-cf-val">{v2Fmt(r.baseline_mean)} {r.unit}</div>
+          <div className="v2-cf-band">[{v2Fmt(r.baseline_p5)}, {v2Fmt(r.baseline_p95)}]</div>
+        </div>
+        <div className="v2-cf-col">
+          <div className="v2-cf-lbl">Intervened</div>
+          <div className="v2-cf-val">{v2Fmt(r.intervened_mean)} {r.unit}</div>
+          <div className="v2-cf-band">[{v2Fmt(r.intervened_p5)}, {v2Fmt(r.intervened_p95)}]</div>
+        </div>
+        <div className="v2-cf-col delta">
+          <div className="v2-cf-lbl">Δ target</div>
+          <div className={`v2-cf-val ${deltaDir}`}>
+            {deltaSign}{v2Fmt(r.delta_mean)} {r.unit}
+          </div>
+          <div className="v2-cf-band">
+            [{v2Fmt(r.delta_p5)}, {v2Fmt(r.delta_p95)}]
+          </div>
+          {relIsMeaningful
+            ? <div className="v2-cf-rel">{relSign}{v2Fmt(r.relative_delta * 100, 3)}% vs baseline</div>
+            : <div className="v2-cf-rel" style={{color:'#7a5010',opacity:.85}}>baseline crosses zero · absolute Δ shown</div>}
+        </div>
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:6,borderTop:'1px solid var(--border)'}}>
+        Paired sampling: the same parameter draws are used for both baseline and intervened passes, so Δ
+        reflects only the intervention — not parameter noise.
+      </div>
+    </div>
+  );
+}
+
+function V2Section({presets, onRun, loading, result, error, elapsed}) {
+  const groups = [
+    {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
+    {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
+    {mode: 'counterfactual', items: presets.filter(p => p.mode === 'counterfactual')},
+  ];
+
+  const loadingMsg = {
+    forward:        'Solving equation graph and propagating uncertainty…',
+    abductive:      'Sampling prior, propagating, and weighting by likelihood…',
+    counterfactual: 'Running paired baseline / intervened passes…',
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <div className="v2-preset-groups">
+        {groups.map(g => {
+          const meta = V2_MODE_META[g.mode];
+          return (
+            <div key={g.mode} className="v2-preset-group">
+              <div className="v2-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
+              <div className="v2-presets" style={{justifyContent:'flex-start'}}>
+                {g.items.map(p => (
+                  <button key={p.id} className="v2-preset" onClick={() => onRun(p.id)} disabled={loading}>
+                    <span className="v2-preset-label">
+                      <span className={`v2-mode-tag ${meta.cls}`}>{meta.tag}</span>
+                      {p.label}
+                    </span>
+                    <span className="v2-preset-desc">{p.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:24}}>
+          <Dots/><span>{loadingMsg[result?.mode] || loadingMsg.forward}</span>
+        </div>
+      )}
       {error && <div className="v2-error">{error}</div>}
 
       {result && !loading && (
-        <div className="v2-card">
-          <div className="v2-card-hdr">
-            <div className="v2-card-title">
-              Forward inference: {result.target_info.name}
-              {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
-            </div>
-            <div className="v2-meta">
-              {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
-            </div>
-          </div>
-
-          <div className="v2-chain-row">
-            {result.chain_vars.map((v, i) => {
-              const isGiven  = result.given_info && result.given_info[v.symbol];
-              const isTarget = v.symbol === result.target;
-              const cls = 'v2-var-pill' + (isGiven ? ' v2-given-pill' : (isTarget ? ' v2-target-pill' : ''));
-              return (
-                <Fragment key={i}>
-                  <span className={cls}>
-                    {v.symbol}
-                    <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
-                  </span>
-                  {i < result.chain_vars.length - 1 && <ChainArrow/>}
-                </Fragment>
-              );
-            })}
-          </div>
-
-          {result.steps.map((s, i) => (
-            <div key={i} className="v2-step">
-              <div className="v2-step-hdr">
-                <div className="v2-step-name">{i + 1}. {s.relation_name}</div>
-                <div className="v2-step-citation">{s.citation}</div>
-              </div>
-              {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
-              {s.latex && <div className="v2-step-eq">{s.latex}</div>}
-              <div className="v2-step-io">
-                {Object.entries(s.inputs).map(([k, v]) => (
-                  <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{k} = {v2Fmt(v)}</span>
-                ))}
-                <span className="v2-io-arrow">→</span>
-                <span className="v2-step-out">{s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
-                <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
-              </div>
-            </div>
-          ))}
-
-          <div className="v2-final">
-            <div className="v2-final-lbl">Predicted {result.target_info.name}</div>
-            <div className="v2-final-val">
-              {v2Fmt(result.result.mean)} {result.result.unit}
-            </div>
-            <div className="v2-final-band">
-              90% band: [{v2Fmt(result.result.p5)}, {v2Fmt(result.result.p95)}] {result.result.unit}
-              {' · '}
-              spread {v2Fmt(result.result.relative_uncertainty * 100, 2)}% of mean
-            </div>
-          </div>
+        <Fragment>
+          {result.mode === 'forward'        && <V2ForwardCard        result={result} elapsed={elapsed}/>}
+          {result.mode === 'abductive'      && <V2AbductiveCard      result={result} elapsed={elapsed}/>}
+          {result.mode === 'counterfactual' && <V2CounterfactualCard result={result} elapsed={elapsed}/>}
 
           {result.citations && result.citations.length > 0 && (
-            <div className="v2-citations">
-              {result.citations.map((c, i) => (
-                <div key={i} className="v2-citation-row">{c}</div>
-              ))}
+            <div className="v2-card" style={{paddingTop:14}}>
+              <div className="v2-card-title" style={{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>Citations</div>
+              <div className="v2-citations" style={{borderTop:'none',paddingTop:0}}>
+                {result.citations.map((c, i) => (
+                  <div key={i} className="v2-citation-row">{c}</div>
+                ))}
+              </div>
             </div>
           )}
-        </div>
+        </Fragment>
       )}
     </div>
   );
@@ -925,7 +1215,7 @@ function ReasonTab() {
         </div>
         <div className="reason-desc">
           {v2Mode
-            ? 'Forward inference over a typed equation graph. Each law is a SymPy equation; chains emerge from variables shared across laws. Monte-Carlo propagation reports a 90% uncertainty band on every prediction.'
+            ? 'Three inference modes over a single typed equation graph: forward (predict downstream from upstream), abductive (infer upstream from an observation), and counterfactual (do(...) interventions). Chains emerge from variables shared across laws; uncertainty is propagated by Monte-Carlo on every prediction.'
             : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
         </div>
         {!v2Mode && (

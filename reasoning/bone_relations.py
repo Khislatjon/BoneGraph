@@ -3,25 +3,32 @@ reasoning/bone_relations.py
 ───────────────────────────
 Bone-physics Relations for the v2 reasoning pipeline.
 
-The :func:`build_bone_registry` factory wires three Relations into a
-single :class:`~reasoning.relation.RelationRegistry`:
+:func:`build_bone_registry` wires seven Relations into a single
+:class:`~reasoning.relation.RelationRegistry`.  The Relations span the
+four canonical bone laws (Currey, Paris, beam bending, Frost), plus
+three geometric / constitutive bridges that let the laws compose:
 
-1. **density_from_porosity** — geometric bridge that lets every
-   porosity-driven query reach the variables of the laws below.
-   Equation: ``ρ = ρ_full · (1 − φ)``.
+1. **density_from_porosity** — ``ρ = ρ_full · (1 − φ)``.
+2. **currey_modulus**        — ``E = a · ρⁿ`` (Currey 1988).
+3. **vashishth_paris**       — ``da/dN = C₀ · (ρ_ref / ρ)^k_ρ · ΔKᵐ``
+   (Vashishth 2003 / Paris 1963).
+4. **cortical_inertia**      — ``I = π/4 · (R⁴ − (R − t)⁴)``.
+5. **beam_bending**          — ``σ = M · R / I`` (Euler–Bernoulli).
+6. **hookes_law**            — ``ε[µε] = 1000 · σ[MPa] / E[GPa]``.
+7. **frost_mechanostat**     — ``dBMD/dt = k · tanh((ε − ε_set)/ε_w)``,
+   the smooth analog of Frost's zone-based response (Frost 2003,
+   Robling 2009).
 
-2. **currey_modulus** — Currey's law for elastic modulus.
-   Equation: ``E = a · ρⁿ``.  Citation: Currey 1988.
+Chains emerge from variable sharing alone:
 
-3. **vashishth_paris** — Paris fatigue-crack growth with a
-   density-dependent prefactor (Vashishth 2003 extension of
-   Paris 1963).  Equation: ``da/dN = C₀ · (ρ_ref / ρ)^k_ρ · ΔK^m``.
+* φ → ρ → E                                — Currey path
+* φ → ρ, ΔK → da/dN                        — Paris path
+* R, t → I, M, R, I → σ, σ, E → ε → dBMD/dt — full geometric→biological
+  chain (six relations, one MC pass)
 
-The three Relations share ``ρ`` (apparent density), which is the only
-shared symbol they need to compose.  ``phi → ρ → E`` (Currey path)
-and ``phi → ρ → da/dN`` (Paris path) both fall out of variable sharing
-without anything in this file or the registry knowing those chains
-exist.
+Nothing in this file or the registry encodes those chain identities;
+the BFS in :class:`RelationRegistry` discovers them from the shared
+symbols.
 """
 
 from __future__ import annotations
@@ -69,6 +76,57 @@ _VARIABLES: list[Variable] = [
         unit="m/cycle",
         lo=1.0e-14, hi=1.0e-3,
         description="Fatigue crack extension per loading cycle.",
+    ),
+    # Cross-section geometry — femoral midshaft regime.
+    Variable(
+        symbol="R",
+        name="cortical outer radius",
+        unit="mm",
+        lo=5.0, hi=25.0,
+        description="Periosteal radius of the cortical shell.",
+    ),
+    Variable(
+        symbol="t",
+        name="cortical thickness",
+        unit="mm",
+        lo=0.5, hi=8.0,
+        description="Wall thickness of the cortical shell (R − R_inner).",
+    ),
+    Variable(
+        symbol="I_section",
+        name="second moment of area",
+        unit="mm⁴",
+        lo=1.0, hi=1.0e5,
+        description="Geometric stiffness of the hollow-cylinder cross section.",
+    ),
+    Variable(
+        symbol="M",
+        name="bending moment",
+        unit="N·mm",
+        lo=0.0, hi=1.0e6,
+        description="Applied bending moment on the cross section.",
+    ),
+    Variable(
+        symbol="sigma",
+        name="bending stress",
+        unit="MPa",
+        lo=0.0, hi=300.0,
+        description="Maximum fibre stress under bending.",
+    ),
+    Variable(
+        symbol="eps",
+        name="peak strain",
+        unit="µε",
+        lo=0.0, hi=10000.0,
+        description="Peak principal strain magnitude in microstrain.",
+    ),
+    Variable(
+        symbol="dBMD_dt",
+        name="BMD adaptation rate",
+        unit="%/yr",
+        lo=-5.0, hi=5.0,
+        description="Annual change in bone mineral density "
+                    "(positive = formation, negative = resorption).",
     ),
 ]
 
@@ -152,6 +210,114 @@ def _vashishth_paris() -> Relation:
     )
 
 
+def _cortical_inertia() -> Relation:
+    R, t, I_section = sp.symbols("R t I_section", positive=True)
+    return Relation(
+        name="cortical_inertia",
+        # Hollow circular cross section about a diameter:
+        #   I = π/4 · (R⁴ − (R − t)⁴)
+        equation=I_section - sp.pi / 4 * (R**4 - (R - t)**4),
+        output="I_section",
+        inputs=("R", "t"),
+        parameters={},
+        citation="Standard mechanics of materials — hollow circular cylinder I",
+        description=(
+            "Second moment of area for a hollow circular shell of outer "
+            "radius R and wall thickness t."
+        ),
+    )
+
+
+def _beam_bending() -> Relation:
+    M, R, I_section, sigma = sp.symbols("M R I_section sigma", positive=True)
+    return Relation(
+        name="beam_bending",
+        equation=sigma - M * R / I_section,
+        output="sigma",
+        inputs=("M", "R", "I_section"),
+        parameters={},
+        citation="Euler–Bernoulli beam bending — σ = M·c/I",
+        description=(
+            "Maximum fibre bending stress for a beam under moment M, with "
+            "outer fibre at radius R and section inertia I_section."
+        ),
+    )
+
+
+def _hookes_law() -> Relation:
+    """
+    Strain from stress and modulus, with units in microstrain.
+
+    σ in MPa, E in GPa → σ/E = 10⁻³ strain = 10³ µε.  The
+    factor of 1000 lifts the ratio into the microstrain regime the
+    mechanostat is calibrated in.
+    """
+    sigma, E, eps = sp.symbols("sigma E eps", positive=True)
+    return Relation(
+        name="hookes_law",
+        equation=eps - 1000 * sigma / E,
+        output="eps",
+        inputs=("sigma", "E"),
+        parameters={},
+        citation="Hooke's law (1-D) — ε = σ / E",
+        description=(
+            "Linear-elastic strain from bending stress and elastic modulus, "
+            "expressed in microstrain so it matches Frost's setpoint scale."
+        ),
+    )
+
+
+def _frost_mechanostat() -> Relation:
+    """
+    Smooth analog of Frost's piecewise mechanostat.
+
+    The canonical mechanostat partitions strain into disuse, adapted,
+    and overload zones with discontinuous BMD-change rates.  For a
+    SymPy-friendly composable form we use a tanh squashing centred on
+    the adaptation setpoint::
+
+        dBMD/dt = k_form · tanh((eps − eps_set) / eps_width)
+
+    Behaviour
+    ---------
+    * eps ≪ eps_set                   → dBMD/dt → −k_form (disuse)
+    * eps ≈ eps_set                   → dBMD/dt ≈ 0       (homeostasis)
+    * eps ≫ eps_set (but sub-woven)   → dBMD/dt → +k_form (mild overload)
+
+    Calibration draws on Frost 2003 / Robling 2009 / Burr 2002 — typical
+    BMD swings span ±1.5–3 %/yr across the zones.
+    """
+    eps, dBMD_dt = sp.symbols("eps dBMD_dt", real=True)
+    k_form, eps_set, eps_width = sp.symbols(
+        "k_form eps_set eps_width", positive=True,
+    )
+    return Relation(
+        name="frost_mechanostat",
+        equation=dBMD_dt - k_form * sp.tanh((eps - eps_set) / eps_width),
+        output="dBMD_dt",
+        inputs=("eps",),
+        parameters={
+            "k_form": Prior(
+                mean=2.0, std=0.5, distribution="normal",
+                citation="Frost 2003 / Burr 2002 — saturation BMD rate ≈ ±2 %/yr",
+            ),
+            "eps_set": Prior(
+                mean=1000.0, std=200.0, distribution="normal",
+                citation="Frost 2003 — adapted-window centre ≈ 1000 µε",
+            ),
+            "eps_width": Prior(
+                mean=700.0, std=150.0, distribution="normal",
+                citation="Robling 2009 — width of the adaptation transition",
+            ),
+        },
+        citation="Frost 2003 / Robling 2009 — mechanostat (smooth analog)",
+        description=(
+            "Annual BMD change rate as a smooth, monotonic function of "
+            "peak strain, centred on the Frost setpoint."
+        ),
+    )
+
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 
@@ -164,6 +330,10 @@ def build_bone_registry() -> RelationRegistry:
         _density_from_porosity,
         _currey_modulus,
         _vashishth_paris,
+        _cortical_inertia,
+        _beam_bending,
+        _hookes_law,
+        _frost_mechanostat,
     ):
         reg.register(rel_factory())
     return reg
