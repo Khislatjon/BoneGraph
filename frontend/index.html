@@ -760,7 +760,7 @@ function ReasonTab() {
   const [error, setError]             = useState('');
   const [clientElapsed, setClientElapsed] = useState(null);
 
-  const EXAMPLES = ['cortical porosity and elastic modulus','BMD and bone strength','trabecular porosity stiffness','density change in cortical bone'];
+  const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
   const reason = async (c) => {
     const term = (c || concept).trim();
@@ -782,7 +782,7 @@ function ReasonTab() {
     <div className="reason-tab">
       <div className="reason-hdr">
         <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law (currently Currey's law: E ∝ ρⁿ) over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a four-round adversarial physics critic before being shown.</div>
+        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a four-round adversarial physics critic before being shown.</div>
         <div className="reason-bar">
           <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
             <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
@@ -883,7 +883,11 @@ function ReasonTab() {
               )}
             </div>
             );
-          }) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No physics-driven hypotheses match this query yet. Currey's law fires on porosity, density (BMD), elastic modulus, and strength — try those concepts.</div>}
+          }) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No physics-driven hypotheses match this query yet. Try one of these:
+• Currey's law — "cortical porosity and elastic modulus"
+• Frost mechanostat — "mechanical loading and bone remodeling"
+• Paris law — "fatigue crack growth"
+• Beam bending — "cortical thickness and bending stiffness"</div>}
 
           {result.chains?.length > 0 && (
             <div className="badge-legend">

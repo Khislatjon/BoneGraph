@@ -146,7 +146,7 @@ class PhysicsHypothesis:
     def summary(self) -> str:
         """One-sentence textual summary used by the novelty classifier."""
         return (
-            f"Currey's law predicts that {self.perturbation} "
+            f"{self.law} predicts that {self.perturbation} "
             f"in {self.scenario} bone yields {self.prediction} "
             f"({self.chain_labels[0]} → {self.chain_labels[-1]})."
         )
