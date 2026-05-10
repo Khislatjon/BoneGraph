@@ -35,11 +35,6 @@ Rounds
    Currey-style exponents are calibrated for moderate perturbations.
    Round 3 rejects extreme perturbations that push ρ outside the
    fitted range or into non-physical territory (φ ≥ 1, ρ ≤ 0).
-
-4. Scenario internal consistency
-   Both the input baseline and the output range must come from the same
-   tissue scenario.  This catches mixing cortical input with trabecular
-   output silently.
 """
 
 from __future__ import annotations
@@ -97,7 +92,7 @@ class CritiqueResult:
 
 class PhysicsCritic:
     """
-    Run the four-round adversarial check on a hypothesis.
+    Run the three-round adversarial check on a hypothesis.
 
     Parameters
     ----------
@@ -106,7 +101,7 @@ class PhysicsCritic:
         instance is fine for the whole process.
     """
 
-    ROUNDS_TOTAL = 4
+    ROUNDS_TOTAL = 3
 
     def __init__(self, engine: PhysicsEngine | None = None) -> None:
         self._engine = engine or PhysicsEngine()
@@ -119,7 +114,6 @@ class PhysicsCritic:
             self._round_directional(h),
             self._round_magnitude(h),
             self._round_powerlaw_domain(h),
-            self._round_scenario_consistency(h),
         ]
         passed = sum(1 for c in checks if c.passed)
         survived = passed == self.ROUNDS_TOTAL
@@ -331,25 +325,4 @@ class PhysicsCritic:
         return CheckRecord(
             "powerlaw_domain", True,
             f"No domain check defined for law: {h.law!r}.",
-        )
-
-    # ── Round 4 — scenario internal consistency ───────────────────────────────
-
-    def _round_scenario_consistency(self, h: PhysicsHypothesis) -> CheckRecord:
-        """
-        Make sure both ends of the hypothesis live in the declared
-        tissue scenario.  In v1 the generator always picks the scenario
-        consistently, so this round is a guard for future laws that
-        might mix variables.
-        """
-        if h.scenario not in {"cortical", "trabecular"}:
-            return CheckRecord(
-                "scenario_consistency", False,
-                f"Unknown scenario: {h.scenario!r}",
-            )
-        # Generator-level invariant: both VARS lookups succeeded if we
-        # got here, so simply confirm.
-        return CheckRecord(
-            "scenario_consistency", True,
-            f"All variables resolved within the {h.scenario} regime.",
         )

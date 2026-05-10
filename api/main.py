@@ -24,7 +24,6 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
-GET  /api/gaps             — research gap detection, JSON response
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -603,28 +602,6 @@ def reason(
             "components": graph_stats["n_components"],
         },
         "chains": chains,
-    }
-
-
-@app.get("/api/gaps")
-def gaps(top_n: int = Query(10)):
-    try:
-        gap_list = lrm.find_gaps(top_n=top_n)
-    except Exception as e:
-        return {"error": str(e), "gaps": []}
-
-    return {
-        "gaps": [
-            {
-                "rank":         i + 1,
-                "label":        g.label,
-                "node_type":    g.node_type,
-                "betweenness":  round(g.betweenness, 5),
-                "n_edges":      g.n_edges,
-                "gap_score":    round(g.gap_score, 5),
-            }
-            for i, g in enumerate(gap_list)
-        ]
     }
 
 

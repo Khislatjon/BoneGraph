@@ -180,14 +180,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .badge-legend{display:flex;gap:32px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)}
 .legend-grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .legend-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
-.gaps-section{margin-top:40px;max-width:900px}
-.gaps-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px}
-.gaps-desc{font-size:13px;color:var(--text3);margin-bottom:12px}
-.gaps-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
-.gaps-table th{padding:10px 14px;text-align:left;background:var(--surface2);color:var(--text3);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.gaps-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
-.gaps-table tr:last-child td{border-bottom:none}
-.gap-badge{background:#f3edfb;color:#6b3fb0;border-radius:6px;padding:2px 8px;font-family:var(--mono);font-size:12px}
 .error-note{font-size:13.5px;color:#b01c1c;padding:12px 0}
 
 /* Analyse tab */
@@ -714,45 +706,6 @@ function SearchTab({ totalChunks }) {
 }
 
 // ── REASON TAB ────────────────────────────────────────────────────────────────
-function GapsSection() {
-  const [gaps, setGaps]       = useState(null);
-  const [loading, setLoading] = useState(false);
-  const load = async () => {
-    setLoading(true);
-    try { const r = await fetch('/api/gaps?top_n=10'); const d = await r.json(); setGaps(d.gaps||[]); }
-    catch { setGaps([]); }
-    setLoading(false);
-  };
-  return (
-    <div className="gaps-section">
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-        <div className="gaps-title">🕳️ Research Gap Detection</div>
-        <button className="search-btn" style={{height:32,padding:'0 14px',fontSize:12.5}} onClick={load} disabled={loading}>
-          {loading ? <Spinner/> : 'Find Gaps'}
-        </button>
-      </div>
-      <div className="gaps-desc">Concepts with high betweenness centrality and few edges — candidates for under-studied areas.</div>
-      {gaps && gaps.length > 0 && (
-        <table className="gaps-table">
-          <thead><tr><th>#</th><th>Concept</th><th>Type</th><th>Betweenness</th><th>Edges</th><th>Gap score</th></tr></thead>
-          <tbody>
-            {gaps.map(g => (
-              <tr key={g.rank}>
-                <td style={{color:'var(--text3)'}}>{g.rank}</td>
-                <td style={{fontWeight:600,color:'var(--text)'}}>{g.label}</td>
-                <td style={{color:'var(--text3)'}}>{g.node_type}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:12}}>{g.betweenness.toFixed(4)}</td>
-                <td>{g.n_edges}</td>
-                <td><span className="gap-badge">{g.gap_score.toFixed(4)}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
 function ReasonTab() {
   const [concept, setConcept]         = useState('');
   const [result, setResult]           = useState(null);
@@ -782,7 +735,7 @@ function ReasonTab() {
     <div className="reason-tab">
       <div className="reason-hdr">
         <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a four-round adversarial physics critic before being shown.</div>
+        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.</div>
         <div className="reason-bar">
           <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
             <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
@@ -904,7 +857,6 @@ function ReasonTab() {
           )}
         </div>
         )}
-        {/* <GapsSection/> */}
       </div>
     </div>
   );
