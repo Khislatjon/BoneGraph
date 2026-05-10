@@ -1,5 +1,25 @@
 # Phase 4 — LRM Reasoning Layer
 
+> **⚠️ Partially superseded (May 2026).** The reasoning engine described
+> below — graph-walk over corpus-extracted nodes with physics as an
+> IMPLAUSIBLE-only post-filter — was replaced after audit of the
+> LLM-extracted graph (see [`graph_cleanup.md`](graph_cleanup.md)) and
+> a full rework of the hypothesis pipeline (see
+> [`physics_reasoning.md`](physics_reasoning.md)).
+>
+> The current Reasoning tab generates hypotheses **from physical laws**
+> (Currey, Frost mechanostat, Paris, beam bending) with quantitative
+> predictions, then runs them through a four-round adversarial physics
+> critic. The cleaned graph is used for grounding evidence and chain
+> materialisation, not as the source of hypotheses.
+>
+> Steps 4.1–4.3 (seed ontology, triple extraction, physics-engine
+> implementation) are still accurate and feed the new pipeline.
+> Steps 4.4–4.6 (graph-walk reasoning, novelty integration, original
+> Reasoning tab) are kept here for historical reference but do not
+> match the running system. See [`architecture.md`](architecture.md)
+> for the current Phase 4 step list.
+
 **Status: 🔶 In Progress — Steps 4.1–4.6 complete · paper corpus extraction pending**
 
 Move from retrieval to reasoning. A structured bone ontology (knowledge graph) connects concepts causally. The LRM traverses the ontology to construct multi-hop reasoning chains and generate grounded hypotheses — not just summaries of what the literature says.
