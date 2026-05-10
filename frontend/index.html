@@ -182,6 +182,44 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .legend-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
 .error-note{font-size:13.5px;color:#b01c1c;padding:12px 0}
 
+/* v2 (equation-graph reasoner) */
+.v2-switch{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);margin-bottom:14px}
+.v2-switch button{background:transparent;border:none;padding:6px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);letter-spacing:.02em;font-weight:500}
+.v2-switch button.active{background:var(--text);color:#fff}
+.v2-presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.v2-preset{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;text-align:left;font-family:var(--sans);max-width:340px;line-height:1.4}
+.v2-preset:hover{border-color:var(--amber);color:var(--text)}
+.v2-preset:disabled{opacity:.5;cursor:not-allowed}
+.v2-preset-label{font-weight:600;color:var(--text);display:block;margin-bottom:3px}
+.v2-preset-desc{font-size:12px;color:var(--text3)}
+.v2-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:16px;max-width:920px}
+.v2-card-hdr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.v2-card-title{font-size:14px;color:var(--text2);font-weight:600}
+.v2-meta{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.v2-chain-row{display:flex;align-items:center;flex-wrap:wrap;gap:0;row-gap:10px;padding:4px 0}
+.v2-var-pill{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--text)}
+.v2-var-pill .v2-var-name{font-weight:400;color:var(--text3);font-size:11.5px;margin-left:4px}
+.v2-given-pill{background:#eaf5ec;border-color:#bcdcc4}
+.v2-target-pill{background:#fef5e4;border-color:var(--amber-border)}
+.v2-step{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--surface2)}
+.v2-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.v2-step-name{font-weight:600;font-size:13px;color:var(--text)}
+.v2-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
+.v2-step-eq{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto}
+.v2-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
+.v2-step-io .v2-io-arrow{color:var(--amber)}
+.v2-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
+.v2-step-band{font-family:var(--mono);font-size:11.5px;color:var(--text3);margin-left:6px}
+.v2-final{margin-top:6px;padding:16px 18px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+.v2-final-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.v2-final-val{font-family:var(--mono);font-size:22px;font-weight:600;color:#5a3a06}
+.v2-final-band{font-family:var(--mono);font-size:12.5px;color:#7a5010}
+.v2-citations{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+.v2-citation-row{display:flex;gap:8px}
+.v2-citation-row::before{content:"›";color:var(--amber);font-weight:600}
+.v2-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
+.v2-experimental-tag{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);background:#fef5e4;border:1px solid var(--amber-border);border-radius:4px;padding:1px 7px;margin-left:8px}
+
 /* Analyse tab */
 .analyse-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
 .dropzone{max-width:560px;border:2px dashed var(--border2);border-radius:14px;padding:60px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;background:var(--surface);transition:border-color .15s,background .15s;text-align:center}
@@ -706,12 +744,135 @@ function SearchTab({ totalChunks }) {
 }
 
 // ── REASON TAB ────────────────────────────────────────────────────────────────
+// Format a number for v2 result display.  Uses scientific notation
+// for very small or very large magnitudes; plain decimals otherwise.
+function v2Fmt(x, sig=3) {
+  if (x === null || x === undefined || Number.isNaN(x)) return '—';
+  const ax = Math.abs(x);
+  if (ax !== 0 && (ax < 1e-3 || ax >= 1e4)) return x.toExponential(2);
+  return Number(x.toPrecision(sig)).toString();
+}
+
+const V2_PRESETS = [
+  {
+    id: 'porosity_to_modulus',
+    label: 'Porosity → elastic modulus',
+    desc: 'φ = 0.10 → ρ → E.  Cites: density bridge + Currey 1988.',
+  },
+  {
+    id: 'porosity_to_crack_growth',
+    label: 'Porosity → crack growth (at ΔK = 1.0 MPa·√m)',
+    desc: 'φ = 0.10, ΔK = 1.0 → ρ → da/dN.  Cites: density bridge + Vashishth 2003 / Paris 1963.',
+  },
+  {
+    id: 'low_density_paris',
+    label: 'Trabecular regime → crack growth (φ = 0.5, ΔK = 0.6)',
+    desc: 'Same chain in the trabecular regime — lower density inflates the Paris prefactor.',
+  },
+];
+
+function V2Section({presets, onRun, loading, result, error, elapsed}) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8}}>
+      <div className="v2-presets">
+        {presets.map(p => (
+          <button key={p.id} className="v2-preset" onClick={() => onRun(p.id)} disabled={loading}>
+            <span className="v2-preset-label">{p.label}</span>
+            <span className="v2-preset-desc">{p.desc}</span>
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="loading-row" style={{marginTop:24}}><Dots/><span>Solving equation graph and sampling priors…</span></div>}
+      {error && <div className="v2-error">{error}</div>}
+
+      {result && !loading && (
+        <div className="v2-card">
+          <div className="v2-card-hdr">
+            <div className="v2-card-title">
+              Forward inference: {result.target_info.name}
+              {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+            </div>
+            <div className="v2-meta">
+              {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
+            </div>
+          </div>
+
+          <div className="v2-chain-row">
+            {result.chain_vars.map((v, i) => {
+              const isGiven  = result.given_info && result.given_info[v.symbol];
+              const isTarget = v.symbol === result.target;
+              const cls = 'v2-var-pill' + (isGiven ? ' v2-given-pill' : (isTarget ? ' v2-target-pill' : ''));
+              return (
+                <Fragment key={i}>
+                  <span className={cls}>
+                    {v.symbol}
+                    <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
+                  </span>
+                  {i < result.chain_vars.length - 1 && <ChainArrow/>}
+                </Fragment>
+              );
+            })}
+          </div>
+
+          {result.steps.map((s, i) => (
+            <div key={i} className="v2-step">
+              <div className="v2-step-hdr">
+                <div className="v2-step-name">{i + 1}. {s.relation_name}</div>
+                <div className="v2-step-citation">{s.citation}</div>
+              </div>
+              {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
+              {s.latex && <div className="v2-step-eq">{s.latex}</div>}
+              <div className="v2-step-io">
+                {Object.entries(s.inputs).map(([k, v]) => (
+                  <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{k} = {v2Fmt(v)}</span>
+                ))}
+                <span className="v2-io-arrow">→</span>
+                <span className="v2-step-out">{s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
+                <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
+              </div>
+            </div>
+          ))}
+
+          <div className="v2-final">
+            <div className="v2-final-lbl">Predicted {result.target_info.name}</div>
+            <div className="v2-final-val">
+              {v2Fmt(result.result.mean)} {result.result.unit}
+            </div>
+            <div className="v2-final-band">
+              90% band: [{v2Fmt(result.result.p5)}, {v2Fmt(result.result.p95)}] {result.result.unit}
+              {' · '}
+              spread {v2Fmt(result.result.relative_uncertainty * 100, 2)}% of mean
+            </div>
+          </div>
+
+          {result.citations && result.citations.length > 0 && (
+            <div className="v2-citations">
+              {result.citations.map((c, i) => (
+                <div key={i} className="v2-citation-row">{c}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReasonTab() {
   const [concept, setConcept]         = useState('');
   const [result, setResult]           = useState(null);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState('');
   const [clientElapsed, setClientElapsed] = useState(null);
+
+  // v2 (equation-graph) state — lives alongside the v0 state so a user
+  // can flip between them without losing context.
+  const [v2Mode, setV2Mode]           = useState(false);
+  const [v2Result, setV2Result]       = useState(null);
+  const [v2Loading, setV2Loading]     = useState(false);
+  const [v2Error, setV2Error]         = useState('');
+  const [v2Elapsed, setV2Elapsed]     = useState(null);
 
   const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
@@ -731,37 +892,81 @@ function ReasonTab() {
     setLoading(false);
   };
 
+  const reasonV2 = async (presetId) => {
+    if (v2Loading) return;
+    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason_v2', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({preset: presetId}),
+      });
+      const data = await r.json();
+      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setV2Error(data.error);
+      else setV2Result(data);
+    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
+    setV2Loading(false);
+  };
+
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
-        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.</div>
-        <div className="reason-bar">
-          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          </svg>
-          <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
-            value={concept} onChange={e => setConcept(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
-          <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
-            {loading ? <Spinner/> : 'Reason'}
-          </button>
+        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          Hypothesis Generator
+          {v2Mode && <span className="v2-experimental-tag">v2 experimental</span>}
         </div>
+        <div style={{display:'flex',justifyContent:'center'}}>
+          <div className="v2-switch">
+            <button className={!v2Mode ? 'active' : ''} onClick={() => setV2Mode(false)}>v0 — physics grid</button>
+            <button className={v2Mode ? 'active' : ''} onClick={() => setV2Mode(true)}>v2 — equation graph</button>
+          </div>
+        </div>
+        <div className="reason-desc">
+          {v2Mode
+            ? 'Forward inference over a typed equation graph. Each law is a SymPy equation; chains emerge from variables shared across laws. Monte-Carlo propagation reports a 90% uncertainty band on every prediction.'
+            : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
+        </div>
+        {!v2Mode && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
+              value={concept} onChange={e => setConcept(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
+            <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
+              {loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="reason-body">
-        {!result && !loading && (
+        {v2Mode && (
+          <V2Section
+            presets={V2_PRESETS}
+            onRun={reasonV2}
+            loading={v2Loading}
+            result={v2Result}
+            error={v2Error}
+            elapsed={v2Elapsed}
+          />
+        )}
+
+        {!v2Mode && !result && !loading && (
           <div className="ex-chips">
             <span className="chips-label">Try:</span>
             {EXAMPLES.map((ex,i) => <button key={i} className="chip" onClick={() => reason(ex)}>{ex}</button>)}
           </div>
         )}
 
-        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
-        {error && <div className="error-note">{error}</div>}
+        {!v2Mode && loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
+        {!v2Mode && error && <div className="error-note">{error}</div>}
 
-        {result && !loading && (
+        {!v2Mode && result && !loading && (
         <div className="reason-results">
           <div className="results-title">Physics-derived hypotheses for <em>"{result.concept}"</em></div>
           {result.graph_stats && (

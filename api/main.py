@@ -24,6 +24,8 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
+POST /api/reason_v2        — v2 equation-graph forward inference, JSON response
+GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -42,6 +44,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneMindRetriever
+from reasoning.bone_relations import build_bone_registry
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -142,6 +145,9 @@ retriever.load()
 
 print("Loading LRM (bone knowledge graph)...")
 lrm = LRM()
+
+print("Building v2 equation-graph registry...")
+bone_registry = build_bone_registry()
 
 print("Loading novelty classifier...")
 novelty_clf = NoveltyClassifier(
@@ -603,6 +609,178 @@ def reason(
         },
         "chains": chains,
     }
+
+
+# ── v2 equation-graph reasoner ────────────────────────────────────────────────
+# Phase 1: forward inference over a typed equation graph (Currey + density-
+# modulated Paris + density-from-porosity bridge).  The chain of relations is
+# discovered by traversing shared variable symbols, not pre-encoded.
+
+_V2_PRESETS: dict[str, dict] = {
+    "porosity_to_modulus": {
+        "label": "Porosity → elastic modulus",
+        "target": "E",
+        "given": {"phi": 0.10},
+        "description": (
+            "How a 10% porosity sample maps to elastic modulus via "
+            "the density bridge and Currey's law."
+        ),
+    },
+    "porosity_to_crack_growth": {
+        "label": "Porosity → fatigue crack growth (at ΔK = 1.0 MPa·√m)",
+        "target": "da_dN",
+        "given": {"phi": 0.10, "dK": 1.0},
+        "description": (
+            "How a 10% porosity sample maps to fatigue crack growth via "
+            "the density bridge and the Vashishth-modulated Paris law."
+        ),
+    },
+    "low_density_paris": {
+        "label": "Trabecular regime → fatigue crack growth (φ=0.5, ΔK=0.6)",
+        "target": "da_dN",
+        "given": {"phi": 0.50, "dK": 0.6},
+        "description": (
+            "Demonstration of the chain in the trabecular regime, where "
+            "lower density inflates the Paris prefactor."
+        ),
+    },
+}
+
+
+def _v2_render(reg, target: str, given: dict[str, float]) -> dict:
+    """Run a forward inference and shape the result for the front-end."""
+    fr = reg.forward(target, given=given, n_samples=4000, seed=12345)
+
+    def _var(symbol: str) -> dict:
+        v = reg.variable(symbol)
+        if v is None:
+            return {"symbol": symbol, "name": symbol, "unit": ""}
+        return {
+            "symbol": v.symbol,
+            "name": v.name,
+            "unit": v.unit,
+            "lo": v.lo,
+            "hi": v.hi,
+            "description": v.description,
+        }
+
+    rel_by_name = {r.name: r for r in reg.relations()}
+    steps = []
+    for s in fr.steps:
+        rel = rel_by_name.get(s.relation_name)
+        steps.append({
+            "relation_name": s.relation_name,
+            "description":   rel.description if rel else "",
+            "latex":         rel.latex if rel else "",
+            "citation":      s.citation,
+            "inputs":        s.inputs,
+            "output_var":    s.output_var,
+            "output_unit":   (reg.variable(s.output_var).unit
+                              if reg.variable(s.output_var) else ""),
+            "output_mean":   s.output_mean,
+            "output_p5":     s.output_p5,
+            "output_p95":    s.output_p95,
+        })
+
+    target_var = reg.variable(target)
+    return {
+        "target":        target,
+        "target_info":   _var(target),
+        "given":         given,
+        "given_info":    {k: _var(k) for k in given},
+        "chain_vars":    [_var(v) for v in fr.chain_vars],
+        "steps":         steps,
+        "result": {
+            "variable":             target,
+            "unit":                 target_var.unit if target_var else "",
+            "mean":                 fr.mean,
+            "median":               fr.median,
+            "p5":                   fr.p5,
+            "p95":                  fr.p95,
+            "relative_uncertainty": fr.relative_uncertainty,
+            "n_samples":            int(fr.samples.size),
+        },
+        "citations":     fr.citations,
+    }
+
+
+@app.get("/api/reason_v2/presets")
+def reason_v2_presets():
+    """Return the preset demo queries available to the v2 UI."""
+    return {
+        "presets": [
+            {"id": pid, **{k: v for k, v in p.items() if k != "given"},
+             "given": p["given"]}
+            for pid, p in _V2_PRESETS.items()
+        ],
+        "variables": [
+            {
+                "symbol":      v.symbol,
+                "name":        v.name,
+                "unit":        v.unit,
+                "lo":          v.lo,
+                "hi":          v.hi,
+                "description": v.description,
+            }
+            for v in (
+                bone_registry.variable(s)
+                for s in sorted(bone_registry.variables_in_graph())
+            ) if v is not None
+        ],
+        "relations": [
+            {
+                "name":        r.name,
+                "description": r.description,
+                "latex":       r.latex,
+                "citation":    r.citation,
+                "inputs":      list(r.inputs),
+                "output":      r.output,
+            }
+            for r in bone_registry.relations()
+        ],
+    }
+
+
+@app.post("/api/reason_v2")
+def reason_v2(payload: dict):
+    """
+    Forward inference over the typed equation graph.
+
+    Request shape::
+
+        {"target": "E", "given": {"phi": 0.10}}
+        {"target": "da_dN", "given": {"phi": 0.10, "dK": 1.0}}
+        {"preset": "porosity_to_modulus"}
+
+    Returns the discovered derivation chain, per-step intermediate values
+    with 5–95th percentile bands, and a final prediction with uncertainty.
+    """
+    preset_id = payload.get("preset")
+    if preset_id is not None:
+        preset = _V2_PRESETS.get(preset_id)
+        if preset is None:
+            return {"error": f"Unknown preset: {preset_id!r}"}
+        target = preset["target"]
+        given = dict(preset["given"])
+    else:
+        target = payload.get("target")
+        given = payload.get("given") or {}
+        if not target:
+            return {"error": "Field 'target' is required."}
+        if not isinstance(given, dict):
+            return {"error": "Field 'given' must be an object."}
+        try:
+            given = {str(k): float(v) for k, v in given.items()}
+        except (TypeError, ValueError) as exc:
+            return {"error": f"Bad 'given' values: {exc}"}
+
+    t0 = time.perf_counter()
+    try:
+        out = _v2_render(bone_registry, target, given)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    out["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return out
 
 
 @app.post("/api/analyse")

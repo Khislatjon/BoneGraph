@@ -8,6 +8,7 @@ langdetect>=1.0.9
 playwright>=1.40.0
 playwright-stealth>=1.0.0
 networkx>=3.2
+sympy>=1.12
 adapters
 fastapi
 uvicorn
