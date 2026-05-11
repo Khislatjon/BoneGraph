@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/bonemind-icon.svg" type="image/svg+xml">
 <script src="/static/react.dev.js"></script>
 <script src="/static/react-dom.dev.js"></script>
 <script src="/static/babel.min.js"></script>
@@ -280,29 +281,25 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
 .v2-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
 .v2-cov-summary b{color:var(--text)}
-.v2-cov-row{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center}
+.v2-cov-row{display:grid;grid-template-columns:120px auto;gap:14px;align-items:center}
 .v2-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
-.v2-cov-age{display:flex;align-items:center;gap:12px}
-.v2-cov-age input[type=range]{flex:1;accent-color:var(--amber)}
-.v2-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:right}
-.v2-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2)}
+.v2-cov-age{display:inline-flex;align-items:center;gap:12px}
+.v2-cov-age .range-slider{width:200px}
+.v2-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:left}
+.v2-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2);width:max-content}
 .v2-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
-.v2-cov-sex button.active{background:var(--text);color:#fff}
-.v2-cov-site{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-family:var(--sans);font-size:12.5px;color:var(--text);min-width:220px}
-.v2-cov-diseases{display:flex;flex-wrap:wrap;gap:8px}
+.v2-cov-sex button.active{background:var(--amber);color:#fff}
+.v2-cov-site{appearance:none;-webkit-appearance:none;background:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:5px 28px 5px 10px;font-family:var(--sans);font-size:12.5px;color:#fff;font-weight:500;min-width:220px;max-width:260px;width:max-content;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
+.v2-cov-site option{color:var(--text);background:var(--surface)}
+.v2-cov-diseases{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
 .v2-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
-.v2-cov-disease.active{background:#fef5e4;border-color:var(--amber-border);color:#5a3a06}
+.v2-cov-disease.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.v2-cov-disease.active input{accent-color:#fff}
 .v2-cov-disease input{accent-color:var(--amber)}
 .v2-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
 .v2-cov-reset:hover{color:var(--amber)}
 
 /* Free-text v2 query bar */
-.v2-ask-bar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 6px 6px 18px;max-width:920px;width:100%}
-.v2-ask-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--sans);font-size:14px;color:var(--text);padding:10px 4px}
-.v2-ask-input::placeholder{color:var(--text3)}
-.v2-ask-btn{background:var(--text);color:#fff;border:none;border-radius:10px;padding:8px 18px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
-.v2-ask-btn:disabled{opacity:.5;cursor:not-allowed}
-.v2-ask-hint{font-size:11px;color:var(--text3);text-align:center;max-width:920px;font-style:italic}
 
 /* Routing banner */
 .v2-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -383,11 +380,13 @@ function BoneSVG({ size = 28 }) {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
       <rect width="100" height="100" rx="18" fill="#0f1724"/>
-      <text x="18" y="74" fontFamily="Georgia, serif" fontSize="72" fontWeight="700" fill="#f3e8c8" letterSpacing="-2">B</text>
-      <g transform="translate(74,24)">
-        <path d="M0,-16 L3.2,-3.2 L16,0 L3.2,3.2 L0,16 L-3.2,3.2 L-16,0 L-3.2,-3.2 Z" fill="#b07820"/>
-        <path d="M0,-9 L1.8,-1.8 L9,0 L1.8,1.8 L0,9 L-1.8,1.8 L-9,0 L-1.8,-1.8 Z" fill="#f3e8c8"/>
-      </g>
+      <rect x="28" y="16" width="14" height="68" fill="#f3e8c8"/>
+      <circle cx="28" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="28" cy="84" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="84" r="8" fill="#f3e8c8"/>
+      <path d="M42 24 Q77 24 77 41 Q77 50 44 50" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M42 50 Q77 50 77 67 Q77 76 44 76" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -1065,6 +1064,11 @@ function V2CovariatePanel({covariates, onChange}) {
         <div className="v2-cov-lbl">Age</div>
         <div className="v2-cov-age">
           <input type="range" min="18" max="95" step="1" value={c.age}
+            className="range-slider v2-cov-age-slider"
+            style={(() => {
+              const pct = ((c.age - 18) / (95 - 18)) * 100;
+              return {background: `linear-gradient(to right, var(--amber) 0%, var(--amber) ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`};
+            })()}
             onChange={e => update({age: Number(e.target.value)})}/>
           <span className="v2-cov-age-val">{c.age} yr</span>
         </div>
@@ -1504,33 +1508,15 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
-      <div className="v2-ask-bar">
-        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" style={{color:'var(--text3)'}}>
-          <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-          <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-        </svg>
-        <input
-          className="v2-ask-input"
-          placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
-          value={query || ''}
-          onChange={e => onQueryChange(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && onAsk()}
-          disabled={loading}/>
-        <button className="v2-ask-btn" onClick={() => onAsk()}
-                disabled={loading || !(query || '').trim()}>
-          {loading ? <Spinner/> : 'Reason'}
-        </button>
-      </div>
-      <div className="v2-ask-hint">
-        One LLM call routes the query to a mode; SPECTER2 anchors the variables; the reasoner stays deterministic.
-        Try: {V2_ASK_EXAMPLES.map((ex, i) => (
-          <Fragment key={i}>
-            {i > 0 && ' · '}
-            <a href="#" onClick={e => { e.preventDefault(); onQueryChange(ex); onAsk(ex); }}
-               style={{color:'var(--amber)',textDecoration:'none'}}>{ex}</a>
-          </Fragment>
-        ))}
-      </div>
+      {!result && !loading && (
+        <div className="ex-chips">
+          <span className="chips-label">Try:</span>
+          {V2_ASK_EXAMPLES.map((ex, i) => (
+            <button key={i} className="chip"
+              onClick={() => { onQueryChange(ex); onAsk(ex); }}>{ex}</button>
+          ))}
+        </div>
+      )}
 
       <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
 
@@ -1721,17 +1707,17 @@ function ReasonTab() {
       <div className="reason-hdr">
         <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
           Hypothesis Generator
-          {v2Mode && <span className="v2-experimental-tag">v2 experimental</span>}
+          {v2Mode && <span className="v2-experimental-tag">experimental</span>}
         </div>
         <div style={{display:'flex',justifyContent:'center'}}>
           <div className="v2-switch">
-            <button className={!v2Mode ? 'active' : ''} onClick={() => setV2Mode(false)}>v0 — physics grid</button>
-            <button className={v2Mode ? 'active' : ''} onClick={() => setV2Mode(true)}>v2 — equation graph</button>
+            <button className={!v2Mode ? 'active' : ''} onClick={() => setV2Mode(false)}>physics grid</button>
+            <button className={v2Mode ? 'active' : ''} onClick={() => setV2Mode(true)}>equation graph</button>
           </div>
         </div>
         <div className="reason-desc">
           {v2Mode
-            ? 'Three inference modes (forward / abductive / counterfactual) over a single typed equation graph, conditioned on patient covariates (age, sex, site, disease). Each law’s parameters are reshaped by literature-anchored shifts before propagation, so the same physical query yields different predictions for a 30-year-old femur and a 75-year-old vertebra.'
+            ? 'Forward, abductive and counterfactual inference over a typed equation graph. Patient covariates reshape each law’s priors before propagation.'
             : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
         </div>
         {!v2Mode && (
@@ -1745,6 +1731,22 @@ function ReasonTab() {
               onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
             <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
               {loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
+        {v2Mode && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input"
+              placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+              value={v2Query} onChange={e => setV2Query(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && reasonV2Ask()} disabled={v2Loading}/>
+            <button className="reason-btn" onClick={() => reasonV2Ask()}
+                    disabled={v2Loading || !(v2Query || '').trim()}>
+              {v2Loading ? <Spinner/> : 'Reason'}
             </button>
           </div>
         )}
@@ -2003,7 +2005,7 @@ function App() {
           </div>
           {stats && (
             <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>
-              {stats.graph_nodes?.toLocaleString()} KG nodes · {stats.graph_edges?.toLocaleString()} edges
+              {stats.graph_nodes?.toLocaleString()} nodes · {stats.graph_edges?.toLocaleString()} edges
             </div>
           )}
         </div>
