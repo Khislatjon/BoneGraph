@@ -1508,6 +1508,8 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
+
       {!result && !loading && (
         <div className="ex-chips">
           <span className="chips-label">Try:</span>
@@ -1517,8 +1519,6 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           ))}
         </div>
       )}
-
-      <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
 
       {V2_PRESETS_ENABLED && (
       <div className="v2-preset-groups">
