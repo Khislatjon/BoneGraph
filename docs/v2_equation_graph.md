@@ -62,23 +62,27 @@ Each node is a **typed Variable** — a physical quantity with a unit,
 a plausible range, and a description. There are 12 variables in the
 registry:
 
-| Symbol      | Name                       | Unit       | Range            |
-|-------------|----------------------------|------------|------------------|
-| `phi`       | porosity                   | —          | 0 – 0.95         |
-| `rho`       | apparent density           | g/cm³      | 0.05 – 2.10      |
-| `E`         | elastic modulus            | GPa        | 0.001 – 30       |
-| `dK`        | stress-intensity range     | MPa·√m     | 0 – 6            |
-| `da_dN`     | crack growth rate          | m/cycle    | 1e-14 – 1e-3     |
-| `R`         | outer cortical radius      | mm         | 5 – 25           |
-| `t`         | cortical thickness         | mm         | 0.5 – 12         |
-| `I_section` | second moment of area      | mm⁴        | 100 – 1e6        |
-| `M`         | applied bending moment     | N·mm       | 1e3 – 5e5        |
-| `sigma`     | bending stress             | MPa        | 1 – 250          |
-| `eps`       | strain                     | µε         | 0 – 25 000       |
-| `dBMD_dt`   | BMD adaptation rate        | %/yr       | -5 – 5           |
+| Display     | Internal symbol | Name                   | Unit       | Range            |
+|-------------|-----------------|------------------------|------------|------------------|
+| `φ`         | `phi`           | porosity               | —          | 0 – 0.95         |
+| `ρ`         | `rho`           | apparent density       | g/cm³      | 0.05 – 2.10      |
+| `E`         | `E`             | elastic modulus        | GPa        | 0.001 – 30       |
+| `ΔK`        | `dK`            | stress-intensity range | MPa·√m     | 0 – 6            |
+| `da/dN`     | `da_dN`         | crack growth rate      | m/cycle    | 1e-14 – 1e-3     |
+| `R`         | `R`             | outer cortical radius  | mm         | 5 – 25           |
+| `t`         | `t`             | cortical thickness     | mm         | 0.5 – 8          |
+| `I`         | `I_section`     | second moment of area  | mm⁴        | 1 – 1e5          |
+| `M`         | `M`             | applied bending moment | N·mm       | 0 – 1e6          |
+| `σ`         | `sigma`         | bending stress         | MPa        | 0 – 300          |
+| `ε`         | `eps`           | peak strain            | µε         | 0 – 10 000       |
+| `ΔBMD/Δt`   | `dBMD_dt`       | bone adaptation rate   | %/yr       | -5 – 5           |
 
-These live in `reasoning/bone_relations.py` as `Variable` instances
-([bone_relations.py](../reasoning/bone_relations.py)).
+Each Variable carries both an ASCII `symbol` (used in SymPy equations,
+JSON payloads, and code paths — easy to type, easy to grep) and a
+Unicode `display_symbol` (rendered in the UI, diagrams, and this
+document). The two are decoupled on purpose: the API contract stays
+`given={"phi": 0.10}`, while the chain pill on screen reads `φ`.
+Definitions live in [`reasoning/bone_relations.py`](../reasoning/bone_relations.py).
 
 ### What lives on each edge
 
@@ -451,11 +455,13 @@ the result so you can see which mode and target the router chose.
 Every inference (free-text or preset) uses these values. Change the
 age slider and the same query yields a different number.
 
-### 3. Preset buttons
+### 3. Preset buttons *(currently hidden)*
 
-Three columns, one per inference mode (Forward, Abductive,
-Counterfactual). Each preset is a tagged example you can click to
-see the canonical form of that mode.
+A three-column grid of click-to-run examples — one column per
+inference mode (Forward, Abductive, Counterfactual). Hidden behind
+`V2_PRESETS_ENABLED = false` in
+[`frontend/index.html`](../frontend/index.html) because the canonical
+forms confused early users; flip the flag to bring them back.
 
 ### 4. Result cards
 

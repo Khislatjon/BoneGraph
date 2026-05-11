@@ -279,6 +279,7 @@ def _shift_density_from_porosity_site() -> CovariateShift:
 _VARIABLES: list[Variable] = [
     Variable(
         symbol="phi",
+        display_symbol="φ",
         name="porosity",
         unit="",
         lo=0.0, hi=0.95,
@@ -290,6 +291,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="rho",
+        display_symbol="ρ",
         name="apparent density",
         unit="g/cm³",
         lo=0.05, hi=2.10,
@@ -301,6 +303,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="E",
+        display_symbol="E",
         name="elastic modulus",
         unit="GPa",
         lo=0.001, hi=30.0,
@@ -312,6 +315,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="dK",
+        display_symbol="ΔK",
         name="stress-intensity range",
         unit="MPa·√m",
         lo=0.0, hi=6.0,
@@ -326,6 +330,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="da_dN",
+        display_symbol="da/dN",
         name="crack growth rate",
         unit="m/cycle",
         lo=1.0e-14, hi=1.0e-3,
@@ -339,6 +344,7 @@ _VARIABLES: list[Variable] = [
     # Cross-section geometry — femoral midshaft regime.
     Variable(
         symbol="R",
+        display_symbol="R",
         name="cortical outer radius",
         unit="mm",
         lo=5.0, hi=25.0,
@@ -349,6 +355,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="t",
+        display_symbol="t",
         name="cortical thickness",
         unit="mm",
         lo=0.5, hi=8.0,
@@ -360,6 +367,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="I_section",
+        display_symbol="I",
         name="second moment of area",
         unit="mm⁴",
         lo=1.0, hi=1.0e5,
@@ -371,6 +379,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="M",
+        display_symbol="M",
         name="bending moment",
         unit="N·mm",
         lo=0.0, hi=1.0e6,
@@ -381,6 +390,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="sigma",
+        display_symbol="σ",
         name="bending stress",
         unit="MPa",
         lo=0.0, hi=300.0,
@@ -392,6 +402,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="eps",
+        display_symbol="ε",
         name="peak strain",
         unit="µε",
         lo=0.0, hi=10000.0,
@@ -403,6 +414,7 @@ _VARIABLES: list[Variable] = [
     ),
     Variable(
         symbol="dBMD_dt",
+        display_symbol="ΔBMD/Δt",
         name="bone adaptation rate",
         unit="%/yr",
         lo=-5.0, hi=5.0,

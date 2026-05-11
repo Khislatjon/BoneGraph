@@ -814,15 +814,26 @@ _V2_PRESETS: dict[str, dict] = {
 def _v2_var(reg, symbol: str) -> dict:
     v = reg.variable(symbol)
     if v is None:
-        return {"symbol": symbol, "name": symbol, "unit": ""}
+        return {"symbol": symbol, "display_symbol": symbol, "name": symbol, "unit": ""}
     return {
-        "symbol":      v.symbol,
-        "name":        v.name,
-        "unit":        v.unit,
-        "lo":          v.lo,
-        "hi":          v.hi,
-        "description": v.description,
+        "symbol":         v.symbol,
+        "display_symbol": v.render(),
+        "name":           v.name,
+        "unit":           v.unit,
+        "lo":             v.lo,
+        "hi":             v.hi,
+        "description":    v.description,
     }
+
+
+def _v2_display_map(reg) -> dict[str, str]:
+    """ASCII symbol → Unicode display, for the front-end to look up by key."""
+    out: dict[str, str] = {}
+    for sym in reg.variables_in_graph():
+        v = reg.variable(sym)
+        if v is not None:
+            out[sym] = v.render()
+    return out
 
 
 def _v2_render_forward(
@@ -860,6 +871,7 @@ def _v2_render_forward(
         "covariates":    covariates or {},
         "applied_shifts": reg.applied_shifts(chain, covariates),
         "chain_vars":    [_v2_var(reg, v) for v in fr.chain_vars],
+        "display_map":   _v2_display_map(reg),
         "steps":         steps,
         "result": {
             "variable":             target,
@@ -921,6 +933,7 @@ def _v2_render_abductive(
         "covariates":   covariates or {},
         "applied_shifts": reg.applied_shifts(chain, covariates),
         "chain_vars":   [_v2_var(reg, v) for v in ar.chain_vars],
+        "display_map":  _v2_display_map(reg),
         "inferred":     inferred,
         "result": {
             "effective_sample_size": ar.effective_sample_size,
@@ -954,6 +967,7 @@ def _v2_render_counterfactual(
         "covariates":       covariates or {},
         "applied_shifts":   reg.applied_shifts(chain, covariates),
         "chain_vars":       [_v2_var(reg, v) for v in cf.chain_vars],
+        "display_map":      _v2_display_map(reg),
         "result": {
             "variable":        target,
             "unit":            target_var.unit if target_var else "",
@@ -987,12 +1001,13 @@ def reason_v2_presets():
         "covariates": COVARIATE_SCHEMA,
         "variables": [
             {
-                "symbol":      v.symbol,
-                "name":        v.name,
-                "unit":        v.unit,
-                "lo":          v.lo,
-                "hi":          v.hi,
-                "description": v.description,
+                "symbol":         v.symbol,
+                "display_symbol": v.render(),
+                "name":           v.name,
+                "unit":           v.unit,
+                "lo":             v.lo,
+                "hi":             v.hi,
+                "description":    v.description,
             }
             for v in (
                 bone_registry.variable(s)
@@ -1292,10 +1307,11 @@ def _v2_build_ask_payload(
         "source":     decision.source,
         "matched_variables": [
             {
-                "symbol":      m.symbol,
-                "name":        m.name,
-                "unit":        m.unit,
-                "score":       round(m.score, 3),
+                "symbol":         m.symbol,
+                "display_symbol": m.display_symbol or m.symbol,
+                "name":           m.name,
+                "unit":           m.unit,
+                "score":          round(m.score, 3),
             }
             for m in decision.matched_variables
         ],
@@ -1352,7 +1368,9 @@ def reason_v2_ask(payload: dict):
             "source":     decision.source,
             "matched_variables": [
                 {
-                    "symbol": m.symbol, "name": m.name,
+                    "symbol": m.symbol,
+                    "display_symbol": m.display_symbol or m.symbol,
+                    "name": m.name,
                     "unit":   m.unit,   "score": round(m.score, 3),
                 }
                 for m in decision.matched_variables
@@ -1389,9 +1407,10 @@ def _explore_render_candidate(c: ExplorationCandidate) -> dict:
     target_v  = bone_registry.variable(c.target)
     chain_var_info = [
         {
-            "symbol":      v.symbol if (v := bone_registry.variable(s)) else s,
-            "name":        v.name if v else s,
-            "unit":        v.unit if v else "",
+            "symbol":         v.symbol if (v := bone_registry.variable(s)) else s,
+            "display_symbol": v.render() if v else s,
+            "name":           v.name if v else s,
+            "unit":           v.unit if v else "",
         }
         for s in c.chain_vars
     ]
@@ -1415,15 +1434,17 @@ def _explore_render_candidate(c: ExplorationCandidate) -> dict:
         "title":          c.title,
         "target":         c.target,
         "target_info":    {
-            "symbol": target_v.symbol if target_v else c.target,
-            "name":   target_v.name if target_v else c.target,
-            "unit":   target_v.unit if target_v else "",
+            "symbol":         target_v.symbol if target_v else c.target,
+            "display_symbol": target_v.render() if target_v else c.target,
+            "name":           target_v.name   if target_v else c.target,
+            "unit":           target_v.unit   if target_v else "",
         },
         "sweep_var":      c.sweep_var,
         "sweep_var_info": {
-            "symbol": sweep_var.symbol if sweep_var else c.sweep_var,
-            "name":   sweep_var.name if sweep_var else c.sweep_var,
-            "unit":   sweep_var.unit if sweep_var else "",
+            "symbol":         sweep_var.symbol if sweep_var else c.sweep_var,
+            "display_symbol": sweep_var.render() if sweep_var else c.sweep_var,
+            "name":           sweep_var.name   if sweep_var else c.sweep_var,
+            "unit":           sweep_var.unit   if sweep_var else "",
         },
         "held":           c.held,
         "chain_vars":     chain_var_info,

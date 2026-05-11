@@ -137,6 +137,7 @@ class VariableMatch:
     unit: str
     description: str
     score: float                 # cosine similarity in [-1, 1]
+    display_symbol: str = ""     # Unicode form for the UI; defaults to symbol
 
 
 class SemanticVariableAnchor:
@@ -289,6 +290,7 @@ class SemanticVariableAnchor:
             v = self._variables[int(idx)]
             out.append(VariableMatch(
                 symbol=v.symbol,
+                display_symbol=v.render(),
                 name=v.name,
                 unit=v.unit,
                 description=v.description,

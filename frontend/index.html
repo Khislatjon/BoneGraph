@@ -10,6 +10,8 @@
 <script src="/static/react.dev.js"></script>
 <script src="/static/react-dom.dev.js"></script>
 <script src="/static/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -205,7 +207,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .v2-step-name{font-weight:600;font-size:13px;color:var(--text)}
 .v2-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
-.v2-step-eq{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto}
+.v2-step-eq{font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;overflow-x:auto;line-height:1.4}
+.v2-step-eq .katex{font-size:1.05em}
+.v2-tex{display:inline-block}
 .v2-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
 .v2-step-io .v2-io-arrow{color:var(--amber)}
 .v2-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
@@ -876,6 +880,49 @@ function v2Fmt(x, sig=3) {
   return Number(x.toPrecision(sig)).toString();
 }
 
+// Render a Variable's Unicode form (display_symbol) with a graceful
+// fallback to the ASCII symbol if the payload predates Phase-5b.
+function dsym(v) {
+  return (v && (v.display_symbol || v.symbol)) || '';
+}
+
+// KaTeX-rendered math.  Renders `tex` into a span using window.katex
+// once it has loaded.  If katex is not (yet) available, we fall back
+// to the raw LaTeX so the user still sees something — but we re-try
+// briefly so first-paint of the v2 tab does not lose the equation.
+function TeX({tex, displayMode=false}) {
+  const ref = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    const render = () => {
+      if (cancelled) return false;
+      const node = ref.current;
+      if (!node) return false;
+      if (typeof window.katex === 'undefined') return false;
+      try {
+        window.katex.render(tex || '', node, {
+          throwOnError: false,
+          displayMode,
+          output: 'html',
+        });
+      } catch (e) {
+        node.textContent = tex || '';
+      }
+      return true;
+    };
+    if (!render()) {
+      // KaTeX still loading — poll every 80 ms for up to 2 s.
+      const start = Date.now();
+      const id = setInterval(() => {
+        if (render() || Date.now() - start > 2000) clearInterval(id);
+      }, 80);
+      return () => { cancelled = true; clearInterval(id); };
+    }
+  }, [tex, displayMode]);
+  // Initial render: show plain text until katex paints.
+  return <span ref={ref} className="v2-tex">{tex}</span>;
+}
+
 const V2_PRESETS = [
   // Forward
   {
@@ -963,6 +1010,10 @@ const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', diseas
 // Phase 5 Surprises panel — hidden for now. Flip to `true` to re-enable
 // the always-on exploration panel + the LLM-routed "explore" mode UI.
 const V2_SURPRISES_ENABLED = false;
+
+// Per-mode preset buttons (forward / abductive / counterfactual demos).
+// Hidden for now — flip to `true` to expose the canonical-form examples.
+const V2_PRESETS_ENABLED = false;
 
 const V2_SITES = [
   {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
@@ -1070,7 +1121,7 @@ function V2RoutingBanner({routing}) {
         <div className="v2-routing-matches">
           {routing.matched_variables.map((m, i) => (
             <span key={i} className="v2-routing-match">
-              <b>{m.symbol}</b> · {m.name}
+              <b>{dsym(m)}</b> · {m.name}
               {m.unit && <span style={{color:'var(--text3)'}}> · {m.unit}</span>}
               <span className="v2-routing-score">{(m.score * 100).toFixed(0)}%</span>
             </span>
@@ -1129,7 +1180,7 @@ function V2ChainRow({result}) {
         return (
           <Fragment key={i}>
             <span className={cls}>
-              {v.symbol}
+              {dsym(v)}
               <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
             </span>
             {i < result.chain_vars.length - 1 && <ChainArrow/>}
@@ -1146,7 +1197,7 @@ function V2ForwardCard({result, elapsed}) {
       <div className="v2-card-hdr">
         <div className="v2-card-title">
           Forward inference: {result.target_info.name}
-          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
         <div className="v2-meta">
           {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
@@ -1166,13 +1217,13 @@ function V2ForwardCard({result, elapsed}) {
             <div className="v2-step-citation">{s.citation}</div>
           </div>
           {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
-          {s.latex && <div className="v2-step-eq">{s.latex}</div>}
+          {s.latex && <div className="v2-step-eq"><TeX tex={s.latex}/></div>}
           <div className="v2-step-io">
             {Object.entries(s.inputs).map(([k, v]) => (
-              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{k} = {v2Fmt(v)}</span>
+              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{(result.display_map && result.display_map[k]) || k} = {v2Fmt(v)}</span>
             ))}
             <span className="v2-io-arrow">→</span>
-            <span className="v2-step-out">{s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
+            <span className="v2-step-out">{(result.display_map && result.display_map[s.output_var]) || s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
             <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
           </div>
         </div>
@@ -1196,7 +1247,7 @@ function V2AbductiveCard({result, elapsed}) {
       <div className="v2-card-hdr">
         <div className="v2-card-title">
           Abductive inference: {result.target_info.name}
-          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
         <div className="v2-meta">
           ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
@@ -1210,7 +1261,7 @@ function V2AbductiveCard({result, elapsed}) {
       <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
 
       <div className="v2-abd-hdr">
-        <span>Observed <b>{result.target_info.symbol}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
+        <span>Observed <b>{dsym(result.target_info)}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
         {Object.entries(result.given || {}).length > 0 && (
           <span>Held fixed: {Object.entries(result.given).map(([k, v], i) =>
             <span key={k} style={{marginRight:8}}>{k} = <b>{v2Fmt(v)}</b></span>
@@ -1231,7 +1282,7 @@ function V2AbductiveCard({result, elapsed}) {
           return (
             <div key={i} className="v2-posterior-row">
               <div className="v2-posterior-name">
-                {p.variable.symbol}
+                {dsym(p.variable)}
                 <span className="v2-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
               </div>
               <div>
@@ -1280,7 +1331,7 @@ function V2CounterfactualCard({result, elapsed}) {
       <div className="v2-card-hdr">
         <div className="v2-card-title">
           Counterfactual inference: {result.target_info.name}
-          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({result.target_info.symbol})</span>
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
         <div className="v2-meta">
           n = {r.n_samples.toLocaleString()} paired samples · {elapsed}s
@@ -1409,9 +1460,9 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
                 </div>
 
                 <div className="v2-surprise-sweep">
-                  {c.sweep_var_info.symbol}: {c.sweep_points.map(p => v2Fmt(p.value)).join(' → ')}
+                  {dsym(c.sweep_var_info)}: {c.sweep_points.map(p => v2Fmt(p.value)).join(' → ')}
                   {'  ⇒  '}
-                  {c.target_info.symbol}: {c.sweep_points.map(p => v2Fmt(p.mean)).join(' → ')}
+                  {dsym(c.target_info)}: {c.sweep_points.map(p => v2Fmt(p.mean)).join(' → ')}
                   {c.target_info.unit ? ` ${c.target_info.unit}` : ''}
                 </div>
 
@@ -1420,7 +1471,7 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
                 <div className="v2-surprise-corpus-q">corpus query: {c.corpus.query}</div>
 
                 <div className="v2-surprise-meta">
-                  <span>chain: {c.chain_vars.map(v => v.symbol).join(' → ')}</span>
+                  <span>chain: {c.chain_vars.map(v => dsym(v)).join(' → ')}</span>
                   {Object.keys(c.held).length > 0 && (
                     <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${v2Fmt(v)}`).join(', ')}</span>
                   )}
@@ -1483,6 +1534,7 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 
       <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
 
+      {V2_PRESETS_ENABLED && (
       <div className="v2-preset-groups">
         {groups.map(g => {
           const meta = V2_MODE_META[g.mode];
@@ -1505,6 +1557,7 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           );
         })}
       </div>
+      )}
 
       {loading && (
         <div className="loading-row" style={{marginTop:24}}>

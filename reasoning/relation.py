@@ -61,6 +61,45 @@ def _weighted_quantile(
     return float(np.interp(q, cdf, s))
 
 
+# ── LaTeX prettification ──────────────────────────────────────────────────────
+#
+# SymPy renders Symbol("eps") as "eps", Symbol("da_dN") as "da_{dN}", etc.
+# For the v2 step cards (KaTeX-rendered) we want conventional notation:
+# ε, ΔK, da/dN, ΔBMD/Δt.  These substitutions swap each Symbol whose
+# *.name matches a key for a Symbol whose name is the LaTeX fragment we
+# want emitted verbatim.
+
+_LATEX_SYMBOL_RENAMES: dict[str, str] = {
+    "eps":          r"\varepsilon",
+    "eps_set":      r"\varepsilon_{\mathrm{set}}",
+    "eps_width":    r"\varepsilon_{\mathrm{w}}",
+    "dK":           r"\Delta K",
+    "da_dN":        r"\tfrac{da}{dN}",
+    "dBMD_dt":      r"\tfrac{d\,\mathrm{BMD}}{dt}",
+    "I_section":    r"I",
+    "k_form":       r"k_{\mathrm{form}}",
+    "rho_full":     r"\rho_{\mathrm{full}}",
+    "rho_ref":      r"\rho_{\mathrm{ref}}",
+}
+
+
+def _pretty_latex_substitute(expr_or_sym):
+    """Swap ASCII-named Symbols for their LaTeX-display names."""
+    if isinstance(expr_or_sym, sp.Symbol):
+        repl = _LATEX_SYMBOL_RENAMES.get(expr_or_sym.name)
+        return sp.Symbol(repl) if repl else expr_or_sym
+    try:
+        free = expr_or_sym.free_symbols
+    except AttributeError:
+        return expr_or_sym
+    mapping = {}
+    for s in free:
+        repl = _LATEX_SYMBOL_RENAMES.get(s.name)
+        if repl:
+            mapping[s] = sp.Symbol(repl)
+    return expr_or_sym.xreplace(mapping) if mapping else expr_or_sym
+
+
 # ── Variables and priors ──────────────────────────────────────────────────────
 
 
@@ -76,9 +115,15 @@ class Variable:
     Attributes
     ----------
     symbol : str
-        Stable identifier used in equations and graph traversal (e.g.
-        ``"rho"``, ``"phi"``, ``"E"``).  Two Relations that mention the
-        same symbol share that node.
+        Stable ASCII identifier used in equations, JSON payloads, and
+        graph traversal (e.g. ``"rho"``, ``"phi"``, ``"E"``).  Kept
+        ASCII so it doubles as a SymPy identifier and a JSON key the
+        user can type.  Two Relations that mention the same symbol
+        share that node.
+    display_symbol : str
+        Unicode form for the UI and docs (e.g. ``"ρ"``, ``"φ"``,
+        ``"ΔK"``, ``"da/dN"``).  Defaults to ``symbol`` if empty, so
+        Latin-letter variables like ``E`` need no override.
     name : str
         Human-readable name (``"apparent density"``).
     unit : str
@@ -98,6 +143,11 @@ class Variable:
     lo: float
     hi: float
     description: str = ""
+    display_symbol: str = ""
+
+    def render(self) -> str:
+        """Unicode display form; falls back to the ASCII symbol."""
+        return self.display_symbol or self.symbol
 
     def clamp(self, value: float | np.ndarray) -> float | np.ndarray:
         """Clip ``value`` to the variable's physical range."""
@@ -358,11 +408,32 @@ class Relation:
 
     @property
     def latex(self) -> str:
-        """Render the equation in LaTeX form for the UI."""
+        """
+        Render the equation in LaTeX form for the UI.
+
+        Prefer the *solved* form (``output = f(inputs, params)``) over
+        the implicit ``equation = 0`` form — readers expect to see
+        ``ρ = ρ_full · (1 − φ)``, not ``ρ − ρ_full · (1 − φ) = 0``.
+
+        Also substitutes domain-specific symbols whose Python
+        identifiers don't look right in plain SymPy LaTeX:
+        ``eps`` → ``\\varepsilon``, ``dK`` → ``\\Delta K``,
+        ``da_dN`` → ``\\frac{da}{dN}``, etc.
+
+        Falls back to the implicit form if SymPy cannot solve, and to
+        the raw ``str()`` if even ``sp.latex`` fails.
+        """
         try:
-            return sp.latex(self.equation) + " = 0"
+            self._ensure_lambda()
+            out_sym = self._symbol_by_name(self.output)
+            expr_pretty = _pretty_latex_substitute(self._solved)
+            out_pretty = _pretty_latex_substitute(out_sym)
+            return sp.latex(sp.Eq(out_pretty, expr_pretty))
         except Exception:
-            return str(self.equation)
+            try:
+                return sp.latex(self.equation) + " = 0"
+            except Exception:
+                return str(self.equation)
 
 
 # ── Registry / inference engine ──────────────────────────────────────────────
