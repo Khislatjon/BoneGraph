@@ -77,7 +77,7 @@ from config.settings import (
 )
 from reasoning.graph_db import OntologyStore
 from reasoning.ontology import RELATION_TYPES, Edge, Node
-from reasoning.seed import SEED_NODES
+from reasoning.legacy.seed import SEED_NODES
 
 logging.basicConfig(
     level=logging.INFO,

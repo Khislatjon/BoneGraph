@@ -7,9 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/bonemind-icon.svg" type="image/svg+xml">
 <script src="/static/react.dev.js"></script>
 <script src="/static/react-dom.dev.js"></script>
 <script src="/static/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -180,15 +183,166 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .badge-legend{display:flex;gap:32px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)}
 .legend-grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .legend-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
-.gaps-section{margin-top:40px;max-width:900px}
-.gaps-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px}
-.gaps-desc{font-size:13px;color:var(--text3);margin-bottom:12px}
-.gaps-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
-.gaps-table th{padding:10px 14px;text-align:left;background:var(--surface2);color:var(--text3);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.gaps-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
-.gaps-table tr:last-child td{border-bottom:none}
-.gap-badge{background:#f3edfb;color:#6b3fb0;border-radius:6px;padding:2px 8px;font-family:var(--mono);font-size:12px}
 .error-note{font-size:13.5px;color:#b01c1c;padding:12px 0}
+
+/* v2 (equation-graph reasoner) */
+.v2-switch{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);margin-bottom:14px}
+.v2-switch button{background:transparent;border:none;padding:6px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);letter-spacing:.02em;font-weight:500}
+.v2-switch button.active{background:var(--text);color:#fff}
+.v2-presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.v2-preset{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;text-align:left;font-family:var(--sans);max-width:340px;line-height:1.4}
+.v2-preset:hover{border-color:var(--amber);color:var(--text)}
+.v2-preset:disabled{opacity:.5;cursor:not-allowed}
+.v2-preset-label{font-weight:600;color:var(--text);display:block;margin-bottom:3px}
+.v2-preset-desc{font-size:12px;color:var(--text3)}
+.v2-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:16px;max-width:920px}
+.v2-card-hdr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.v2-card-title{font-size:14px;color:var(--text2);font-weight:600}
+.v2-meta{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.v2-chain-row{display:flex;align-items:center;flex-wrap:wrap;gap:0;row-gap:10px;padding:4px 0}
+.v2-var-pill{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--text)}
+.v2-var-pill .v2-var-name{font-weight:400;color:var(--text3);font-size:11.5px;margin-left:4px}
+.v2-given-pill{background:#eaf5ec;border-color:#bcdcc4}
+.v2-target-pill{background:#fef5e4;border-color:var(--amber-border)}
+.v2-step{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--surface2)}
+.v2-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.v2-step-name{font-weight:600;font-size:13px;color:var(--text)}
+.v2-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
+.v2-step-eq{font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;overflow-x:auto;line-height:1.4}
+.v2-step-eq .katex{font-size:1.05em}
+.v2-tex{display:inline-block}
+.v2-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
+.v2-step-io .v2-io-arrow{color:var(--amber)}
+.v2-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
+.v2-step-band{font-family:var(--mono);font-size:11.5px;color:var(--text3);margin-left:6px}
+.v2-final{margin-top:6px;padding:16px 18px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+.v2-final-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.v2-final-val{font-family:var(--mono);font-size:22px;font-weight:600;color:#5a3a06}
+.v2-final-band{font-family:var(--mono);font-size:12.5px;color:#7a5010}
+.v2-citations{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+.v2-citation-row{display:flex;gap:8px}
+.v2-citation-row::before{content:"›";color:var(--amber);font-weight:600}
+.v2-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
+.v2-experimental-tag{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);background:#fef5e4;border:1px solid var(--amber-border);border-radius:4px;padding:1px 7px;margin-left:8px}
+
+/* v2 active exploration (Surprises panel — Phase 5) */
+.v2-surprises{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.v2-surprises-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.v2-surprises-title{font-size:14px;font-weight:600;color:var(--text)}
+.v2-surprises-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5}
+.v2-surprises-actions{display:flex;align-items:center;gap:8px}
+.v2-surprises-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans)}
+.v2-surprises-btn:hover{border-color:var(--amber);color:var(--text)}
+.v2-surprises-btn:disabled{opacity:.5;cursor:not-allowed}
+.v2-surprise-list{display:flex;flex-direction:column;gap:10px}
+.v2-surprise-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.v2-surprise-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.v2-surprise-rank{font-size:11.5px;color:var(--text3);font-family:var(--mono);min-width:24px}
+.v2-surprise-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.v2-surprise-score{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border);border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em}
+.v2-surprise-summary{font-size:12.5px;color:var(--text2);line-height:1.55}
+.v2-surprise-row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.v2-surprise-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.v2-surprise-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.v2-surprise-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.v2-surprise-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.v2-surprise-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--text3);font-family:var(--mono);padding-top:4px;border-top:1px dashed var(--border)}
+.v2-surprise-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.v2-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
+.v2-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
+
+/* v2 preset groups */
+.v2-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
+.v2-preset-group{display:flex;flex-direction:column;gap:8px}
+.v2-preset-group-hdr{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:left;padding-left:4px}
+.v2-mode-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.v2-mode-forward{background:#eaf5ec;color:#2e6b3a;border:1px solid #bcdcc4}
+.v2-mode-abductive{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.v2-mode-counterfactual{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
+/* Abductive — ranked posterior bars */
+.v2-abd-hdr{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--text2)}
+.v2-abd-hdr b{color:var(--text);font-family:var(--mono)}
+.v2-posterior-row{display:grid;grid-template-columns:140px 1fr 90px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.v2-posterior-row:first-of-type{border-top:none}
+.v2-posterior-name{font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:2px}
+.v2-posterior-name .v2-pn-sub{font-size:11px;color:var(--text3);font-weight:400}
+.v2-posterior-bar{position:relative;height:34px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.v2-posterior-prior{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#eee2c8 0 4px,#f6ecd6 4px 8px);opacity:.7}
+.v2-posterior-post{position:absolute;top:4px;bottom:4px;background:var(--amber);border-radius:4px;border:1px solid #d18b1f}
+.v2-posterior-mean{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5a3a06}
+.v2-posterior-ticks{position:absolute;bottom:-16px;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:var(--mono)}
+.v2-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
+.v2-posterior-stats .v2-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+/* Covariate panel */
+.v2-cov-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:920px;width:100%}
+.v2-cov-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.v2-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.v2-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.v2-cov-summary b{color:var(--text)}
+.v2-cov-row{display:grid;grid-template-columns:120px auto;gap:14px;align-items:center}
+.v2-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
+.v2-cov-age{display:inline-flex;align-items:center;gap:12px}
+.v2-cov-age .range-slider{width:200px}
+.v2-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:left}
+.v2-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2);width:max-content}
+.v2-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
+.v2-cov-sex button.active{background:var(--amber);color:#fff}
+.v2-cov-site{appearance:none;-webkit-appearance:none;background:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:5px 28px 5px 10px;font-family:var(--sans);font-size:12.5px;color:#fff;font-weight:500;min-width:220px;max-width:260px;width:max-content;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
+.v2-cov-site option{color:var(--text);background:var(--surface)}
+.v2-cov-diseases{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
+.v2-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
+.v2-cov-disease.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.v2-cov-disease.active input{accent-color:#fff}
+.v2-cov-disease input{accent-color:var(--amber)}
+.v2-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
+.v2-cov-reset:hover{color:var(--amber)}
+
+/* Free-text v2 query bar */
+
+/* Routing banner */
+.v2-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.v2-routing-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.v2-routing-hdr b{color:var(--text);font-family:var(--mono)}
+.v2-routing-rationale{font-size:12.5px;color:var(--text2);font-style:italic;line-height:1.45}
+.v2-routing-matches{display:flex;flex-wrap:wrap;gap:6px}
+.v2-routing-match{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-family:var(--mono)}
+.v2-routing-match b{color:var(--text)}
+.v2-routing-score{color:var(--text3);font-size:10.5px}
+.v2-routing-source{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px}
+.v2-routing-source.llm{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.v2-routing-source.fallback{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
+/* Applied-shifts banner */
+.v2-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.v2-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.v2-shifts-list{display:flex;flex-direction:column;gap:4px}
+.v2-shift-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:12px;color:#5a3a06}
+.v2-shift-key{font-family:var(--mono);font-weight:600;color:#7a5010;white-space:nowrap}
+.v2-shift-desc{color:#5a3a06}
+.v2-shift-cite{font-size:11px;color:#7a5010;font-style:italic}
+.v2-shift-vals{font-family:var(--mono);font-size:11.5px;color:#7a5010;white-space:nowrap}
+
+/* Counterfactual — baseline / intervened / delta cards */
+.v2-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.v2-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.v2-cf-col.delta{background:#fef5e4;border-color:var(--amber-border)}
+.v2-cf-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.v2-cf-col.delta .v2-cf-lbl{color:#7a5010}
+.v2-cf-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.v2-cf-col.delta .v2-cf-val{color:#5a3a06}
+.v2-cf-val.up{color:#2e6b3a}
+.v2-cf-val.down{color:#8d3e28}
+.v2-cf-band{font-family:var(--mono);font-size:11.5px;color:var(--text3)}
+.v2-cf-col.delta .v2-cf-band{color:#7a5010}
+.v2-cf-rel{font-family:var(--mono);font-size:12px;color:#5a3a06;font-weight:600}
+.v2-cf-intervention{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12.5px;color:var(--text2)}
+.v2-cf-intervention b{color:var(--text)}
+@media (max-width:760px){
+  .v2-cf-grid{grid-template-columns:1fr}
+  .v2-posterior-row{grid-template-columns:1fr}
+}
 
 /* Analyse tab */
 .analyse-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
@@ -226,11 +380,13 @@ function BoneSVG({ size = 28 }) {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
       <rect width="100" height="100" rx="18" fill="#0f1724"/>
-      <text x="18" y="74" fontFamily="Georgia, serif" fontSize="72" fontWeight="700" fill="#f3e8c8" letterSpacing="-2">B</text>
-      <g transform="translate(74,24)">
-        <path d="M0,-16 L3.2,-3.2 L16,0 L3.2,3.2 L0,16 L-3.2,3.2 L-16,0 L-3.2,-3.2 Z" fill="#b07820"/>
-        <path d="M0,-9 L1.8,-1.8 L9,0 L1.8,1.8 L0,9 L-1.8,1.8 L-9,0 L-1.8,-1.8 Z" fill="#f3e8c8"/>
-      </g>
+      <rect x="28" y="16" width="14" height="68" fill="#f3e8c8"/>
+      <circle cx="28" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="28" cy="84" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="84" r="8" fill="#f3e8c8"/>
+      <path d="M42 24 Q77 24 77 41 Q77 50 44 50" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M42 50 Q77 50 77 67 Q77 76 44 76" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -714,40 +870,725 @@ function SearchTab({ totalChunks }) {
 }
 
 // ── REASON TAB ────────────────────────────────────────────────────────────────
-function GapsSection() {
-  const [gaps, setGaps]       = useState(null);
-  const [loading, setLoading] = useState(false);
-  const load = async () => {
-    setLoading(true);
-    try { const r = await fetch('/api/gaps?top_n=10'); const d = await r.json(); setGaps(d.gaps||[]); }
-    catch { setGaps([]); }
-    setLoading(false);
+// Format a number for v2 result display.  Uses scientific notation
+// for very small or very large magnitudes; plain decimals otherwise.
+function v2Fmt(x, sig=3) {
+  if (x === null || x === undefined || Number.isNaN(x)) return '—';
+  const ax = Math.abs(x);
+  if (ax !== 0 && (ax < 1e-3 || ax >= 1e4)) return x.toExponential(2);
+  return Number(x.toPrecision(sig)).toString();
+}
+
+// Render a Variable's Unicode form (display_symbol) with a graceful
+// fallback to the ASCII symbol if the payload predates Phase-5b.
+function dsym(v) {
+  return (v && (v.display_symbol || v.symbol)) || '';
+}
+
+// KaTeX-rendered math.  Renders `tex` into a span using window.katex
+// once it has loaded.  If katex is not (yet) available, we fall back
+// to the raw LaTeX so the user still sees something — but we re-try
+// briefly so first-paint of the v2 tab does not lose the equation.
+function TeX({tex, displayMode=false}) {
+  const ref = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    const render = () => {
+      if (cancelled) return false;
+      const node = ref.current;
+      if (!node) return false;
+      if (typeof window.katex === 'undefined') return false;
+      try {
+        window.katex.render(tex || '', node, {
+          throwOnError: false,
+          displayMode,
+          output: 'html',
+        });
+      } catch (e) {
+        node.textContent = tex || '';
+      }
+      return true;
+    };
+    if (!render()) {
+      // KaTeX still loading — poll every 80 ms for up to 2 s.
+      const start = Date.now();
+      const id = setInterval(() => {
+        if (render() || Date.now() - start > 2000) clearInterval(id);
+      }, 80);
+      return () => { cancelled = true; clearInterval(id); };
+    }
+  }, [tex, displayMode]);
+  // Initial render: show plain text until katex paints.
+  return <span ref={ref} className="v2-tex">{tex}</span>;
+}
+
+const V2_PRESETS = [
+  // Forward
+  {
+    id: 'fwd_porosity_to_modulus', mode: 'forward',
+    label: 'Porosity → elastic modulus',
+    desc: 'φ = 0.10 → ρ → E.  Density bridge + Currey 1988.',
+  },
+  {
+    id: 'fwd_porosity_to_crack_growth', mode: 'forward',
+    label: 'Porosity → crack growth (ΔK = 1.0 MPa·√m)',
+    desc: 'φ = 0.10, ΔK = 1.0 → ρ → da/dN.  Density bridge + Vashishth 2003 / Paris 1963.',
+  },
+  {
+    id: 'fwd_geometry_to_remodeling', mode: 'forward',
+    label: 'Loading + geometry → BMD adaptation rate',
+    desc: 'φ, R, t, M → I, σ, ε → dBMD/dt.  Six-step chain through bending, Hooke, Frost.',
+  },
+  // Abductive
+  {
+    id: 'abd_low_modulus', mode: 'abductive',
+    label: 'Patient with low elastic modulus (E = 12 GPa)',
+    desc: 'Invert Currey + density bridge to recover the most likely porosity.',
+  },
+  {
+    id: 'abd_high_crack_growth', mode: 'abductive',
+    label: 'Elevated fatigue crack growth (da/dN = 5×10⁻⁹ m/cycle)',
+    desc: 'Invert Vashishth–Paris at ΔK = 1.0 to recover porosity.',
+  },
+  {
+    id: 'abd_moderate_remodeling', mode: 'abductive',
+    label: 'Mid-zone adaptation response (dBMD/dt = +1.0 %/yr)',
+    desc: 'Recover the joint (cortical thickness, bending moment) most consistent with the response.',
+  },
+  // Counterfactual
+  {
+    id: 'cf_drop_porosity', mode: 'counterfactual',
+    label: 'do(porosity = 0.05) on elastic modulus',
+    desc: 'How much does E change if porosity drops from 30 % to 5 %?',
+  },
+  {
+    id: 'cf_thinner_cortex', mode: 'counterfactual',
+    label: 'do(cortical thickness = 2.5 mm) on remodeling rate',
+    desc: 'Osteoporotic thinning from 5.5 mm to 2.5 mm — does the Frost response intensify?',
+  },
+  {
+    id: 'cf_double_load', mode: 'counterfactual',
+    label: 'do(ΔK ×2) on fatigue crack growth',
+    desc: 'Doubling the cyclic stress-intensity range — how much does da/dN climb via the Paris exponent?',
+  },
+  // Phase 3 — covariate-aware
+  {
+    id: 'cov_old_vertebra_modulus', mode: 'forward',
+    label: 'Phase 3 · Same φ, two patients: E in a 75 F vertebra',
+    desc: 'Same porosity, but covariate shifts (site, age, sex) drop E ≈ 3× — a contrast v0 cannot produce.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_abductive_clinical_flip', mode: 'abductive',
+    label: 'Phase 3 · E = 12 GPa → φ in young femur vs 75 F vertebra',
+    desc: 'Same observation, opposite porosity inference — clinical reading flips with patient context.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_glucocorticoid_remodeling', mode: 'counterfactual',
+    label: 'Phase 3 · do(thinning) on remodeling — under steroids',
+    desc: 'Same intervention, but glucocorticoid therapy suppresses the anabolic response to ≈20 %.',
+    syncCovariates: {age: 65, sex: 'F', disease: ['glucocorticoid']},
+  },
+];
+
+const V2_MODE_META = {
+  forward:        {tag: 'Forward',        cls: 'v2-mode-forward',
+                   hdr: 'Forward inference',
+                   blurb: 'Given upstream variables, predict the target with a Monte-Carlo uncertainty band.'},
+  abductive:      {tag: 'Abductive',      cls: 'v2-mode-abductive',
+                   hdr: 'Abductive inference',
+                   blurb: 'Given an observed value, infer the upstream variables most likely to explain it.'},
+  counterfactual: {tag: 'Counterfactual', cls: 'v2-mode-counterfactual',
+                   hdr: 'Counterfactual inference',
+                   blurb: 'Compare the target distribution under a do(...) intervention against the baseline state.'},
+};
+
+const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
+
+// Phase 5 Surprises panel — hidden for now. Flip to `true` to re-enable
+// the always-on exploration panel + the LLM-routed "explore" mode UI.
+const V2_SURPRISES_ENABLED = false;
+
+// Per-mode preset buttons (forward / abductive / counterfactual demos).
+// Hidden for now — flip to `true` to expose the canonical-form examples.
+const V2_PRESETS_ENABLED = false;
+
+const V2_SITES = [
+  {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
+  {value: 'tibia_cortical', label: 'Tibia — cortical midshaft'},
+  {value: 'radius',         label: 'Distal radius'},
+  {value: 'vertebra',       label: 'Lumbar vertebra (trabecular)'},
+];
+
+const V2_DISEASES = [
+  {value: 'osteoporosis',            label: 'Osteoporosis'},
+  {value: 'glucocorticoid',          label: 'Glucocorticoids'},
+  {value: 'osteogenesis_imperfecta', label: 'OI'},
+];
+
+function v2IsDefaultCovariates(c) {
+  if (!c) return true;
+  if (c.age !== V2_DEFAULT_COVARIATES.age) return false;
+  if (c.sex !== V2_DEFAULT_COVARIATES.sex) return false;
+  if (c.site !== V2_DEFAULT_COVARIATES.site) return false;
+  const dis = c.disease || [];
+  return dis.length === 0;
+}
+
+function v2CovSummary(c) {
+  if (!c) return 'default — 30-year-old male femur, no disease';
+  const site = V2_SITES.find(s => s.value === c.site)?.label || c.site;
+  const dis = (c.disease || []).map(d => V2_DISEASES.find(x => x.value === d)?.label || d);
+  return `${c.age}-yr ${c.sex === 'F' ? 'female' : 'male'} · ${site}` + (dis.length ? ` · ${dis.join(', ')}` : '');
+}
+
+function V2CovariatePanel({covariates, onChange}) {
+  const c = covariates || V2_DEFAULT_COVARIATES;
+  const update = (patch) => onChange({...c, ...patch});
+  const toggleDisease = (value) => {
+    const cur = new Set(c.disease || []);
+    if (cur.has(value)) cur.delete(value); else cur.add(value);
+    update({disease: Array.from(cur)});
   };
   return (
-    <div className="gaps-section">
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-        <div className="gaps-title">🕳️ Research Gap Detection</div>
-        <button className="search-btn" style={{height:32,padding:'0 14px',fontSize:12.5}} onClick={load} disabled={loading}>
-          {loading ? <Spinner/> : 'Find Gaps'}
-        </button>
+    <div className="v2-cov-panel">
+      <div className="v2-cov-hdr">
+        <span className="v2-cov-title">Patient covariates</span>
+        <span className="v2-cov-summary">{v2CovSummary(c)}</span>
+        {!v2IsDefaultCovariates(c) && (
+          <button className="v2-cov-reset" onClick={() => onChange({...V2_DEFAULT_COVARIATES})}>reset</button>
+        )}
       </div>
-      <div className="gaps-desc">Concepts with high betweenness centrality and few edges — candidates for under-studied areas.</div>
-      {gaps && gaps.length > 0 && (
-        <table className="gaps-table">
-          <thead><tr><th>#</th><th>Concept</th><th>Type</th><th>Betweenness</th><th>Edges</th><th>Gap score</th></tr></thead>
-          <tbody>
-            {gaps.map(g => (
-              <tr key={g.rank}>
-                <td style={{color:'var(--text3)'}}>{g.rank}</td>
-                <td style={{fontWeight:600,color:'var(--text)'}}>{g.label}</td>
-                <td style={{color:'var(--text3)'}}>{g.node_type}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:12}}>{g.betweenness.toFixed(4)}</td>
-                <td>{g.n_edges}</td>
-                <td><span className="gap-badge">{g.gap_score.toFixed(4)}</span></td>
-              </tr>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Age</div>
+        <div className="v2-cov-age">
+          <input type="range" min="18" max="95" step="1" value={c.age}
+            className="range-slider v2-cov-age-slider"
+            style={(() => {
+              const pct = ((c.age - 18) / (95 - 18)) * 100;
+              return {background: `linear-gradient(to right, var(--amber) 0%, var(--amber) ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`};
+            })()}
+            onChange={e => update({age: Number(e.target.value)})}/>
+          <span className="v2-cov-age-val">{c.age} yr</span>
+        </div>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Sex</div>
+        <div className="v2-cov-sex">
+          <button className={c.sex === 'M' ? 'active' : ''} onClick={() => update({sex: 'M'})}>Male</button>
+          <button className={c.sex === 'F' ? 'active' : ''} onClick={() => update({sex: 'F'})}>Female</button>
+        </div>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Site</div>
+        <select className="v2-cov-site" value={c.site} onChange={e => update({site: e.target.value})}>
+          {V2_SITES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </div>
+      <div className="v2-cov-row">
+        <div className="v2-cov-lbl">Disease</div>
+        <div className="v2-cov-diseases">
+          {V2_DISEASES.map(d => {
+            const on = (c.disease || []).includes(d.value);
+            return (
+              <label key={d.value} className={`v2-cov-disease ${on ? 'active' : ''}`}>
+                <input type="checkbox" checked={on} onChange={() => toggleDisease(d.value)}/>
+                {d.label}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function V2RoutingBanner({routing}) {
+  if (!routing) return null;
+  return (
+    <div className="v2-routing">
+      <div className="v2-routing-hdr">
+        <span className={`v2-routing-source ${routing.source}`}>{routing.source}</span>
+        <span>routed as <b>{routing.mode}</b> → target <b>{routing.target}</b></span>
+        {routing.target_score > 0 && (
+          <span className="v2-routing-score">(target match {(routing.target_score * 100).toFixed(0)}%)</span>
+        )}
+        {routing.confidence > 0 && (
+          <span className="v2-routing-score">· confidence {(routing.confidence * 100).toFixed(0)}%</span>
+        )}
+      </div>
+      {routing.rationale && (
+        <div className="v2-routing-rationale">{routing.rationale}</div>
+      )}
+      {routing.matched_variables && routing.matched_variables.length > 0 && (
+        <div className="v2-routing-matches">
+          {routing.matched_variables.map((m, i) => (
+            <span key={i} className="v2-routing-match">
+              <b>{dsym(m)}</b> · {m.name}
+              {m.unit && <span style={{color:'var(--text3)'}}> · {m.unit}</span>}
+              <span className="v2-routing-score">{(m.score * 100).toFixed(0)}%</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function V2ShiftsBanner({shifts, covariates}) {
+  if (!shifts || shifts.length === 0) return null;
+  // Group consecutive shifts on the same parameter so the cascade
+  // (e.g. Currey a: 7 → 3.85 → 2.12 → 2.01) reads as one trace.
+  return (
+    <div className="v2-shifts-banner">
+      <div className="v2-shifts-hdr">
+        Covariate-driven parameter shifts · {v2CovSummary(covariates)}
+      </div>
+      <div className="v2-shifts-list">
+        {shifts.map((s, i) => (
+          <div key={i} className="v2-shift-row">
+            <span className="v2-shift-key">{s.relation}·{s.parameter}</span>
+            <span className="v2-shift-desc">
+              {s.description}
+              {' '}<span className="v2-shift-cite">— {s.citation}</span>
+            </span>
+            <span className="v2-shift-vals">{v2Fmt(s.before_mean)} → {v2Fmt(s.after_mean)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Map a value in [lo, hi] to a percentage along a bar.
+function v2Pct(x, lo, hi) {
+  if (hi <= lo) return 0;
+  const p = ((x - lo) / (hi - lo)) * 100;
+  return Math.max(0, Math.min(100, p));
+}
+
+function V2ChainRow({result}) {
+  return (
+    <div className="v2-chain-row">
+      {result.chain_vars.map((v, i) => {
+        const isGiven    = result.given_info && result.given_info[v.symbol];
+        const isInterv   = result.intervention_info && result.intervention_info[v.symbol];
+        const isTarget   = v.symbol === result.target;
+        const isInferred = result.inferred && result.inferred.some(p => p.variable.symbol === v.symbol);
+        const cls = 'v2-var-pill'
+          + (isGiven    ? ' v2-given-pill'  : '')
+          + (isTarget   ? ' v2-target-pill' : '')
+          + (isInterv   ? ' v2-target-pill' : '')
+          + (isInferred ? ' v2-target-pill' : '');
+        return (
+          <Fragment key={i}>
+            <span className={cls}>
+              {dsym(v)}
+              <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
+            </span>
+            {i < result.chain_vars.length - 1 && <ChainArrow/>}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function V2ForwardCard({result, elapsed}) {
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Forward inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="v2-meta">
+          {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
+        </div>
+      </div>
+
+      <V2RoutingBanner routing={result.routing}/>
+
+      <V2ChainRow result={result}/>
+
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      {result.steps.map((s, i) => (
+        <div key={i} className="v2-step">
+          <div className="v2-step-hdr">
+            <div className="v2-step-name">{i + 1}. {s.relation_name}</div>
+            <div className="v2-step-citation">{s.citation}</div>
+          </div>
+          {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
+          {s.latex && <div className="v2-step-eq"><TeX tex={s.latex}/></div>}
+          <div className="v2-step-io">
+            {Object.entries(s.inputs).map(([k, v]) => (
+              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{(result.display_map && result.display_map[k]) || k} = {v2Fmt(v)}</span>
             ))}
-          </tbody>
-        </table>
+            <span className="v2-io-arrow">→</span>
+            <span className="v2-step-out">{(result.display_map && result.display_map[s.output_var]) || s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
+            <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="v2-final">
+        <div className="v2-final-lbl">Predicted {result.target_info.name}</div>
+        <div className="v2-final-val">{v2Fmt(result.result.mean)} {result.result.unit}</div>
+        <div className="v2-final-band">
+          90% band: [{v2Fmt(result.result.p5)}, {v2Fmt(result.result.p95)}] {result.result.unit}
+          {' · '}spread {v2Fmt(result.result.relative_uncertainty * 100, 2)}% of mean
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function V2AbductiveCard({result, elapsed}) {
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Abductive inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="v2-meta">
+          ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
+        </div>
+      </div>
+
+      <V2RoutingBanner routing={result.routing}/>
+
+      <V2ChainRow result={result}/>
+
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      <div className="v2-abd-hdr">
+        <span>Observed <b>{dsym(result.target_info)}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
+        {Object.entries(result.given || {}).length > 0 && (
+          <span>Held fixed: {Object.entries(result.given).map(([k, v], i) =>
+            <span key={k} style={{marginRight:8}}>{k} = <b>{v2Fmt(v)}</b></span>
+          )}</span>
+        )}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:0}}>
+        {result.inferred.map((p, i) => {
+          const lo = Math.min(p.prior_p5, p.posterior_p5);
+          const hi = Math.max(p.prior_p95, p.posterior_p95);
+          const priorL = v2Pct(p.prior_p5, lo, hi);
+          const priorW = v2Pct(p.prior_p95, lo, hi) - priorL;
+          const postL  = v2Pct(p.posterior_p5, lo, hi);
+          const postW  = v2Pct(p.posterior_p95, lo, hi) - postL;
+          const meanX  = v2Pct(p.posterior_mean, lo, hi);
+          const shiftPct = (p.shift_score * 100).toFixed(0);
+          return (
+            <div key={i} className="v2-posterior-row">
+              <div className="v2-posterior-name">
+                {dsym(p.variable)}
+                <span className="v2-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
+              </div>
+              <div>
+                <div className="v2-posterior-bar">
+                  <div className="v2-posterior-prior" style={{left:`${priorL}%`,width:`${priorW}%`}}/>
+                  <div className="v2-posterior-post"  style={{left:`${postL}%`,width:`${postW}%`}}/>
+                  <div className="v2-posterior-mean"  style={{left:`${meanX}%`}}/>
+                </div>
+                <div className="v2-posterior-ticks">
+                  <span>{v2Fmt(lo)}</span>
+                  <span>{v2Fmt(hi)}</span>
+                </div>
+              </div>
+              <div className="v2-posterior-stats">
+                <span>{v2Fmt(p.posterior_mean)}</span>
+                <span style={{color:'var(--text3)'}}>[{v2Fmt(p.posterior_p5)}, {v2Fmt(p.posterior_p95)}]</span>
+                <span className="v2-shift">shift {shiftPct}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:8,borderTop:'1px solid var(--border)'}}>
+        Bars: striped tan = prior 90 % range, solid amber = posterior 90 % band, dark tick = posterior mean.
+        Shift score = how much the observation tightened the prior (100 % means the band collapsed to a point).
+      </div>
+    </div>
+  );
+}
+
+function V2CounterfactualCard({result, elapsed}) {
+  const r = result.result;
+  const deltaDir = r.delta_mean >= 0 ? 'up' : 'down';
+  const deltaSign = r.delta_mean >= 0 ? '+' : '';
+  const relSign = r.relative_delta >= 0 ? '+' : '';
+  // Suppress the percent when baseline is close to zero relative to Δ
+  // (sign-flip cases like resorption → formation), or when the ratio
+  // explodes — the absolute Δ is the meaningful quantity there.
+  const relIsMeaningful =
+    Number.isFinite(r.relative_delta) &&
+    Math.abs(r.baseline_mean) > 0.2 * Math.abs(r.delta_mean) &&
+    Math.abs(r.relative_delta) < 50;
+  return (
+    <div className="v2-card">
+      <div className="v2-card-hdr">
+        <div className="v2-card-title">
+          Counterfactual inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="v2-meta">
+          n = {r.n_samples.toLocaleString()} paired samples · {elapsed}s
+        </div>
+      </div>
+
+      <V2RoutingBanner routing={result.routing}/>
+
+      <V2ChainRow result={result}/>
+
+      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      <div className="v2-cf-intervention">
+        do(
+        {Object.entries(result.intervention).map(([k, v], i) => (
+          <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.intervention_info[k]?.unit ? ` ${result.intervention_info[k].unit}` : ''}</span>
+        ))}
+        )
+        {Object.keys(result.given).length > 0 && (
+          <span style={{color:'var(--text3)'}}>
+            holding {Object.entries(result.given).filter(([k]) => !(k in result.intervention)).map(([k, v], i, arr) => (
+              <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.given_info[k]?.unit ? ` ${result.given_info[k].unit}` : ''}</span>
+            ))}
+          </span>
+        )}
+      </div>
+
+      <div className="v2-cf-grid">
+        <div className="v2-cf-col">
+          <div className="v2-cf-lbl">Baseline</div>
+          <div className="v2-cf-val">{v2Fmt(r.baseline_mean)} {r.unit}</div>
+          <div className="v2-cf-band">[{v2Fmt(r.baseline_p5)}, {v2Fmt(r.baseline_p95)}]</div>
+        </div>
+        <div className="v2-cf-col">
+          <div className="v2-cf-lbl">Intervened</div>
+          <div className="v2-cf-val">{v2Fmt(r.intervened_mean)} {r.unit}</div>
+          <div className="v2-cf-band">[{v2Fmt(r.intervened_p5)}, {v2Fmt(r.intervened_p95)}]</div>
+        </div>
+        <div className="v2-cf-col delta">
+          <div className="v2-cf-lbl">Δ target</div>
+          <div className={`v2-cf-val ${deltaDir}`}>
+            {deltaSign}{v2Fmt(r.delta_mean)} {r.unit}
+          </div>
+          <div className="v2-cf-band">
+            [{v2Fmt(r.delta_p5)}, {v2Fmt(r.delta_p95)}]
+          </div>
+          {relIsMeaningful
+            ? <div className="v2-cf-rel">{relSign}{v2Fmt(r.relative_delta * 100, 3)}% vs baseline</div>
+            : <div className="v2-cf-rel" style={{color:'#7a5010',opacity:.85}}>baseline crosses zero · absolute Δ shown</div>}
+        </div>
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:6,borderTop:'1px solid var(--border)'}}>
+        Paired sampling: the same parameter draws are used for both baseline and intervened passes, so Δ
+        reflects only the intervention — not parameter noise.
+      </div>
+    </div>
+  );
+}
+
+const V2_ASK_EXAMPLES = [
+  'bone stiffness under cyclic load',
+  'how does porosity affect modulus in a 70-year-old female?',
+  'why is this patient’s E only 12 GPa?',
+  'what if porosity dropped to 5%?',
+];
+
+// ── v2 active exploration / Surprises panel (Phase 5) ──────────────────────
+function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
+  return (
+    <div className="v2-surprises">
+      <div className="v2-surprises-hdr">
+        <div>
+          <div className="v2-surprises-title">
+            {fromAsk ? 'Exploration matched your query' : 'Surprises — active exploration'}
+            <span className="v2-experimental-tag">phase 5</span>
+          </div>
+          <div className="v2-surprises-blurb">
+            Walks the equation graph without a query, runs forward inference at each sweep point,
+            and ranks candidates by <em>magnitude × physics-confidence × corpus-attestation</em>.
+            High-ranked items are where physics says something concrete and the literature
+            is actively discussing the same topic.
+          </div>
+        </div>
+        <div className="v2-surprises-actions">
+          <button className="v2-surprises-btn" onClick={onRefresh} disabled={loading}>
+            {loading ? <Spinner/> : (candidates ? 'Re-run' : 'Run')}
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:8}}>
+          <Dots/><span>Sweeping the graph and asking the corpus…</span>
+        </div>
+      )}
+      {error && <div className="v2-error">{error}</div>}
+
+      {candidates && candidates.length > 0 && (
+        <div className="v2-surprise-list">
+          {candidates.map((c, i) => {
+            const dirClass = c.direction === 'increases' ? 'dir-up'
+                           : c.direction === 'decreases' ? 'dir-down'
+                           : 'dir-mixed';
+            const arrow = c.direction === 'increases' ? '↑'
+                        : c.direction === 'decreases' ? '↓'
+                        : '↺';
+            const rel = c.relative_change === null || c.relative_change === undefined
+                        ? '—'
+                        : `${(c.relative_change * 100).toFixed(0)}%`;
+            return (
+              <div key={i} className="v2-surprise-card">
+                <div className="v2-surprise-row1">
+                  <span className="v2-surprise-rank">#{i + 1}</span>
+                  <div className="v2-surprise-title">{c.title}</div>
+                  <span className="v2-surprise-score">surprise {c.surprise_score.toFixed(3)}</span>
+                </div>
+
+                <div className="v2-surprise-summary">{c.summary}</div>
+
+                <div className="v2-surprise-row2">
+                  <span className={`v2-surprise-pill ${dirClass}`}>{arrow} {c.direction} ({rel})</span>
+                  <span className="v2-surprise-pill">phys conf {c.physics_confidence.toFixed(2)}</span>
+                  <span className="v2-surprise-pill">mag {c.magnitude.toFixed(2)}</span>
+                  <Badge label={c.corpus.label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[c.corpus.label]}/>
+                </div>
+
+                <div className="v2-surprise-sweep">
+                  {dsym(c.sweep_var_info)}: {c.sweep_points.map(p => v2Fmt(p.value)).join(' → ')}
+                  {'  ⇒  '}
+                  {dsym(c.target_info)}: {c.sweep_points.map(p => v2Fmt(p.mean)).join(' → ')}
+                  {c.target_info.unit ? ` ${c.target_info.unit}` : ''}
+                </div>
+
+                {c.error && <div className="v2-error">{c.error}</div>}
+
+                <div className="v2-surprise-corpus-q">corpus query: {c.corpus.query}</div>
+
+                <div className="v2-surprise-meta">
+                  <span>chain: {c.chain_vars.map(v => dsym(v)).join(' → ')}</span>
+                  {Object.keys(c.held).length > 0 && (
+                    <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${v2Fmt(v)}`).join(', ')}</span>
+                  )}
+                  <span>cite: {c.citations.join(' · ')}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function V2Section({presets, onRun, loading, result, error, elapsed,
+                    covariates, onCovariatesChange,
+                    query, onQueryChange, onAsk,
+                    surprises, surprisesLoading, surprisesError, onSurprisesRefresh}) {
+  const groups = [
+    {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
+    {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
+    {mode: 'counterfactual', items: presets.filter(p => p.mode === 'counterfactual')},
+  ];
+
+  const loadingMsg = {
+    forward:        'Solving equation graph and propagating uncertainty…',
+    abductive:      'Sampling prior, propagating, and weighting by likelihood…',
+    counterfactual: 'Running paired baseline / intervened passes…',
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
+
+      {!result && !loading && (
+        <div className="ex-chips">
+          <span className="chips-label">Try:</span>
+          {V2_ASK_EXAMPLES.map((ex, i) => (
+            <button key={i} className="chip"
+              onClick={() => { onQueryChange(ex); onAsk(ex); }}>{ex}</button>
+          ))}
+        </div>
+      )}
+
+      {V2_PRESETS_ENABLED && (
+      <div className="v2-preset-groups">
+        {groups.map(g => {
+          const meta = V2_MODE_META[g.mode];
+          return (
+            <div key={g.mode} className="v2-preset-group">
+              <div className="v2-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
+              <div className="v2-presets" style={{justifyContent:'flex-start'}}>
+                {g.items.map(p => (
+                  <button key={p.id} className="v2-preset" onClick={() => onRun(p)} disabled={loading}>
+                    <span className="v2-preset-label">
+                      <span className={`v2-mode-tag ${meta.cls}`}>{meta.tag}</span>
+                      {p.label}
+                      {p.syncCovariates && <span className="v2-mode-tag v2-mode-counterfactual" style={{marginLeft:8}}>covariates</span>}
+                    </span>
+                    <span className="v2-preset-desc">{p.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      )}
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:24}}>
+          <Dots/><span>{loadingMsg[result?.mode] || loadingMsg.forward}</span>
+        </div>
+      )}
+      {error && <div className="v2-error">{error}</div>}
+
+      {result && !loading && (
+        <Fragment>
+          {result.mode === 'forward'        && <V2ForwardCard        result={result} elapsed={elapsed}/>}
+          {result.mode === 'abductive'      && <V2AbductiveCard      result={result} elapsed={elapsed}/>}
+          {result.mode === 'counterfactual' && <V2CounterfactualCard result={result} elapsed={elapsed}/>}
+          {V2_SURPRISES_ENABLED && result.mode === 'explore' && (
+            <V2Surprises
+              candidates={result.candidates || []}
+              loading={false}
+              error=""
+              onRefresh={onSurprisesRefresh}
+              fromAsk={true}
+            />
+          )}
+
+          {result.citations && result.citations.length > 0 && (
+            <div className="v2-card" style={{paddingTop:14}}>
+              <div className="v2-card-title" style={{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>Citations</div>
+              <div className="v2-citations" style={{borderTop:'none',paddingTop:0}}>
+                {result.citations.map((c, i) => (
+                  <div key={i} className="v2-citation-row">{c}</div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Fragment>
+      )}
+
+      {/* Always-on Surprises panel — independent of any user query. */}
+      {V2_SURPRISES_ENABLED && result?.mode !== 'explore' && (
+        <V2Surprises
+          candidates={surprises}
+          loading={surprisesLoading}
+          error={surprisesError}
+          onRefresh={onSurprisesRefresh}
+          fromAsk={false}
+        />
       )}
     </div>
   );
@@ -759,6 +1600,43 @@ function ReasonTab() {
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState('');
   const [clientElapsed, setClientElapsed] = useState(null);
+
+  // v2 (equation-graph) state — lives alongside the v0 state so a user
+  // can flip between them without losing context.
+  const [v2Mode, setV2Mode]           = useState(false);
+  const [v2Result, setV2Result]       = useState(null);
+  const [v2Loading, setV2Loading]     = useState(false);
+  const [v2Error, setV2Error]         = useState('');
+  const [v2Elapsed, setV2Elapsed]     = useState(null);
+  const [v2Covariates, setV2Covariates] = useState({...V2_DEFAULT_COVARIATES});
+  const [v2Query, setV2Query]           = useState('');
+
+  // Phase 5 — active exploration / Surprises panel state.
+  const [v2Surprises,        setV2Surprises]        = useState(null);
+  const [v2SurprisesLoading, setV2SurprisesLoading] = useState(false);
+  const [v2SurprisesError,   setV2SurprisesError]   = useState('');
+
+  const loadV2Surprises = async (refresh = false) => {
+    if (v2SurprisesLoading) return;
+    setV2SurprisesLoading(true); setV2SurprisesError('');
+    try {
+      const r = await fetch('/api/reason_v2/explore' + (refresh ? '?refresh=true' : ''));
+      const data = await r.json();
+      if (data.error) setV2SurprisesError(data.error);
+      else setV2Surprises(data.candidates || []);
+    } catch { setV2SurprisesError('Could not run active exploration. Please try again.'); }
+    setV2SurprisesLoading(false);
+  };
+
+  // Lazy fetch the first time the user opens the v2 tab.  Gated by the
+  // Surprises feature flag so we don't trigger the (cold) 25s SPECTER2
+  // exploration run when the panel itself is hidden.
+  useEffect(() => {
+    if (V2_SURPRISES_ENABLED && v2Mode && v2Surprises === null && !v2SurprisesLoading) {
+      loadV2Surprises(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v2Mode]);
 
   const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
@@ -778,37 +1656,134 @@ function ReasonTab() {
     setLoading(false);
   };
 
+  const reasonV2Ask = async (queryOverride) => {
+    const q = (queryOverride ?? v2Query).trim();
+    if (!q || v2Loading) return;
+    setV2Query(q);
+    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason_v2/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, covariates: v2Covariates}),
+      });
+      const data = await r.json();
+      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setV2Error(data.error);
+      else setV2Result(data);
+    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
+    setV2Loading(false);
+  };
+
+  const reasonV2 = async (preset) => {
+    if (v2Loading) return;
+    // If the preset pins specific covariates (Phase 3 demos), sync the
+    // panel to them so the user can see what the run is actually using.
+    // The payload always reflects the (post-sync) panel state.
+    let covariatesForRequest = v2Covariates;
+    if (preset.syncCovariates) {
+      covariatesForRequest = {...V2_DEFAULT_COVARIATES, ...preset.syncCovariates};
+      setV2Covariates(covariatesForRequest);
+    }
+    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason_v2', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({preset: preset.id, covariates: covariatesForRequest}),
+      });
+      const data = await r.json();
+      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setV2Error(data.error);
+      else setV2Result(data);
+    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
+    setV2Loading(false);
+  };
+
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
-        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a four-round adversarial physics critic before being shown.</div>
-        <div className="reason-bar">
-          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          </svg>
-          <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
-            value={concept} onChange={e => setConcept(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
-          <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
-            {loading ? <Spinner/> : 'Reason'}
-          </button>
+        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          Hypothesis Generator
+          {v2Mode && <span className="v2-experimental-tag">experimental</span>}
         </div>
+        <div style={{display:'flex',justifyContent:'center'}}>
+          <div className="v2-switch">
+            <button className={!v2Mode ? 'active' : ''} onClick={() => setV2Mode(false)}>physics grid</button>
+            <button className={v2Mode ? 'active' : ''} onClick={() => setV2Mode(true)}>equation graph</button>
+          </div>
+        </div>
+        <div className="reason-desc">
+          {v2Mode
+            ? 'Forward, abductive and counterfactual inference over a typed equation graph. Patient covariates reshape each law’s priors before propagation.'
+            : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
+        </div>
+        {!v2Mode && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
+              value={concept} onChange={e => setConcept(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
+            <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
+              {loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
+        {v2Mode && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input"
+              placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+              value={v2Query} onChange={e => setV2Query(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && reasonV2Ask()} disabled={v2Loading}/>
+            <button className="reason-btn" onClick={() => reasonV2Ask()}
+                    disabled={v2Loading || !(v2Query || '').trim()}>
+              {v2Loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="reason-body">
-        {!result && !loading && (
+        {v2Mode && (
+          <V2Section
+            presets={V2_PRESETS}
+            onRun={reasonV2}
+            loading={v2Loading}
+            result={v2Result}
+            error={v2Error}
+            elapsed={v2Elapsed}
+            covariates={v2Covariates}
+            onCovariatesChange={setV2Covariates}
+            query={v2Query}
+            onQueryChange={setV2Query}
+            onAsk={reasonV2Ask}
+            surprises={v2Surprises}
+            surprisesLoading={v2SurprisesLoading}
+            surprisesError={v2SurprisesError}
+            onSurprisesRefresh={() => loadV2Surprises(true)}
+          />
+        )}
+
+        {!v2Mode && !result && !loading && (
           <div className="ex-chips">
             <span className="chips-label">Try:</span>
             {EXAMPLES.map((ex,i) => <button key={i} className="chip" onClick={() => reason(ex)}>{ex}</button>)}
           </div>
         )}
 
-        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
-        {error && <div className="error-note">{error}</div>}
+        {!v2Mode && loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
+        {!v2Mode && error && <div className="error-note">{error}</div>}
 
-        {result && !loading && (
+        {!v2Mode && result && !loading && (
         <div className="reason-results">
           <div className="results-title">Physics-derived hypotheses for <em>"{result.concept}"</em></div>
           {result.graph_stats && (
@@ -904,7 +1879,6 @@ function ReasonTab() {
           )}
         </div>
         )}
-        {/* <GapsSection/> */}
       </div>
     </div>
   );
@@ -1031,7 +2005,7 @@ function App() {
           </div>
           {stats && (
             <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>
-              {stats.graph_nodes?.toLocaleString()} KG nodes · {stats.graph_edges?.toLocaleString()} edges
+              {stats.graph_nodes?.toLocaleString()} nodes · {stats.graph_edges?.toLocaleString()} edges
             </div>
           )}
         </div>

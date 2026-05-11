@@ -24,7 +24,15 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
 POST /api/reason           — LRM hypothesis generation, JSON response
-GET  /api/gaps             — research gap detection, JSON response
+POST /api/reason_v2        — v2 equation-graph reasoner (forward / abductive /
+                              counterfactual), JSON response
+POST /api/reason_v2/ask    — Phase 4 free-text entry: single LLM call routes
+                              the query, SPECTER2 anchors the variables, the
+                              deterministic reasoner runs.
+GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
+GET  /api/reason_v2/explore — Phase 5 active exploration: walk the variable
+                              graph without a user query, score candidates
+                              against the corpus, rank by surprise.
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -43,6 +51,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneMindRetriever
+from reasoning.bone_relations import build_bone_registry, COVARIATE_SCHEMA
+from reasoning.explorer import Explorer, ExplorationCandidate
+from reasoning.semantic_anchor import SemanticVariableAnchor
+from reasoning.query_router import QueryRouter
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
@@ -144,6 +156,15 @@ retriever.load()
 print("Loading LRM (bone knowledge graph)...")
 lrm = LRM()
 
+print("Building v2 equation-graph registry...")
+bone_registry = build_bone_registry()
+
+print("Wiring v2 semantic anchor (SPECTER2)...")
+semantic_anchor = SemanticVariableAnchor(bone_registry, retriever=retriever)
+
+print("Wiring v2 query router (Ollama)...")
+query_router = QueryRouter(ollama_url=OLLAMA_URL, model=GUARD_MODEL)
+
 print("Loading novelty classifier...")
 novelty_clf = NoveltyClassifier(
     use_semantic=True,
@@ -151,6 +172,11 @@ novelty_clf = NoveltyClassifier(
     tokenizer=retriever._tokenizer,
     device=retriever._device,
 )
+
+print("Wiring v2 explorer (Phase 5)...")
+explorer = Explorer(bone_registry, novelty_classifier=novelty_clf)
+# Lazily computed on first request and cached in process memory.
+_exploration_cache: list[ExplorationCandidate] | None = None
 
 print("Loading corpus stats...")
 
@@ -606,25 +632,875 @@ def reason(
     }
 
 
-@app.get("/api/gaps")
-def gaps(top_n: int = Query(10)):
+# ── v2 equation-graph reasoner ────────────────────────────────────────────────
+# Phase 2: forward / abductive / counterfactual inference over a typed equation
+# graph (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus the
+# density / inertia / strain bridges).  The chain of Relations is discovered
+# by traversing shared variable symbols, not pre-encoded.
+
+_V2_PRESETS: dict[str, dict] = {
+    # ── Forward ────────────────────────────────────────────────────────────
+    "fwd_porosity_to_modulus": {
+        "mode": "forward",
+        "label": "Forward · Porosity → elastic modulus",
+        "target": "E",
+        "given": {"phi": 0.10},
+        "description": (
+            "How a 10 % porosity sample maps to elastic modulus via "
+            "the density bridge and Currey's law."
+        ),
+    },
+    "fwd_porosity_to_crack_growth": {
+        "mode": "forward",
+        "label": "Forward · Porosity → crack growth (at ΔK = 1.0 MPa·√m)",
+        "target": "da_dN",
+        "given": {"phi": 0.10, "dK": 1.0},
+        "description": (
+            "How a 10 % porosity sample maps to fatigue crack growth via "
+            "the density bridge and the Vashishth-modulated Paris law."
+        ),
+    },
+    "fwd_geometry_to_remodeling": {
+        "mode": "forward",
+        "label": "Forward · Loading + geometry → BMD adaptation rate",
+        "target": "dBMD_dt",
+        "given": {"phi": 0.10, "R": 13.0, "t": 4.5, "M": 150_000.0},
+        "description": (
+            "Femoral midshaft under a 150 N·m bending moment: full chain "
+            "through inertia → stress → strain → Frost mechanostat."
+        ),
+    },
+
+    # ── Abductive ──────────────────────────────────────────────────────────
+    "abd_low_modulus": {
+        "mode": "abductive",
+        "label": "Abductive · Patient with low elastic modulus (E = 12 GPa)",
+        "target": "E",
+        "observed": 12.0,
+        "observed_std": 1.0,
+        "infer": ["phi"],
+        "description": (
+            "A cortical sample measures E = 12 ± 1 GPa. Invert Currey + "
+            "density bridge to recover the most likely porosity."
+        ),
+    },
+    "abd_high_crack_growth": {
+        "mode": "abductive",
+        "label": "Abductive · Elevated fatigue crack growth (da/dN = 5e-9 m/cycle)",
+        "target": "da_dN",
+        "observed": 5.0e-9,
+        "observed_std": 1.0e-9,
+        "infer": ["phi"],
+        "given": {"dK": 1.0},
+        "description": (
+            "Observed da/dN at ΔK = 1.0 MPa·√m is high. Invert "
+            "Paris–Vashishth to recover the porosity that explains it."
+        ),
+    },
+    "abd_moderate_remodeling": {
+        "mode": "abductive",
+        "label": "Abductive · Mid-zone adaptation response (dBMD/dt = +1.0 %/yr)",
+        "target": "dBMD_dt",
+        # +1.0 %/yr sits in the Frost transition window, so the chosen
+        # cyclic moment is genuinely informative.  Inferring only M (with
+        # cortex thickness held at the literature midpoint) keeps the
+        # marginal interpretable; saturation values like +1.8 would flatten
+        # the posterior.
+        "observed": 1.0,
+        "observed_std": 0.2,
+        "infer": ["M"],
+        "given": {"phi": 0.10, "R": 13.0, "t": 4.5},
+        "description": (
+            "A patient gains 1.0 ± 0.2 %/yr cortical BMD. With porosity, "
+            "radius and cortex thickness pinned at literature midpoints, "
+            "infer the cyclic bending moment that explains the response."
+        ),
+    },
+
+    # ── Counterfactual ─────────────────────────────────────────────────────
+    "cf_drop_porosity": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(porosity = 0.05) on elastic modulus",
+        "target": "E",
+        "given": {"phi": 0.30},
+        "intervention": {"phi": 0.05},
+        "description": (
+            "If we could reduce porosity from 30 % to 5 % (sealed cortex), "
+            "how much would elastic modulus change?"
+        ),
+    },
+    "cf_thinner_cortex": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(cortical thickness = 2.5 mm) on remodeling",
+        "target": "dBMD_dt",
+        # Baseline picks a moderate moment so peak strain sits in the
+        # Frost transition window — otherwise the system is saturated
+        # and the intervention can't show a visible Δ.
+        "given": {"phi": 0.10, "R": 13.0, "t": 5.5, "M": 40_000.0},
+        "intervention": {"t": 2.5},
+        "description": (
+            "Thinning the cortex from 5.5 mm to 2.5 mm (osteoporotic "
+            "progression) raises bending stress and strain — does the "
+            "Frost response intensify?"
+        ),
+    },
+    "cf_double_load": {
+        "mode": "counterfactual",
+        "label": "Counterfactual · do(moment ×2) on fatigue crack growth",
+        "target": "da_dN",
+        "given": {"phi": 0.10, "dK": 0.8},
+        "intervention": {"dK": 1.6},
+        "description": (
+            "Doubling the cyclic stress-intensity range under the same "
+            "porosity — how much does da/dN climb via the Paris exponent?"
+        ),
+    },
+
+    # ── Phase 3: covariate-aware demos ────────────────────────────────────
+    "cov_old_vertebra_modulus": {
+        "mode": "forward",
+        "label": "Phase 3 · Same porosity, two patients: E in 75 F vertebra",
+        "target": "E",
+        "given": {"phi": 0.15},
+        "covariates": {
+            "age": 75, "sex": "F", "site": "vertebra",
+            "disease": ["osteoporosis"],
+        },
+        "description": (
+            "Predict elastic modulus at φ = 0.15 for a 75-year-old female "
+            "osteoporotic vertebra. Compare against the same φ on a young "
+            "femur — v2 gives ~3× different answer, v0 cannot."
+        ),
+    },
+    "cov_abductive_clinical_flip": {
+        "mode": "abductive",
+        "label": "Phase 3 · E = 12 GPa observation, infer φ in 75 F vertebra",
+        "target": "E",
+        "observed": 12.0,
+        "observed_std": 1.0,
+        "infer": ["phi"],
+        "covariates": {
+            "age": 75, "sex": "F", "site": "vertebra",
+            "disease": ["osteoporosis"],
+        },
+        "description": (
+            "Same observed E = 12 GPa, but in an elderly vertebra the "
+            "literature-shifted Currey constants imply φ is near-zero — "
+            "an entirely different clinical reading than the young-femur case."
+        ),
+    },
+    "cov_glucocorticoid_remodeling": {
+        "mode": "counterfactual",
+        "label": "Phase 3 · do(thickness ↓) on remodeling — with vs without steroids",
+        "target": "dBMD_dt",
+        "given": {"phi": 0.10, "R": 13.0, "t": 5.5, "M": 40_000.0},
+        "intervention": {"t": 2.5},
+        "covariates": {
+            "age": 65, "sex": "F",
+            "disease": ["glucocorticoid"],
+        },
+        "description": (
+            "Cortical thinning normally drives a strong anabolic response "
+            "(Frost). On chronic glucocorticoids the anabolic rate is cut "
+            "to ≈20 %, so the same intervention produces a much weaker Δ."
+        ),
+    },
+}
+
+
+# ── Result-shape helpers ─────────────────────────────────────────────────────
+
+
+def _v2_var(reg, symbol: str) -> dict:
+    v = reg.variable(symbol)
+    if v is None:
+        return {"symbol": symbol, "display_symbol": symbol, "name": symbol, "unit": ""}
+    return {
+        "symbol":         v.symbol,
+        "display_symbol": v.render(),
+        "name":           v.name,
+        "unit":           v.unit,
+        "lo":             v.lo,
+        "hi":             v.hi,
+        "description":    v.description,
+    }
+
+
+def _v2_display_map(reg) -> dict[str, str]:
+    """ASCII symbol → Unicode display, for the front-end to look up by key."""
+    out: dict[str, str] = {}
+    for sym in reg.variables_in_graph():
+        v = reg.variable(sym)
+        if v is not None:
+            out[sym] = v.render()
+    return out
+
+
+def _v2_render_forward(
+    reg, target: str, given: dict[str, float],
+    covariates: dict | None = None,
+) -> dict:
+    fr = reg.forward(
+        target, given=given, n_samples=4000, seed=12345, covariates=covariates,
+    )
+    rel_by_name = {r.name: r for r in reg.relations()}
+    steps = []
+    for s in fr.steps:
+        rel = rel_by_name.get(s.relation_name)
+        steps.append({
+            "relation_name": s.relation_name,
+            "description":   rel.description if rel else "",
+            "latex":         rel.latex if rel else "",
+            "citation":      s.citation,
+            "inputs":        s.inputs,
+            "output_var":    s.output_var,
+            "output_unit":   (reg.variable(s.output_var).unit
+                              if reg.variable(s.output_var) else ""),
+            "output_mean":   s.output_mean,
+            "output_p5":     s.output_p5,
+            "output_p95":    s.output_p95,
+        })
+    target_var = reg.variable(target)
+    chain = reg._find_chain(target, set(given.keys())) or []
+    return {
+        "mode":          "forward",
+        "target":        target,
+        "target_info":   _v2_var(reg, target),
+        "given":         given,
+        "given_info":    {k: _v2_var(reg, k) for k in given},
+        "covariates":    covariates or {},
+        "applied_shifts": reg.applied_shifts(chain, covariates),
+        "chain_vars":    [_v2_var(reg, v) for v in fr.chain_vars],
+        "display_map":   _v2_display_map(reg),
+        "steps":         steps,
+        "result": {
+            "variable":             target,
+            "unit":                 target_var.unit if target_var else "",
+            "mean":                 fr.mean,
+            "median":               fr.median,
+            "p5":                   fr.p5,
+            "p95":                  fr.p95,
+            "relative_uncertainty": fr.relative_uncertainty,
+            "n_samples":            int(fr.samples.size),
+        },
+        "citations":     fr.citations,
+    }
+
+
+def _v2_render_abductive(
+    reg,
+    target: str,
+    observed: float,
+    observed_std: float | None,
+    infer: list[str] | None,
+    given: dict[str, float] | None,
+    covariates: dict | None = None,
+) -> dict:
+    ar = reg.abductive(
+        target,
+        observed=observed,
+        observed_std=observed_std,
+        infer=infer,
+        given=given,
+        n_samples=8000,
+        seed=12345,
+        covariates=covariates,
+    )
+    inferred = [
+        {
+            "variable":       _v2_var(reg, p.variable),
+            "prior_mean":     p.prior_mean,
+            "prior_p5":       p.prior_p5,
+            "prior_p95":      p.prior_p95,
+            "posterior_mean": p.posterior_mean,
+            "posterior_p5":   p.posterior_p5,
+            "posterior_p95":  p.posterior_p95,
+            "shift_score":    p.shift_score,
+        }
+        for p in ar.inferred
+    ]
+    # Re-resolve chain so we can attach the applied-shifts trace.
+    chain_given = {**(given or {}), **{v: 0.0 for v in (infer or [])}}
+    chain = reg._find_chain(target, set(chain_given.keys())) or []
+    return {
+        "mode":         "abductive",
+        "target":       target,
+        "target_info":  _v2_var(reg, target),
+        "observed":     ar.observed,
+        "observed_std": ar.observed_std,
+        "given":        given or {},
+        "given_info":   {k: _v2_var(reg, k) for k in (given or {})},
+        "covariates":   covariates or {},
+        "applied_shifts": reg.applied_shifts(chain, covariates),
+        "chain_vars":   [_v2_var(reg, v) for v in ar.chain_vars],
+        "display_map":  _v2_display_map(reg),
+        "inferred":     inferred,
+        "result": {
+            "effective_sample_size": ar.effective_sample_size,
+            "n_samples":             ar.n_samples,
+        },
+        "citations":    ar.citations,
+    }
+
+
+def _v2_render_counterfactual(
+    reg,
+    target: str,
+    given: dict[str, float],
+    intervention: dict[str, float],
+    covariates: dict | None = None,
+) -> dict:
+    cf = reg.counterfactual(
+        target, given=given, intervention=intervention,
+        n_samples=4000, seed=12345, covariates=covariates,
+    )
+    target_var = reg.variable(target)
+    chain = reg._find_chain(target, set(given.keys())) or []
+    return {
+        "mode":             "counterfactual",
+        "target":           target,
+        "target_info":      _v2_var(reg, target),
+        "given":            given,
+        "given_info":       {k: _v2_var(reg, k) for k in given},
+        "intervention":     intervention,
+        "intervention_info": {k: _v2_var(reg, k) for k in intervention},
+        "covariates":       covariates or {},
+        "applied_shifts":   reg.applied_shifts(chain, covariates),
+        "chain_vars":       [_v2_var(reg, v) for v in cf.chain_vars],
+        "display_map":      _v2_display_map(reg),
+        "result": {
+            "variable":        target,
+            "unit":            target_var.unit if target_var else "",
+            "baseline_mean":   cf.baseline_mean,
+            "baseline_p5":     cf.baseline_p5,
+            "baseline_p95":    cf.baseline_p95,
+            "intervened_mean": cf.intervened_mean,
+            "intervened_p5":   cf.intervened_p5,
+            "intervened_p95":  cf.intervened_p95,
+            "delta_mean":      cf.delta_mean,
+            "delta_p5":        cf.delta_p5,
+            "delta_p95":       cf.delta_p95,
+            "relative_delta":  cf.relative_delta,
+            "n_samples":       cf.n_samples,
+        },
+        "citations":        cf.citations,
+    }
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/reason_v2/presets")
+def reason_v2_presets():
+    """Return the preset demo queries available to the v2 UI."""
+    return {
+        "presets": [
+            {"id": pid, **p}
+            for pid, p in _V2_PRESETS.items()
+        ],
+        "covariates": COVARIATE_SCHEMA,
+        "variables": [
+            {
+                "symbol":         v.symbol,
+                "display_symbol": v.render(),
+                "name":           v.name,
+                "unit":           v.unit,
+                "lo":             v.lo,
+                "hi":             v.hi,
+                "description":    v.description,
+            }
+            for v in (
+                bone_registry.variable(s)
+                for s in sorted(bone_registry.variables_in_graph())
+            ) if v is not None
+        ],
+        "relations": [
+            {
+                "name":        r.name,
+                "description": r.description,
+                "latex":       r.latex,
+                "citation":    r.citation,
+                "inputs":      list(r.inputs),
+                "output":      r.output,
+            }
+            for r in bone_registry.relations()
+        ],
+    }
+
+
+def _coerce_float_dict(d: dict, field_name: str) -> dict[str, float]:
+    if not isinstance(d, dict):
+        raise ValueError(f"Field '{field_name}' must be an object.")
     try:
-        gap_list = lrm.find_gaps(top_n=top_n)
-    except Exception as e:
-        return {"error": str(e), "gaps": []}
+        return {str(k): float(v) for k, v in d.items()}
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Bad '{field_name}' values: {exc}") from exc
+
+
+def _normalise_covariates(raw) -> dict | None:
+    """
+    Accept the UI's loose covariate dict (age, sex, site, disease list)
+    and return a clean version, dropping unknown keys and coercing types.
+    Returns ``None`` if nothing meaningful was supplied so the registry
+    can short-circuit to the no-shift fast path.
+    """
+    if not raw:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("Field 'covariates' must be an object.")
+    out: dict = {}
+    if "age" in raw and raw["age"] is not None:
+        try:
+            out["age"] = float(raw["age"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Bad 'covariates.age': {exc}") from exc
+    if raw.get("sex") in {"M", "F"}:
+        out["sex"] = raw["sex"]
+    if raw.get("site"):
+        out["site"] = str(raw["site"])
+    diseases = raw.get("disease")
+    if diseases:
+        if isinstance(diseases, str):
+            diseases = [diseases]
+        out["disease"] = [str(d) for d in diseases]
+    return out or None
+
+
+@app.post("/api/reason_v2")
+def reason_v2(payload: dict):
+    """
+    Forward / abductive / counterfactual inference over the equation graph.
+
+    Common fields::
+
+        {"preset": "<preset_id>"}                  # any mode, fully specified
+        {"mode": "forward",        "target": "E", "given": {"phi": 0.10}}
+        {"mode": "abductive",      "target": "E", "observed": 12.0,
+                                   "observed_std": 1.0, "infer": ["phi"]}
+        {"mode": "counterfactual", "target": "E", "given": {"phi": 0.30},
+                                   "intervention": {"phi": 0.05}}
+
+    The response shape varies with ``mode`` — see the renderers above.
+    """
+    # Preset shortcut: copy fields into payload and continue down the
+    # normal dispatch path.
+    preset_id = payload.get("preset")
+    if preset_id is not None:
+        preset = _V2_PRESETS.get(preset_id)
+        if preset is None:
+            return {"error": f"Unknown preset: {preset_id!r}"}
+        payload = {**preset, **{k: v for k, v in payload.items() if k != "preset"}}
+
+    mode = (payload.get("mode") or "forward").lower()
+    target = payload.get("target")
+    if not target:
+        return {"error": "Field 'target' is required."}
+
+    t0 = time.perf_counter()
+    try:
+        covariates = _normalise_covariates(payload.get("covariates"))
+        if mode == "forward":
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            out = _v2_render_forward(
+                bone_registry, target, given, covariates=covariates,
+            )
+        elif mode == "abductive":
+            observed = payload.get("observed")
+            if observed is None:
+                return {"error": "Field 'observed' is required for abductive mode."}
+            observed = float(observed)
+            observed_std = payload.get("observed_std")
+            if observed_std is not None:
+                observed_std = float(observed_std)
+            infer = payload.get("infer")
+            if infer is not None and not isinstance(infer, list):
+                return {"error": "Field 'infer' must be a list of variable names."}
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            out = _v2_render_abductive(
+                bone_registry, target,
+                observed=observed,
+                observed_std=observed_std,
+                infer=[str(v) for v in infer] if infer else None,
+                given=given,
+                covariates=covariates,
+            )
+        elif mode == "counterfactual":
+            given = _coerce_float_dict(payload.get("given") or {}, "given")
+            intervention = _coerce_float_dict(
+                payload.get("intervention") or {}, "intervention",
+            )
+            if not intervention:
+                return {"error": "Field 'intervention' is required for counterfactual mode."}
+            out = _v2_render_counterfactual(
+                bone_registry, target, given, intervention,
+                covariates=covariates,
+            )
+        elif mode == "explore":
+            return {
+                "error": (
+                    "Mode 'explore' does not take a target/given payload — "
+                    "call GET /api/reason_v2/explore for active exploration "
+                    "or POST /api/reason_v2/ask with a free-text query."
+                ),
+            }
+        else:
+            return {"error": f"Unknown mode: {mode!r}. Use forward, abductive, counterfactual, or explore."}
+    except ValueError as exc:
+        return {"error": str(exc)}
+    out["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return out
+
+
+# ── Phase 4: free-text routing → semantic anchor → deterministic reasoner ────
+
+
+# Literature midpoints used when the router/anchor doesn't supply a value.
+# Chain roots only — derived variables are never given directly.
+_V2_DEFAULT_VALUES: dict[str, float] = {
+    "phi": 0.10,
+    "dK":  1.0,
+    "R":   13.0,
+    "t":   4.5,
+    "M":   40_000.0,
+}
+
+# Minimum cosine similarity for a SPECTER2 match to be trusted as an
+# anchor.  Below this we fall back to the top-1 result regardless —
+# the threshold guards against the router emitting an empty hint.
+_V2_ANCHOR_MIN_SCORE = 0.30
+
+
+def _v2_anchor_symbol(
+    text: str | None, fallback_symbol: str | None = None,
+) -> tuple[str | None, float]:
+    """Map a free-text hint to a variable symbol via SPECTER2 cosine."""
+    if not text:
+        return fallback_symbol, 0.0
+    match = semantic_anchor.best_match(text, min_score=_V2_ANCHOR_MIN_SCORE)
+    if match is None:
+        return fallback_symbol, 0.0
+    return match.symbol, match.score
+
+
+def _v2_pick_target(
+    target_hint: str | None,
+    candidate_matches: list,
+) -> tuple[str, float]:
+    """
+    Choose a forward-inference target that the registry can actually solve for.
+
+    The semantic anchor sometimes ranks a chain root highest (e.g.
+    ``phi`` for "how does porosity affect modulus?").  Chain roots can
+    never be a forward target because no Relation produces them, so we
+    walk down the top-k list until we hit a variable that has at least
+    one producer.  Falls back to ``"E"`` if nothing qualifies.
+    """
+    producers = bone_registry._producers
+    # First try the explicit hint.
+    if target_hint:
+        candidates = semantic_anchor.top_k(target_hint, k=5)
+        for m in candidates:
+            if m.symbol in producers and m.score >= _V2_ANCHOR_MIN_SCORE:
+                return m.symbol, m.score
+    # Then fall back to the query-wide top-k that the router already attached.
+    for m in candidate_matches or []:
+        if m.symbol in producers:
+            return m.symbol, m.score
+    return "E", 0.0
+
+
+def _v2_chain_roots(target: str) -> list[str]:
+    """Chain roots required to reach ``target``; literature defaults fill them."""
+    given_set = set(_V2_DEFAULT_VALUES.keys())
+    chain = bone_registry._find_chain(target, given_set)
+    if chain is None:
+        return []
+    return bone_registry.chain_root_inputs(chain)
+
+
+def _v2_build_ask_payload(
+    decision, query: str,
+) -> tuple[dict, dict]:
+    """
+    Translate a :class:`RouterDecision` into a /api/reason_v2 payload.
+
+    Returns ``(payload, routing_block)``.  ``payload`` is suitable for
+    direct dispatch through :func:`reason_v2`; ``routing_block`` is
+    surfaced in the response so the UI can show *why* a particular
+    mode + target was chosen.
+    """
+    mode = decision.mode if decision.mode in {"forward", "abductive", "counterfactual"} \
+        else "forward"
+
+    # 1) Target: trust the router's text hint, fall back to the top
+    #    semantic match against the raw query.  Constrained to variables
+    #    that have a producer so the chain finder can actually solve it.
+    target, target_score = _v2_pick_target(
+        decision.target_hint, decision.matched_variables,
+    )
+
+    payload: dict = {"mode": mode, "target": target}
+
+    # 2) Mode-specific extraction.
+    given_overrides: dict[str, float] = {}
+    for phrase, value in (decision.given_hints or {}).items():
+        sym, _ = _v2_anchor_symbol(phrase)
+        if sym in _V2_DEFAULT_VALUES:
+            given_overrides[sym] = float(value)
+
+    if mode == "forward":
+        roots = _v2_chain_roots(target)
+        given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+        given.update(given_overrides)
+        payload["given"] = given
+
+    elif mode == "abductive":
+        if decision.observed_value is None:
+            # Without a number we cannot do abduction; fall back to forward.
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            payload = {"mode": "forward", "target": target, "given": given}
+        else:
+            payload["observed"] = float(decision.observed_value)
+            if decision.observed_units:
+                payload["observed_units"] = decision.observed_units
+            # Infer porosity by default — the canonical clinical upstream.
+            # Pin every other chain root at literature midpoints.
+            roots = _v2_chain_roots(target)
+            infer = ["phi"] if "phi" in roots else (roots[:1] if roots else [])
+            payload["infer"] = infer
+            given = {
+                r: _V2_DEFAULT_VALUES.get(r, 0.0)
+                for r in roots if r not in infer
+            }
+            given.update({k: v for k, v in given_overrides.items() if k not in infer})
+            payload["given"] = given
+
+    elif mode == "counterfactual":
+        interv_sym, _ = _v2_anchor_symbol(decision.intervention_hint)
+        if interv_sym is None or decision.intervention_value is None or \
+                interv_sym not in _V2_DEFAULT_VALUES:
+            # Missing intervention — degrade to forward.
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            payload = {"mode": "forward", "target": target, "given": given}
+        else:
+            roots = _v2_chain_roots(target)
+            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            given.update(given_overrides)
+            # Ensure the intervention key has a meaningful baseline.
+            if interv_sym not in given:
+                given[interv_sym] = _V2_DEFAULT_VALUES.get(interv_sym, 0.0)
+            payload["given"] = given
+            payload["intervention"] = {interv_sym: float(decision.intervention_value)}
+
+    routing_block = {
+        "query":      query,
+        "mode":       payload["mode"],
+        "target":     target,
+        "target_info": _v2_var(bone_registry, target),
+        "target_score": round(target_score, 3),
+        "rationale":  decision.rationale,
+        "confidence": round(decision.confidence, 3),
+        "source":     decision.source,
+        "matched_variables": [
+            {
+                "symbol":         m.symbol,
+                "display_symbol": m.display_symbol or m.symbol,
+                "name":           m.name,
+                "unit":           m.unit,
+                "score":          round(m.score, 3),
+            }
+            for m in decision.matched_variables
+        ],
+    }
+    return payload, routing_block
+
+
+@app.post("/api/reason_v2/ask")
+def reason_v2_ask(payload: dict):
+    """
+    Free-text entry point into the v2 reasoner.
+
+    Request shape::
+
+        {"query": "bone stiffness under cyclic load",
+         "covariates": {"age": 60, "sex": "F", "site": "femur_cortical", "disease": []}}
+
+    Pipeline:
+      1. One Ollama call classifies mode and extracts numeric anchors.
+      2. SPECTER2 cosine similarity maps text hints (and the raw query)
+         to Variable symbols.
+      3. Any chain roots not supplied by the user are filled from
+         literature midpoints so the deterministic reasoner has a
+         complete payload.
+      4. The existing forward / abductive / counterfactual renderer
+         runs unchanged.
+
+    The response is the standard v2 result plus a ``routing`` block
+    describing which mode / target the router chose, the matched
+    variables (with cosine scores) and the rationale string.
+    """
+    query = (payload.get("query") or "").strip()
+    if not query:
+        return {"error": "Field 'query' is required."}
+
+    t0 = time.perf_counter()
+    try:
+        decision = query_router.route(query, anchor=semantic_anchor)
+    except Exception as exc:
+        return {"error": f"Query router failed: {exc}"}
+
+    # Phase 5: explore mode short-circuits into the exploration engine
+    # rather than the deterministic reasoner.  The routing block still
+    # describes what the LLM understood from the query.
+    if decision.mode == "explore":
+        candidates = _run_exploration()
+        rendered = [_explore_render_candidate(c) for c in candidates]
+        routing_block = {
+            "query":      query,
+            "mode":       "explore",
+            "target":     None,
+            "rationale":  decision.rationale,
+            "confidence": round(decision.confidence, 3),
+            "source":     decision.source,
+            "matched_variables": [
+                {
+                    "symbol": m.symbol,
+                    "display_symbol": m.display_symbol or m.symbol,
+                    "name": m.name,
+                    "unit":   m.unit,   "score": round(m.score, 3),
+                }
+                for m in decision.matched_variables
+            ],
+        }
+        return {
+            "mode":       "explore",
+            "routing":    routing_block,
+            "candidates": rendered,
+            "corpus_disclaimer": CORPUS_DISCLAIMER,
+            "elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
+        }
+
+    inner_payload, routing_block = _v2_build_ask_payload(decision, query)
+    # Forward covariates through verbatim — the router does not touch them.
+    if payload.get("covariates"):
+        inner_payload["covariates"] = payload["covariates"]
+
+    result = reason_v2(inner_payload)
+    if "error" in result:
+        result["routing"] = routing_block
+        return result
+    result["routing"] = routing_block
+    result["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return result
+
+
+# ── v2 active exploration (Phase 5) ──────────────────────────────────────────
+
+
+def _explore_render_candidate(c: ExplorationCandidate) -> dict:
+    """Shape one :class:`ExplorationCandidate` for the front-end."""
+    sweep_var = bone_registry.variable(c.sweep_var)
+    target_v  = bone_registry.variable(c.target)
+    chain_var_info = [
+        {
+            "symbol":         v.symbol if (v := bone_registry.variable(s)) else s,
+            "display_symbol": v.render() if v else s,
+            "name":           v.name if v else s,
+            "unit":           v.unit if v else "",
+        }
+        for s in c.chain_vars
+    ]
+    sweep_points = [
+        {
+            "value":      val,
+            "mean":       mean,
+            "p5":         p5,
+            "p95":        p95,
+        }
+        for val, mean, p5, p95 in zip(
+            c.sweep_values, c.sweep_means, c.sweep_p5, c.sweep_p95,
+        )
+    ]
+    rel_change = c.relative_change
+    # Float('inf') / nan would serialise to null in some clients; clip them.
+    import math as _math
+    rel_change_safe = rel_change if _math.isfinite(rel_change) else None
 
     return {
-        "gaps": [
-            {
-                "rank":         i + 1,
-                "label":        g.label,
-                "node_type":    g.node_type,
-                "betweenness":  round(g.betweenness, 5),
-                "n_edges":      g.n_edges,
-                "gap_score":    round(g.gap_score, 5),
-            }
-            for i, g in enumerate(gap_list)
-        ]
+        "title":          c.title,
+        "target":         c.target,
+        "target_info":    {
+            "symbol":         target_v.symbol if target_v else c.target,
+            "display_symbol": target_v.render() if target_v else c.target,
+            "name":           target_v.name   if target_v else c.target,
+            "unit":           target_v.unit   if target_v else "",
+        },
+        "sweep_var":      c.sweep_var,
+        "sweep_var_info": {
+            "symbol":         sweep_var.symbol if sweep_var else c.sweep_var,
+            "display_symbol": sweep_var.render() if sweep_var else c.sweep_var,
+            "name":           sweep_var.name   if sweep_var else c.sweep_var,
+            "unit":           sweep_var.unit   if sweep_var else "",
+        },
+        "held":           c.held,
+        "chain_vars":     chain_var_info,
+        "citations":      c.citations,
+        "sweep_points":   sweep_points,
+        "direction":      c.direction,
+        "relative_change": rel_change_safe,
+        "physics_confidence": round(c.physics_confidence, 3),
+        "magnitude":          round(c.magnitude, 3),
+        "corpus": {
+            "label":         c.corpus_label,
+            "score":         round(c.corpus_score, 3),
+            "similarity":    round(c.corpus_similarity, 3),
+            "keyword_hits":  c.corpus_keyword_hits,
+            "query":         c.corpus_query,
+        },
+        "surprise_score": round(c.surprise_score, 3),
+        "summary":        c.summary,
+        "error":          c.error,
+    }
+
+
+def _run_exploration(refresh: bool = False) -> list[ExplorationCandidate]:
+    """Lazy + cached exploration run."""
+    global _exploration_cache
+    if refresh or _exploration_cache is None:
+        _exploration_cache = explorer.run()
+    return _exploration_cache
+
+
+@app.get("/api/reason_v2/explore")
+def reason_v2_explore(refresh: bool = Query(False)):
+    """
+    Active exploration over the v2 equation graph.
+
+    Walks a hand-picked but principled set of variable-graph sweeps,
+    runs forward inference at each sweep point, asks the corpus how
+    attested the rendered claim is, and ranks the candidates by
+
+        surprise = magnitude × physics_confidence × corpus_weight
+
+    The first call computes ~7 sweeps with corpus contact (≈10s on a
+    warm SPECTER2 index); subsequent calls return the cached result
+    in <1ms.  Pass ``?refresh=true`` to force re-evaluation.
+    """
+    t0 = time.perf_counter()
+    candidates = _run_exploration(refresh=refresh)
+    rendered = [_explore_render_candidate(c) for c in candidates]
+    elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
+    return {
+        "n_candidates":      len(rendered),
+        "candidates":        rendered,
+        "corpus_disclaimer": CORPUS_DISCLAIMER,
+        "cached":            (not refresh) and _exploration_cache is not None
+                              and elapsed_ms < 50,
+        "elapsed_ms":        elapsed_ms,
     }
 
 
