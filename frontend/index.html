@@ -220,6 +220,32 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
 .v2-experimental-tag{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);background:#fef5e4;border:1px solid var(--amber-border);border-radius:4px;padding:1px 7px;margin-left:8px}
 
+/* v2 active exploration (Surprises panel — Phase 5) */
+.v2-surprises{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.v2-surprises-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.v2-surprises-title{font-size:14px;font-weight:600;color:var(--text)}
+.v2-surprises-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5}
+.v2-surprises-actions{display:flex;align-items:center;gap:8px}
+.v2-surprises-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans)}
+.v2-surprises-btn:hover{border-color:var(--amber);color:var(--text)}
+.v2-surprises-btn:disabled{opacity:.5;cursor:not-allowed}
+.v2-surprise-list{display:flex;flex-direction:column;gap:10px}
+.v2-surprise-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.v2-surprise-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.v2-surprise-rank{font-size:11.5px;color:var(--text3);font-family:var(--mono);min-width:24px}
+.v2-surprise-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.v2-surprise-score{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border);border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em}
+.v2-surprise-summary{font-size:12.5px;color:var(--text2);line-height:1.55}
+.v2-surprise-row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.v2-surprise-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.v2-surprise-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.v2-surprise-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.v2-surprise-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.v2-surprise-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--text3);font-family:var(--mono);padding-top:4px;border-top:1px dashed var(--border)}
+.v2-surprise-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.v2-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
+.v2-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
+
 /* v2 preset groups */
 .v2-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
 .v2-preset-group{display:flex;flex-direction:column;gap:8px}
@@ -1318,9 +1344,97 @@ const V2_ASK_EXAMPLES = [
   'what if porosity dropped to 5%?',
 ];
 
+// ── v2 active exploration / Surprises panel (Phase 5) ──────────────────────
+function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
+  return (
+    <div className="v2-surprises">
+      <div className="v2-surprises-hdr">
+        <div>
+          <div className="v2-surprises-title">
+            {fromAsk ? 'Exploration matched your query' : 'Surprises — active exploration'}
+            <span className="v2-experimental-tag">phase 5</span>
+          </div>
+          <div className="v2-surprises-blurb">
+            Walks the equation graph without a query, runs forward inference at each sweep point,
+            and ranks candidates by <em>magnitude × physics-confidence × corpus-attestation</em>.
+            High-ranked items are where physics says something concrete and the literature
+            is actively discussing the same topic.
+          </div>
+        </div>
+        <div className="v2-surprises-actions">
+          <button className="v2-surprises-btn" onClick={onRefresh} disabled={loading}>
+            {loading ? <Spinner/> : (candidates ? 'Re-run' : 'Run')}
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:8}}>
+          <Dots/><span>Sweeping the graph and asking the corpus…</span>
+        </div>
+      )}
+      {error && <div className="v2-error">{error}</div>}
+
+      {candidates && candidates.length > 0 && (
+        <div className="v2-surprise-list">
+          {candidates.map((c, i) => {
+            const dirClass = c.direction === 'increases' ? 'dir-up'
+                           : c.direction === 'decreases' ? 'dir-down'
+                           : 'dir-mixed';
+            const arrow = c.direction === 'increases' ? '↑'
+                        : c.direction === 'decreases' ? '↓'
+                        : '↺';
+            const rel = c.relative_change === null || c.relative_change === undefined
+                        ? '—'
+                        : `${(c.relative_change * 100).toFixed(0)}%`;
+            return (
+              <div key={i} className="v2-surprise-card">
+                <div className="v2-surprise-row1">
+                  <span className="v2-surprise-rank">#{i + 1}</span>
+                  <div className="v2-surprise-title">{c.title}</div>
+                  <span className="v2-surprise-score">surprise {c.surprise_score.toFixed(3)}</span>
+                </div>
+
+                <div className="v2-surprise-summary">{c.summary}</div>
+
+                <div className="v2-surprise-row2">
+                  <span className={`v2-surprise-pill ${dirClass}`}>{arrow} {c.direction} ({rel})</span>
+                  <span className="v2-surprise-pill">phys conf {c.physics_confidence.toFixed(2)}</span>
+                  <span className="v2-surprise-pill">mag {c.magnitude.toFixed(2)}</span>
+                  <Badge label={c.corpus.label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[c.corpus.label]}/>
+                </div>
+
+                <div className="v2-surprise-sweep">
+                  {c.sweep_var_info.symbol}: {c.sweep_points.map(p => v2Fmt(p.value)).join(' → ')}
+                  {'  ⇒  '}
+                  {c.target_info.symbol}: {c.sweep_points.map(p => v2Fmt(p.mean)).join(' → ')}
+                  {c.target_info.unit ? ` ${c.target_info.unit}` : ''}
+                </div>
+
+                {c.error && <div className="v2-error">{c.error}</div>}
+
+                <div className="v2-surprise-corpus-q">corpus query: {c.corpus.query}</div>
+
+                <div className="v2-surprise-meta">
+                  <span>chain: {c.chain_vars.map(v => v.symbol).join(' → ')}</span>
+                  {Object.keys(c.held).length > 0 && (
+                    <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${v2Fmt(v)}`).join(', ')}</span>
+                  )}
+                  <span>cite: {c.citations.join(' · ')}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function V2Section({presets, onRun, loading, result, error, elapsed,
                     covariates, onCovariatesChange,
-                    query, onQueryChange, onAsk}) {
+                    query, onQueryChange, onAsk,
+                    surprises, surprisesLoading, surprisesError, onSurprisesRefresh}) {
   const groups = [
     {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
     {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
@@ -1400,6 +1514,15 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           {result.mode === 'forward'        && <V2ForwardCard        result={result} elapsed={elapsed}/>}
           {result.mode === 'abductive'      && <V2AbductiveCard      result={result} elapsed={elapsed}/>}
           {result.mode === 'counterfactual' && <V2CounterfactualCard result={result} elapsed={elapsed}/>}
+          {result.mode === 'explore'        && (
+            <V2Surprises
+              candidates={result.candidates || []}
+              loading={false}
+              error=""
+              onRefresh={onSurprisesRefresh}
+              fromAsk={true}
+            />
+          )}
 
           {result.citations && result.citations.length > 0 && (
             <div className="v2-card" style={{paddingTop:14}}>
@@ -1412,6 +1535,17 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
             </div>
           )}
         </Fragment>
+      )}
+
+      {/* Always-on Surprises panel — independent of any user query. */}
+      {result?.mode !== 'explore' && (
+        <V2Surprises
+          candidates={surprises}
+          loading={surprisesLoading}
+          error={surprisesError}
+          onRefresh={onSurprisesRefresh}
+          fromAsk={false}
+        />
       )}
     </div>
   );
@@ -1433,6 +1567,31 @@ function ReasonTab() {
   const [v2Elapsed, setV2Elapsed]     = useState(null);
   const [v2Covariates, setV2Covariates] = useState({...V2_DEFAULT_COVARIATES});
   const [v2Query, setV2Query]           = useState('');
+
+  // Phase 5 — active exploration / Surprises panel state.
+  const [v2Surprises,        setV2Surprises]        = useState(null);
+  const [v2SurprisesLoading, setV2SurprisesLoading] = useState(false);
+  const [v2SurprisesError,   setV2SurprisesError]   = useState('');
+
+  const loadV2Surprises = async (refresh = false) => {
+    if (v2SurprisesLoading) return;
+    setV2SurprisesLoading(true); setV2SurprisesError('');
+    try {
+      const r = await fetch('/api/reason_v2/explore' + (refresh ? '?refresh=true' : ''));
+      const data = await r.json();
+      if (data.error) setV2SurprisesError(data.error);
+      else setV2Surprises(data.candidates || []);
+    } catch { setV2SurprisesError('Could not run active exploration. Please try again.'); }
+    setV2SurprisesLoading(false);
+  };
+
+  // Lazy fetch the first time the user opens the v2 tab.
+  useEffect(() => {
+    if (v2Mode && v2Surprises === null && !v2SurprisesLoading) {
+      loadV2Surprises(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v2Mode]);
 
   const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
 
@@ -1546,6 +1705,10 @@ function ReasonTab() {
             query={v2Query}
             onQueryChange={setV2Query}
             onAsk={reasonV2Ask}
+            surprises={v2Surprises}
+            surprisesLoading={v2SurprisesLoading}
+            surprisesError={v2SurprisesError}
+            onSurprisesRefresh={() => loadV2Surprises(true)}
           />
         )}
 

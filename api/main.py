@@ -30,6 +30,9 @@ POST /api/reason_v2/ask    — Phase 4 free-text entry: single LLM call routes
                               the query, SPECTER2 anchors the variables, the
                               deterministic reasoner runs.
 GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
+GET  /api/reason_v2/explore — Phase 5 active exploration: walk the variable
+                              graph without a user query, score candidates
+                              against the corpus, rank by surprise.
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -49,6 +52,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneMindRetriever
 from reasoning.bone_relations import build_bone_registry, COVARIATE_SCHEMA
+from reasoning.explorer import Explorer, ExplorationCandidate
 from reasoning.semantic_anchor import SemanticVariableAnchor
 from reasoning.query_router import QueryRouter
 from reasoning.lrm import LRM
@@ -168,6 +172,11 @@ novelty_clf = NoveltyClassifier(
     tokenizer=retriever._tokenizer,
     device=retriever._device,
 )
+
+print("Wiring v2 explorer (Phase 5)...")
+explorer = Explorer(bone_registry, novelty_classifier=novelty_clf)
+# Lazily computed on first request and cached in process memory.
+_exploration_cache: list[ExplorationCandidate] | None = None
 
 print("Loading corpus stats...")
 
@@ -1111,8 +1120,16 @@ def reason_v2(payload: dict):
                 bone_registry, target, given, intervention,
                 covariates=covariates,
             )
+        elif mode == "explore":
+            return {
+                "error": (
+                    "Mode 'explore' does not take a target/given payload — "
+                    "call GET /api/reason_v2/explore for active exploration "
+                    "or POST /api/reason_v2/ask with a free-text query."
+                ),
+            }
         else:
-            return {"error": f"Unknown mode: {mode!r}. Use forward, abductive, or counterfactual."}
+            return {"error": f"Unknown mode: {mode!r}. Use forward, abductive, counterfactual, or explore."}
     except ValueError as exc:
         return {"error": str(exc)}
     out["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
@@ -1320,6 +1337,35 @@ def reason_v2_ask(payload: dict):
     except Exception as exc:
         return {"error": f"Query router failed: {exc}"}
 
+    # Phase 5: explore mode short-circuits into the exploration engine
+    # rather than the deterministic reasoner.  The routing block still
+    # describes what the LLM understood from the query.
+    if decision.mode == "explore":
+        candidates = _run_exploration()
+        rendered = [_explore_render_candidate(c) for c in candidates]
+        routing_block = {
+            "query":      query,
+            "mode":       "explore",
+            "target":     None,
+            "rationale":  decision.rationale,
+            "confidence": round(decision.confidence, 3),
+            "source":     decision.source,
+            "matched_variables": [
+                {
+                    "symbol": m.symbol, "name": m.name,
+                    "unit":   m.unit,   "score": round(m.score, 3),
+                }
+                for m in decision.matched_variables
+            ],
+        }
+        return {
+            "mode":       "explore",
+            "routing":    routing_block,
+            "candidates": rendered,
+            "corpus_disclaimer": CORPUS_DISCLAIMER,
+            "elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
+        }
+
     inner_payload, routing_block = _v2_build_ask_payload(decision, query)
     # Forward covariates through verbatim — the router does not touch them.
     if payload.get("covariates"):
@@ -1332,6 +1378,109 @@ def reason_v2_ask(payload: dict):
     result["routing"] = routing_block
     result["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return result
+
+
+# ── v2 active exploration (Phase 5) ──────────────────────────────────────────
+
+
+def _explore_render_candidate(c: ExplorationCandidate) -> dict:
+    """Shape one :class:`ExplorationCandidate` for the front-end."""
+    sweep_var = bone_registry.variable(c.sweep_var)
+    target_v  = bone_registry.variable(c.target)
+    chain_var_info = [
+        {
+            "symbol":      v.symbol if (v := bone_registry.variable(s)) else s,
+            "name":        v.name if v else s,
+            "unit":        v.unit if v else "",
+        }
+        for s in c.chain_vars
+    ]
+    sweep_points = [
+        {
+            "value":      val,
+            "mean":       mean,
+            "p5":         p5,
+            "p95":        p95,
+        }
+        for val, mean, p5, p95 in zip(
+            c.sweep_values, c.sweep_means, c.sweep_p5, c.sweep_p95,
+        )
+    ]
+    rel_change = c.relative_change
+    # Float('inf') / nan would serialise to null in some clients; clip them.
+    import math as _math
+    rel_change_safe = rel_change if _math.isfinite(rel_change) else None
+
+    return {
+        "title":          c.title,
+        "target":         c.target,
+        "target_info":    {
+            "symbol": target_v.symbol if target_v else c.target,
+            "name":   target_v.name if target_v else c.target,
+            "unit":   target_v.unit if target_v else "",
+        },
+        "sweep_var":      c.sweep_var,
+        "sweep_var_info": {
+            "symbol": sweep_var.symbol if sweep_var else c.sweep_var,
+            "name":   sweep_var.name if sweep_var else c.sweep_var,
+            "unit":   sweep_var.unit if sweep_var else "",
+        },
+        "held":           c.held,
+        "chain_vars":     chain_var_info,
+        "citations":      c.citations,
+        "sweep_points":   sweep_points,
+        "direction":      c.direction,
+        "relative_change": rel_change_safe,
+        "physics_confidence": round(c.physics_confidence, 3),
+        "magnitude":          round(c.magnitude, 3),
+        "corpus": {
+            "label":         c.corpus_label,
+            "score":         round(c.corpus_score, 3),
+            "similarity":    round(c.corpus_similarity, 3),
+            "keyword_hits":  c.corpus_keyword_hits,
+            "query":         c.corpus_query,
+        },
+        "surprise_score": round(c.surprise_score, 3),
+        "summary":        c.summary,
+        "error":          c.error,
+    }
+
+
+def _run_exploration(refresh: bool = False) -> list[ExplorationCandidate]:
+    """Lazy + cached exploration run."""
+    global _exploration_cache
+    if refresh or _exploration_cache is None:
+        _exploration_cache = explorer.run()
+    return _exploration_cache
+
+
+@app.get("/api/reason_v2/explore")
+def reason_v2_explore(refresh: bool = Query(False)):
+    """
+    Active exploration over the v2 equation graph.
+
+    Walks a hand-picked but principled set of variable-graph sweeps,
+    runs forward inference at each sweep point, asks the corpus how
+    attested the rendered claim is, and ranks the candidates by
+
+        surprise = magnitude × physics_confidence × corpus_weight
+
+    The first call computes ~7 sweeps with corpus contact (≈10s on a
+    warm SPECTER2 index); subsequent calls return the cached result
+    in <1ms.  Pass ``?refresh=true`` to force re-evaluation.
+    """
+    t0 = time.perf_counter()
+    candidates = _run_exploration(refresh=refresh)
+    rendered = [_explore_render_candidate(c) for c in candidates]
+    elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
+    return {
+        "n_candidates":      len(rendered),
+        "candidates":        rendered,
+        "corpus_disclaimer": CORPUS_DISCLAIMER,
+        "cached":            (not refresh) and _exploration_cache is not None
+                              and elapsed_ms < 50,
+        "elapsed_ms":        elapsed_ms,
+    }
 
 
 @app.post("/api/analyse")
