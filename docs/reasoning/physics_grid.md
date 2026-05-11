@@ -1,18 +1,25 @@
-# Physics-driven hypothesis generation
+# Physics-driven hypothesis generation (v0 — "physics grid")
 
-**Status: ✅ Live (May 2026) — Reasoning tab uses this pipeline by default.**
+**Status: ✅ Live — the "physics grid" toggle of the Reasoning tab.**
 
-This document describes the architecture of the BoneMind Reasoning tab as
-of commits `a158999` and `d11ec54`. It supersedes the graph-walk +
-physics-as-filter approach described in [`phase4_lrm_plan.md`](phase4_lrm_plan.md)
-(steps 4.4–4.6), which is preserved for reference but no longer matches
-the running system.
+This document describes the v0 reasoner. It runs behind the
+**`physics grid`** option in the Reasoning tab's top-of-page toggle.
+The other option, **`equation graph`** (v2), is a parallel reasoner
+documented in [`v2_equation_graph.md`](equation_graph.md). The two
+share nothing at the reasoning layer; they coexist so you can compare
+their outputs side by side.
 
-The Reasoning tab now generates hypotheses **from physical laws** and
-falsifies them with **an adversarial physics critic** before any
-human-readable output is produced. The cleaned bone knowledge graph
-([`graph_cleanup.md`](graph_cleanup.md)) is consulted for grounding evidence
-and node materialisation, but it is no longer the source of hypotheses.
+This pipeline supersedes the graph-walk + physics-as-filter approach
+described in [`phase4_lrm_plan.md`](../phase4_lrm_plan.md) (steps 4.4–4.6),
+which has been removed from the codebase but is preserved in the doc
+for historical context.
+
+The Reasoning tab's v0 pipeline generates hypotheses **from physical
+laws** and falsifies them with **an adversarial physics critic**
+before any human-readable output is produced. The cleaned bone
+knowledge graph ([`graph_cleanup.md`](../graph_cleanup.md)) is consulted
+only for node-id materialisation (the chain cards display extracted
+graph labels), not as a source of hypotheses.
 
 ---
 
@@ -71,7 +78,6 @@ deterministic and reproducible.
             │   round 1: directional rules│
             │   round 2: magnitude bounds │
             │   round 3: law-aware domain │
-            │   round 4: scenario consist.│
             └──────────────┬──────────────┘
                            │   survivors only (or all, if keep_falsified)
                            ▼
@@ -89,8 +95,10 @@ deterministic and reproducible.
 ```
 
 The orchestrator is `LRM.query_physics()` in `reasoning/lrm.py`. The
-legacy `LRM.query()` (graph-walk) is preserved for the eval suite but
-is no longer called by the API.
+legacy `LRM.query()` (graph-walk) was removed in Phase 0; the
+companion `eval/run_lrm_eval.py` benchmark moved to
+`eval/legacy/run_lrm_eval.py` at the same time and is not maintained
+against the current LRM constructor.
 
 ---
 
@@ -230,11 +238,13 @@ lets the prediction string carry the I-ratio (or, equivalently, the
 
 ---
 
-## The four critic rounds (`reasoning/critic.py`)
+## The three critic rounds (`reasoning/critic.py`)
 
 Each candidate hypothesis runs through every round in sequence. A
-hypothesis survives only if all four pass; the first failure is
-recorded so the UI can show *why* a candidate was rejected.
+hypothesis survives only if all three pass; the first failure is
+recorded so the UI can show *why* a candidate was rejected. A fourth
+"scenario consistency" round existed in earlier versions but was
+removed in Phase 0 — the generator's own invariants made it a no-op.
 
 ### Round 1 — directional consistency
 
@@ -270,13 +280,6 @@ Round 3 dispatches by law name:
 | Paris | ΔK must be below cortical KIc ≈ 6 MPa·√m — at or above, failure is single-cycle and Paris no longer applies |
 | Frost mechanostat | strain must be in [0, 25 000] µε — above 25 000 the adaptation framework gives way to the fracture threshold |
 | Beam bending | t_new must be > 0 — kept positive automatically by the perturbation grid, defensive check only |
-
-### Round 4 — scenario consistency
-
-Confirms the hypothesis declares a known tissue scenario (`cortical`
-or `trabecular`) and that all variables it touches resolved within
-that regime. Round 4 is generator-trivial in v1 but exists as a guard
-for future laws that might mix variables across scales.
 
 ---
 
@@ -326,14 +329,13 @@ A single chain (per surviving hypothesis) carries:
   "assumed_inputs":{ "phi_baseline": 0.07, "rho_baseline": 1.73, "exponent": 2.5, "scenario": "cortical" },
 
   "validity":              "PLAUSIBLE",
-  "critic_rounds_total":   4,
-  "critic_rounds_passed":  4,
+  "critic_rounds_total":   3,
+  "critic_rounds_passed":  3,
   "critic_failure":        "",
   "critic_checks": [
     { "name": "directional_consistency", "passed": true,  "detail": "Hypothesis direction matches established physics rules." },
     { "name": "magnitude_range",         "passed": true,  "detail": "Predicted E ≈ 14.5 GPa within cortical bone range (predicted)." },
-    { "name": "powerlaw_domain",         "passed": true,  "detail": "Density ratio 0.93 within Currey bounds." },
-    { "name": "scenario_consistency",    "passed": true,  "detail": "All variables resolved within the cortical regime." }
+    { "name": "powerlaw_domain",         "passed": true,  "detail": "Density ratio 0.93 within Currey bounds." }
   ],
 
   "novelty":         "GROUNDED",
@@ -360,7 +362,7 @@ Each card in the Reasoning tab shows:
 - Two-pane prediction box:
   - **Perturbation** (left) — the input perturbation in plain language and units
   - **Predicted change** (right, amber) — the law's quantitative prediction
-- Critic-rounds pill — green *"Survived 4/4 physics rounds"* or red *"Falsified at round N"*
+- Critic-rounds pill — green *"Survived 3/3 physics rounds"* or red *"Falsified at round N"*
 - Falsification detail (red, only when applicable)
 - Novelty badge + corpus disclaimer
 
@@ -395,13 +397,12 @@ The BoneMind Reasoning tab is a deliberate departure on three points:
    experimental measurements.
 
 3. **An adversarial physics critic falsifies before display.** Each
-   candidate runs through four independent rounds (directional
-   consistency, magnitude bounds, law-aware domain, scenario
-   consistency). The role Buehler delegates to a creative LLM agent
-   is filled here by a deterministic falsification loop. The first
-   failure is recorded so the UI can show *why* a candidate was
-   rejected — turning falsifications into teaching signals rather
-   than silent discards.
+   candidate runs through three independent rounds (directional
+   consistency, magnitude bounds, law-aware domain). The role
+   Buehler delegates to a creative LLM agent is filled here by a
+   deterministic falsification loop. The first failure is recorded
+   so the UI can show *why* a candidate was rejected — turning
+   falsifications into teaching signals rather than silent discards.
 
 No LLM is involved at runtime. The pipeline is fully deterministic and
 auditable, which matters for a system whose outputs are intended to be
@@ -437,7 +438,7 @@ warranted:
 6. Add to the smoke test query list and confirm:
    - The new law fires only on its intended queries
    - At least one perturbation in each cortical/trabecular scenario
-     survives all four rounds
+     survives all three rounds
    - At least one extreme perturbation is correctly falsified
 
 ---
@@ -451,10 +452,6 @@ warranted:
   vary 2–3× across populations. The generator deliberately predicts
   the midpoint; the critic's magnitude check uses a wide range to
   accommodate variation.
-- **Hypotheses are single-step.** Each hypothesis chains one input to
-  one output via one law. Multi-step chains (e.g. Currey + beam:
-  density loss × thinning → strength reduction) are not yet generated;
-  this is the highest-leverage future extension.
 - **The directional rule table overlaps the variable registry.** The
   Currey-family rules are now redundant (the generator subsumes them),
   but they remain because they still serve as the Round 1 check for
@@ -462,9 +459,15 @@ warranted:
   `PhysicalLaw` instances as the source of truth and derive the rule
   table from them, with hand-curated rules reserved for non-equation
   biology (RANKL/OPG, AGE crosslinks).
-- **The eval suite still calls the legacy `LRM.query()`.** Updating
-  `eval/run_lrm_eval.py` to use `query_physics()` is straightforward
-  but pending.
+- **No automated eval.** The Phase 0 cleanup moved
+  `eval/run_lrm_eval.py` to `eval/legacy/` and dropped the legacy
+  `LRM.query()` path that it called. A fresh evaluator covering
+  `query_physics()` (and the v2 reasoner alongside it) is pending.
+- **Single-step chains.** Each hypothesis chains one input to one
+  output via one law. Multi-step chains across laws cannot be
+  generated here — the v2 equation graph reasoner
+  ([`v2_equation_graph.md`](equation_graph.md)) was built to address
+  that limit and coexists in the same Reasoning tab.
 
 ---
 

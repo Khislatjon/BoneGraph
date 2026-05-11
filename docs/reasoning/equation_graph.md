@@ -1,11 +1,17 @@
 # v2 — Equation-Graph Reasoner
 
-**Status: ✅ Live (May 2026) — Reason tab "v2 — equation graph" toggle.**
+**Status: ✅ Live — the "equation graph" toggle of the Reasoning tab,
+marked `experimental` in the UI.**
 
 This document explains how the v2 reasoner works, how it differs from
 the v0 physics-grid system, and how to operate it. It is the
 reference for the architecture introduced across commits
 `Phase 0` through `Phase 5` on the `chore/reasoning-further` branch.
+
+The v0 pipeline that runs under the **`physics grid`** toggle is
+documented in [`physics_reasoning.md`](physics_grid.md). Both
+reasoners coexist in the same tab — use the toggle at the top of the
+page to switch between them.
 
 ---
 
@@ -35,18 +41,21 @@ addresses each of those limits.
 
 ## The toggle
 
-In the Reason tab:
+In the Reasoning tab:
 
 ```
    ┌──────────────────────────────────────────────────────┐
-   │              Hypothesis Generator                    │
+   │      Hypothesis Generator   experimental             │
    │                                                      │
-   │     [ v0 — physics grid ]  [ v2 — equation graph ]   │
+   │       [ physics grid ]  [ equation graph ]           │
    └──────────────────────────────────────────────────────┘
 ```
 
-`v0 — physics grid` is the original system, untouched.
-`v2 — equation graph` is the new one this document describes.
+`physics grid` is the v0 system, untouched.
+`equation graph` is v2 — what this document describes. The
+`experimental` tag next to the title indicates this is preview-stage
+software (changing shape, no clinical validation yet); it does *not*
+mean "experimental data input."
 
 The two share nothing at the reasoning layer. They do share the corpus
 (`chunks.db`) for evidence retrieval, and the SPECTER2 embedding model
@@ -82,7 +91,7 @@ JSON payloads, and code paths — easy to type, easy to grep) and a
 Unicode `display_symbol` (rendered in the UI, diagrams, and this
 document). The two are decoupled on purpose: the API contract stays
 `given={"phi": 0.10}`, while the chain pill on screen reads `φ`.
-Definitions live in [`reasoning/bone_relations.py`](../reasoning/bone_relations.py).
+Definitions live in [`reasoning/bone_relations.py`](../../reasoning/bone_relations.py).
 
 ### What lives on each edge
 
@@ -105,7 +114,7 @@ relations:
 There is no "graph build" step. When two Relations mention the same
 symbol — e.g. `currey_modulus` uses `ρ` as input, and
 `density_from_porosity` produces `ρ` as output — they share that node.
-The `RelationRegistry` in [`relation.py`](../reasoning/relation.py)
+The `RelationRegistry` in [`relation.py`](../../reasoning/relation.py)
 just stores Relations in a dict keyed by output symbol; the
 topology is implicit.
 
@@ -291,9 +300,9 @@ ranks candidates by
 
 The UI panel is hidden behind a feature flag
 (`V2_SURPRISES_ENABLED = false` in
-[`frontend/index.html`](../frontend/index.html)). The backend
+[`frontend/index.html`](../../frontend/index.html)). The backend
 endpoint `GET /api/reason_v2/explore` still works if you `curl` it.
-Implementation lives in [`reasoning/explorer.py`](../reasoning/explorer.py).
+Implementation lives in [`reasoning/explorer.py`](../../reasoning/explorer.py).
 
 ---
 
@@ -337,7 +346,7 @@ can show *why* the prior moved.
 ### The shift library
 
 About a dozen literature-anchored shifts live in
-[`bone_relations.py`](../reasoning/bone_relations.py):
+[`bone_relations.py`](../../reasoning/bone_relations.py):
 
 | Shift                          | Cites                              | Effect                                              |
 |--------------------------------|------------------------------------|-----------------------------------------------------|
@@ -425,50 +434,66 @@ Six paraphrased queries, all picked the correct variable as top-1:
 
 ## UI walkthrough
 
-When you open the v2 toggle, you see four areas, in order:
+The v2 mode shares the same header skeleton as v0 — only the
+description, the toggle state, and what appears below differ. From
+top to bottom:
 
-### 1. Free-text bar
+### 1. Header — free-text "Ask" bar
 
 ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │  🔍  Ask in plain English…                       [ Reason ] │
+   ┌─ Hypothesis Generator   experimental ───────────────────────┐
+   │      [ physics grid ]  [ equation graph ]                   │
+   │  Forward, abductive and counterfactual inference over a     │
+   │  typed equation graph. Patient covariates reshape each      │
+   │  law's priors before propagation.                           │
+   │  ┌──────────────────────────────────────────────────────┐   │
+   │  │ 🔍 Ask in plain English…                  [ Reason ] │   │
+   │  └──────────────────────────────────────────────────────┘   │
    └─────────────────────────────────────────────────────────────┘
-   One LLM call routes the query to a mode; SPECTER2 anchors
-   the variables; the reasoner stays deterministic.
-   Try: bone stiffness under cyclic load · …
 ```
 
-Calls `/api/reason_v2/ask`. Routing block is always rendered with
-the result so you can see which mode and target the router chose.
+The bar uses the same `.reason-bar` / `.reason-input` / `.reason-btn`
+classes as the v0 search bar — same width, same Reason button. Hits
+`/api/reason_v2/ask`. The routing block is always rendered above the
+result card so you can see which mode and target the LLM picked.
 
-### 2. Covariate panel
+### 2. Patient covariates panel
 
 ```
-   ┌─ Patient covariates ─────────────────────────────────────────┐
-   │   Age      [================|====]  60 yr                    │
-   │   Sex      [ M ]  [ F ]                                      │
-   │   Site     femur_cortical ▾                                  │
-   │   Disease  [☐ osteoporosis  ☐ glucocorticoid  ☐ OI]          │
-   └──────────────────────────────────────────────────────────────┘
+   ┌─ Patient covariates ──────────────────  age=30 · M · femur cortical
+   │   Age     [████████│············]  30 yr
+   │   Sex     [ Male │ Female ]
+   │   Site    femur cortical ▼
+   │   Disease  ○ osteoporosis  ○ glucocorticoid  ○ osteogenesis imperfecta
+   └────────────────────────────────────────────────────────────
 ```
 
-Every inference (free-text or preset) uses these values. Change the
-age slider and the same query yields a different number.
+Every inference uses these values. The slider's filled track and the
+selected Sex / Site / Disease chips all share a solid amber-with-white
+"selected" treatment so it's obvious at a glance what the active
+profile is. Change the age slider and the same query yields a
+different number.
 
-### 3. Preset buttons *(currently hidden)*
+### 3. Try chips *(only shown before a result lands)*
 
-A three-column grid of click-to-run examples — one column per
-inference mode (Forward, Abductive, Counterfactual). Hidden behind
-`V2_PRESETS_ENABLED = false` in
-[`frontend/index.html`](../frontend/index.html) because the canonical
-forms confused early users; flip the flag to bring them back.
+```
+   Try:  [ bone stiffness under cyclic load ]
+         [ how does porosity affect modulus in a 70-year-old female? ]
+         [ why is this patient's E only 12 GPa? ]
+         [ what if porosity dropped to 5%? ]
+```
+
+Click a chip → the header "Ask" bar fills in and the query fires.
+Chips disappear once a result is shown (matching v0's behaviour) and
+reappear if the user clears the result.
 
 ### 4. Result cards
 
 The renderer picks a card based on `result.mode`:
 
 - `V2ForwardCard`: chain visualisation + per-step intermediate values
-  with their 90% bands + final prediction + citations
+  with their 90% bands + KaTeX-rendered equation per step + final
+  prediction + citations
 - `V2AbductiveCard`: observation + posterior over inferred variables
   with prior-to-posterior shift score + effective sample size +
   citations
@@ -477,7 +502,21 @@ The renderer picks a card based on `result.mode`:
 
 A `routing` block above the card lists the LLM rationale, confidence,
 source (`llm` or `fallback`), and the SPECTER2 matched-variables
-table.
+table. KaTeX is loaded from CDN; the step equations render as proper
+math (`ρ = ρ_full · (1 − φ)`) rather than raw LaTeX strings.
+
+### Hidden by feature flag
+
+Two pieces of UI are present in the code but currently hidden:
+
+| Flag (in `frontend/index.html`) | What it hides |
+|---|---|
+| `V2_SURPRISES_ENABLED = false` | The Phase 5 active-exploration "Surprises" panel — and the auto-fetch on tab mount that would otherwise trigger a 25 s `/api/reason_v2/explore` cold start. |
+| `V2_PRESETS_ENABLED = false` | The three-column grid of canonical-form preset buttons (one column per inference mode), hidden because the canonical forms confused early users. |
+
+Flip either flag to `true` to bring the section back; the underlying
+backend (`/api/reason_v2/explore`, the preset metadata endpoint) is
+live regardless.
 
 ---
 
@@ -485,13 +524,13 @@ table.
 
 | File                                                                          | Phase  | Role |
 |-------------------------------------------------------------------------------|--------|------|
-| [`reasoning/relation.py`](../reasoning/relation.py)                           | 1–3    | `Variable`, `Prior`, `CovariateShift`, `Relation`, `RelationRegistry`. All four inference modes. |
-| [`reasoning/bone_relations.py`](../reasoning/bone_relations.py)               | 1–3    | The seven bone-physics Relations + the covariate-shift library. |
-| [`reasoning/semantic_anchor.py`](../reasoning/semantic_anchor.py)             | 4      | SPECTER2 embedding index over Variables. |
-| [`reasoning/query_router.py`](../reasoning/query_router.py)                   | 4      | Single Ollama call for mode classification + value extraction. |
-| [`reasoning/explorer.py`](../reasoning/explorer.py)                           | 5      | Active exploration (currently UI-hidden). |
-| [`api/main.py`](../api/main.py) (≥ line 970)                                  | 1–5    | `/api/reason_v2`, `/api/reason_v2/ask`, `/api/reason_v2/presets`, `/api/reason_v2/explore`. |
-| [`frontend/index.html`](../frontend/index.html)                               | 1–5    | `V2Section`, `V2ForwardCard`, `V2AbductiveCard`, `V2CounterfactualCard`, `V2CovariatePanel`, `V2Surprises` (flag-hidden). |
+| [`reasoning/relation.py`](../../reasoning/relation.py)                           | 1–3    | `Variable`, `Prior`, `CovariateShift`, `Relation`, `RelationRegistry`. All four inference modes. |
+| [`reasoning/bone_relations.py`](../../reasoning/bone_relations.py)               | 1–3    | The seven bone-physics Relations + the covariate-shift library. |
+| [`reasoning/semantic_anchor.py`](../../reasoning/semantic_anchor.py)             | 4      | SPECTER2 embedding index over Variables. |
+| [`reasoning/query_router.py`](../../reasoning/query_router.py)                   | 4      | Single Ollama call for mode classification + value extraction. |
+| [`reasoning/explorer.py`](../../reasoning/explorer.py)                           | 5      | Active exploration (currently UI-hidden). |
+| [`api/main.py`](../../api/main.py) (≥ line 970)                                  | 1–5    | `/api/reason_v2`, `/api/reason_v2/ask`, `/api/reason_v2/presets`, `/api/reason_v2/explore`. |
+| [`frontend/index.html`](../../frontend/index.html)                               | 1–5    | `V2Section`, `V2ForwardCard`, `V2AbductiveCard`, `V2CounterfactualCard`, `V2CovariatePanel`, `V2Surprises` (flag-hidden). |
 
 ---
 
