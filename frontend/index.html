@@ -960,6 +960,10 @@ const V2_MODE_META = {
 
 const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
 
+// Phase 5 Surprises panel — hidden for now. Flip to `true` to re-enable
+// the always-on exploration panel + the LLM-routed "explore" mode UI.
+const V2_SURPRISES_ENABLED = false;
+
 const V2_SITES = [
   {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
   {value: 'tibia_cortical', label: 'Tibia — cortical midshaft'},
@@ -1514,7 +1518,7 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           {result.mode === 'forward'        && <V2ForwardCard        result={result} elapsed={elapsed}/>}
           {result.mode === 'abductive'      && <V2AbductiveCard      result={result} elapsed={elapsed}/>}
           {result.mode === 'counterfactual' && <V2CounterfactualCard result={result} elapsed={elapsed}/>}
-          {result.mode === 'explore'        && (
+          {V2_SURPRISES_ENABLED && result.mode === 'explore' && (
             <V2Surprises
               candidates={result.candidates || []}
               loading={false}
@@ -1538,7 +1542,7 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
       )}
 
       {/* Always-on Surprises panel — independent of any user query. */}
-      {result?.mode !== 'explore' && (
+      {V2_SURPRISES_ENABLED && result?.mode !== 'explore' && (
         <V2Surprises
           candidates={surprises}
           loading={surprisesLoading}
@@ -1585,9 +1589,11 @@ function ReasonTab() {
     setV2SurprisesLoading(false);
   };
 
-  // Lazy fetch the first time the user opens the v2 tab.
+  // Lazy fetch the first time the user opens the v2 tab.  Gated by the
+  // Surprises feature flag so we don't trigger the (cold) 25s SPECTER2
+  // exploration run when the panel itself is hidden.
   useEffect(() => {
-    if (v2Mode && v2Surprises === null && !v2SurprisesLoading) {
+    if (V2_SURPRISES_ENABLED && v2Mode && v2Surprises === null && !v2SurprisesLoading) {
       loadV2Surprises(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
