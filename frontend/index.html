@@ -251,6 +251,38 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .v2-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
 .v2-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
 
+/* v2 agents panel (Phase 7/8) */
+.v2-agents{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.v2-agents-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.v2-agents-title{font-size:14px;font-weight:600;color:var(--text)}
+.v2-agents-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5;margin-top:3px}
+.v2-agents-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans);white-space:nowrap}
+.v2-agents-btn:hover{border-color:#6c7fd8;color:var(--text)}
+.v2-agents-btn:disabled{opacity:.5;cursor:not-allowed}
+.v2-agent-list{display:flex;flex-direction:column;gap:12px}
+.v2-agent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.v2-agent-card.verdict-interesting{border-left:3px solid #4a7c59}
+.v2-agent-card.verdict-trivial{border-left:3px solid var(--text3)}
+.v2-agent-card.verdict-out-of-domain{border-left:3px solid #c0392b}
+.v2-agent-card.verdict-needs-more-data{border-left:3px solid var(--amber)}
+.v2-agent-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.v2-agent-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.v2-agent-verdict{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.v2-agent-verdict.interesting{background:#eaf5ee;color:#1a7a4e;border:1px solid #a8d8b8}
+.v2-agent-verdict.trivial{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.v2-agent-verdict.out-of-domain{background:#fdeaea;color:#b01c1c;border:1px solid #f0a8a8}
+.v2-agent-verdict.needs-more-data{background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border)}
+.v2-agent-rationale{font-size:12.5px;color:var(--text2);line-height:1.55}
+.v2-agent-reason{font-size:12px;color:var(--text3);font-style:italic;line-height:1.5}
+.v2-agent-pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.v2-agent-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.v2-agent-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.v2-agent-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.v2-agent-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.v2-agent-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.v2-agent-corpus{font-size:11px;color:var(--text3);font-style:italic;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px}
+.v2-agent-error{font-size:12px;color:#b01c1c;background:#fdeaea;border:1px solid #f0a8a8;border-radius:6px;padding:8px 12px}
+
 /* v2 preset groups */
 .v2-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
 .v2-preset-group{display:flex;flex-direction:column;gap:8px}
@@ -1010,6 +1042,9 @@ const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', diseas
 // the always-on exploration panel + the LLM-routed "explore" mode UI.
 const V2_SURPRISES_ENABLED = false;
 
+// Phase 7/8 Agents panel — Proposer + Critic loop over the equation graph.
+const V2_AGENTS_ENABLED = true;
+
 // Per-mode preset buttons (forward / abductive / counterfactual demos).
 // Hidden for now — flip to `true` to expose the canonical-form examples.
 const V2_PRESETS_ENABLED = false;
@@ -1490,10 +1525,123 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
   );
 }
 
+// ── v2 agents panel (Phase 7/8) ────────────────────────────────────────────
+const VERDICT_LABELS = {
+  'interesting':    'Interesting',
+  'trivial':        'Trivial',
+  'out-of-domain':  'Out of domain',
+  'needs-more-data':'Needs more data',
+};
+
+function V2AgentsPanel({agents, loading, error, onRun}) {
+  return (
+    <div className="v2-agents">
+      <div className="v2-agents-hdr">
+        <div>
+          <div className="v2-agents-title">
+            Agents — hypothesis discovery
+            <span className="v2-experimental-tag">phase 7/8</span>
+          </div>
+          <div className="v2-agents-blurb">
+            A Proposer agent walks the variable graph and suggests novel (target, sweep) pairs.
+            The deterministic engine evaluates each one. A Critic agent searches the corpus
+            and decides whether the result is <em>interesting</em>, <em>trivial</em>, or needs more data.
+          </div>
+        </div>
+        <button className="v2-agents-btn" onClick={onRun} disabled={loading}>
+          {loading ? <Spinner/> : (agents ? 'Re-run' : 'Run agents')}
+        </button>
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:8}}>
+          <Dots/><span>Proposer is thinking… Critic is reading the corpus…</span>
+        </div>
+      )}
+      {error && <div className="v2-agent-error">{error}</div>}
+
+      {agents && agents.length > 0 && (
+        <div className="v2-agent-list">
+          {agents.map((item, i) => {
+            if (item.error) return (
+              <div key={i} className="v2-agent-card">
+                <div className="v2-agent-error">{item.error}</div>
+              </div>
+            );
+
+            const h = item.hypothesis || {};
+            const p = item.physics    || {};
+            const c = item.critique   || {};
+
+            const verdict   = c.verdict || 'needs-more-data';
+            const dirClass  = p.direction === 'increases' ? 'dir-up'
+                            : p.direction === 'decreases' ? 'dir-down'
+                            : 'dir-mixed';
+            const arrow     = p.direction === 'increases' ? '↑'
+                            : p.direction === 'decreases' ? '↓' : '↺';
+            const relChange = p.relative_change != null
+              ? `${(p.relative_change * 100).toFixed(0)}%` : '—';
+
+            return (
+              <div key={i} className={`v2-agent-card verdict-${verdict}`}>
+                <div className="v2-agent-row1">
+                  <div className="v2-agent-title">
+                    #{i + 1} · {h.sweep_var} → {h.target}
+                  </div>
+                  <span className={`v2-agent-verdict ${verdict}`}>
+                    {VERDICT_LABELS[verdict] || verdict}
+                  </span>
+                </div>
+
+                {h.rationale && (
+                  <div className="v2-agent-rationale">{h.rationale}</div>
+                )}
+
+                {c.reason && (
+                  <div className="v2-agent-reason">Critic: {c.reason}</div>
+                )}
+
+                <div className="v2-agent-pills">
+                  <span className={`v2-agent-pill ${dirClass}`}>{arrow} {p.direction} ({relChange})</span>
+                  {p.physics_confidence != null && (
+                    <span className="v2-agent-pill">phys conf {p.physics_confidence.toFixed(2)}</span>
+                  )}
+                  {p.magnitude != null && (
+                    <span className="v2-agent-pill">mag {p.magnitude.toFixed(2)}</span>
+                  )}
+                  {p.corpus_label && (
+                    <Badge label={p.corpus_label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[p.corpus_label]}/>
+                  )}
+                  {c.confidence != null && (
+                    <span className="v2-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
+                  )}
+                </div>
+
+                {p.summary && (
+                  <div className="v2-agent-sweep">{p.summary}</div>
+                )}
+
+                {c.corpus_passages && c.corpus_passages.length > 0 && (
+                  <div className="v2-agent-corpus">
+                    {c.corpus_passages.map((s, j) => (
+                      <div key={j} style={{marginBottom:4}}>"{s}"</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function V2Section({presets, onRun, loading, result, error, elapsed,
                     covariates, onCovariatesChange,
                     query, onQueryChange, onAsk,
-                    surprises, surprisesLoading, surprisesError, onSurprisesRefresh}) {
+                    surprises, surprisesLoading, surprisesError, onSurprisesRefresh,
+                    agents, agentsLoading, agentsError, onAgentsRun}) {
   const groups = [
     {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
     {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
@@ -1590,6 +1738,16 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           fromAsk={false}
         />
       )}
+
+      {/* Phase 7/8 — Agents panel */}
+      {V2_AGENTS_ENABLED && (
+        <V2AgentsPanel
+          agents={agents}
+          loading={agentsLoading}
+          error={agentsError}
+          onRun={onAgentsRun}
+        />
+      )}
     </div>
   );
 }
@@ -1616,6 +1774,11 @@ function ReasonTab() {
   const [v2SurprisesLoading, setV2SurprisesLoading] = useState(false);
   const [v2SurprisesError,   setV2SurprisesError]   = useState('');
 
+  // Phase 7/8 — agents panel state.
+  const [v2Agents,        setV2Agents]        = useState(null);
+  const [v2AgentsLoading, setV2AgentsLoading] = useState(false);
+  const [v2AgentsError,   setV2AgentsError]   = useState('');
+
   const loadV2Surprises = async (refresh = false) => {
     if (v2SurprisesLoading) return;
     setV2SurprisesLoading(true); setV2SurprisesError('');
@@ -1626,6 +1789,22 @@ function ReasonTab() {
       else setV2Surprises(data.candidates || []);
     } catch { setV2SurprisesError('Could not run active exploration. Please try again.'); }
     setV2SurprisesLoading(false);
+  };
+
+  const runV2Agents = async () => {
+    if (v2AgentsLoading) return;
+    setV2AgentsLoading(true); setV2AgentsError('');
+    try {
+      const r = await fetch('/api/reason_v2/agents', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({n_proposals: 2}),
+      });
+      const data = await r.json();
+      if (data.error) setV2AgentsError(data.error);
+      else setV2Agents(data.proposals || []);
+    } catch { setV2AgentsError('Could not run agents. Please try again.'); }
+    setV2AgentsLoading(false);
   };
 
   // Lazy fetch the first time the user opens the v2 tab.  Gated by the
@@ -1770,6 +1949,10 @@ function ReasonTab() {
             surprisesLoading={v2SurprisesLoading}
             surprisesError={v2SurprisesError}
             onSurprisesRefresh={() => loadV2Surprises(true)}
+            agents={v2Agents}
+            agentsLoading={v2AgentsLoading}
+            agentsError={v2AgentsError}
+            onAgentsRun={runV2Agents}
           />
         )}
 

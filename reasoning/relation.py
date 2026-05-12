@@ -552,6 +552,10 @@ class RelationRegistry:
     def variable(self, symbol: str) -> Variable | None:
         return self._variables.get(symbol)
 
+    def iter_variables(self) -> list[Variable]:
+        """Return all registered Variables in insertion order."""
+        return list(self._variables.values())
+
     def relations(self) -> list[Relation]:
         return list(self._relations.values())
 

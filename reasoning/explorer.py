@@ -241,6 +241,36 @@ class Explorer:
         candidates.sort(key=lambda c: c.surprise_score, reverse=True)
         return candidates
 
+    def evaluate_proposal(
+        self,
+        *,
+        target: str,
+        sweep_var: str,
+        sweep_values: list[float],
+        held: dict[str, float],
+        title: str | None = None,
+        corpus_query: str | None = None,
+    ) -> ExplorationCandidate | None:
+        """
+        Evaluate an agent-proposed sweep using the same pipeline as run().
+
+        This is the bridge between the Phase 7 ProposerAgent and the
+        deterministic Explorer.  The proposer decides *what* to evaluate;
+        the Explorer computes the physics and corpus scores.
+        """
+        spec = _SweepSpec(
+            target=target,
+            sweep_var=sweep_var,
+            sweep_values=tuple(float(v) for v in sweep_values),
+            held=dict(held),
+            title=title or f"{sweep_var} → {target}",
+            corpus_query=corpus_query or (
+                f"Effect of {sweep_var} on {target} in bone tissue; "
+                "physics-based prediction and experimental evidence."
+            ),
+        )
+        return self._evaluate(spec)
+
     # ── Per-sweep evaluation ──────────────────────────────────────────────────
 
     def _evaluate(self, spec: _SweepSpec) -> ExplorationCandidate | None:

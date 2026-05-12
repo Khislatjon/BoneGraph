@@ -33,6 +33,9 @@ GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
 GET  /api/reason_v2/explore — Phase 5 active exploration: walk the variable
                               graph without a user query, score candidates
                               against the corpus, rank by surprise.
+POST /api/reason_v2/agents  — Phase 7/8 agent loop: Proposer proposes a
+                              hypothesis, Explorer evaluates it deterministically,
+                              Critic decides whether it is interesting.
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -40,6 +43,7 @@ GET  /                     — serves frontend/index.html
 import base64
 import io
 import json
+import math
 import sqlite3
 import time
 from pathlib import Path
@@ -57,6 +61,9 @@ from reasoning.semantic_anchor import SemanticVariableAnchor
 from reasoning.query_router import QueryRouter
 from reasoning.lrm import LRM
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
+from reasoning.agent_tools import ToolDispatcher
+from reasoning.proposer_agent import ProposerAgent
+from reasoning.critic_agent import CriticAgent
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
@@ -177,6 +184,25 @@ print("Wiring v2 explorer (Phase 5)...")
 explorer = Explorer(bone_registry, novelty_classifier=novelty_clf)
 # Lazily computed on first request and cached in process memory.
 _exploration_cache: list[ExplorationCandidate] | None = None
+
+print("Wiring Phase 6/7/8 agents...")
+_agent_dispatcher = ToolDispatcher(registry=bone_registry, retriever=retriever)
+_proposer = ProposerAgent(
+    ollama_url=OLLAMA_URL,
+    model=OLLAMA_MODEL,
+    temperature=0.5,
+)
+_critic = CriticAgent(
+    dispatcher=_agent_dispatcher,
+    ollama_url=OLLAMA_URL,
+    model=OLLAMA_MODEL,
+)
+# In-memory scratchpad: append-only list of evaluated hypothesis dicts.
+# Cleared on server restart.  Agents read this to avoid repeating sweeps.
+# Capped so a long-running server can't grow unbounded — the proposer
+# prompt only reads the last 8 entries anyway.
+_agent_scratchpad: list[dict] = []
+_AGENT_SCRATCHPAD_MAX = 64
 
 print("Loading corpus stats...")
 
@@ -1502,6 +1528,146 @@ def reason_v2_explore(refresh: bool = Query(False)):
                               and elapsed_ms < 50,
         "elapsed_ms":        elapsed_ms,
     }
+
+
+# ── Phase 7/8 — agent-driven exploration ──────────────────────────────────────
+
+@app.post("/api/reason_v2/agents")
+def reason_v2_agents(payload: dict):
+    """
+    Run the Proposer → Physics → Critic agent loop.
+
+    The Proposer (Phase 7) uses an LLM to walk the variable graph and
+    propose (target, sweep_var, given, sweep_values) tuples not in the
+    hand-picked sweep table.  Each proposal is evaluated by the
+    deterministic Explorer (same pipeline as /explore).  The Critic
+    (Phase 8) then calls corpus_search and decides whether the physics
+    prediction is interesting, trivial, out-of-domain, or needs more data.
+
+    Body (all optional):
+      n_proposals : int  — number of hypotheses to generate (default 2, max 4)
+      covariates  : dict — patient context passed to forward()
+    """
+    n = min(int(payload.get("n_proposals") or 2), 4)
+    t0 = time.perf_counter()
+
+    proposals_out = []
+    for _ in range(n):
+        # ── Step 1: Proposer ─────────────────────────────────────────────────
+        proposal = _proposer.propose(scratchpad=_agent_scratchpad)
+        if proposal is None:
+            proposals_out.append({
+                "error": "Proposer agent unavailable (Ollama unreachable or parsing failed).",
+                "source": "fallback",
+            })
+            continue
+
+        # Validate proposed symbols exist in the registry.
+        if not bone_registry.variable(proposal.target):
+            proposals_out.append({
+                "error": f"Proposer proposed unknown target '{proposal.target}'.",
+                "proposal": {"target": proposal.target, "sweep_var": proposal.sweep_var},
+                "source": "agent",
+            })
+            continue
+        if not bone_registry.variable(proposal.sweep_var):
+            proposals_out.append({
+                "error": f"Proposer proposed unknown sweep_var '{proposal.sweep_var}'.",
+                "proposal": {"target": proposal.target, "sweep_var": proposal.sweep_var},
+                "source": "agent",
+            })
+            continue
+
+        # ── Step 2: Physics evaluation (deterministic) ───────────────────────
+        # Filter `given` to known symbols so a hallucinated key (e.g. "density"
+        # instead of "rho") can't crash the Explorer downstream.
+        held = {
+            k: v for k, v in proposal.given.items()
+            if bone_registry.variable(k) is not None
+        }
+        cand = explorer.evaluate_proposal(
+            target=proposal.target,
+            sweep_var=proposal.sweep_var,
+            sweep_values=proposal.sweep_values,
+            held=held,
+            title=f"[agent] {proposal.sweep_var} → {proposal.target}",
+        )
+
+        if cand is None:
+            proposals_out.append({
+                "error": "Explorer could not evaluate the proposed sweep.",
+                "proposal": {"target": proposal.target, "sweep_var": proposal.sweep_var,
+                             "rationale": proposal.rationale},
+                "source": "agent",
+            })
+            continue
+
+        physics_summary = {
+            "direction":          cand.direction,
+            "relative_change":    cand.relative_change if not _isnan(cand.relative_change) else None,
+            "physics_confidence": cand.physics_confidence,
+            "magnitude":          cand.magnitude,
+            "summary":            cand.summary,
+            "citations":          cand.citations,
+            "corpus_label":       cand.corpus_label,
+            "surprise_score":     cand.surprise_score,
+        }
+
+        # ── Step 3: Critic ───────────────────────────────────────────────────
+        critique = _critic.critique(
+            hypothesis={
+                "target":       proposal.target,
+                "sweep_var":    proposal.sweep_var,
+                "given":        proposal.given,
+                "sweep_values": proposal.sweep_values,
+                "rationale":    proposal.rationale,
+            },
+            physics=physics_summary,
+        )
+
+        # Append to scratchpad so later proposals avoid repeating.
+        _agent_scratchpad.append({
+            "target":    proposal.target,
+            "sweep_var": proposal.sweep_var,
+        })
+        if len(_agent_scratchpad) > _AGENT_SCRATCHPAD_MAX:
+            del _agent_scratchpad[: len(_agent_scratchpad) - _AGENT_SCRATCHPAD_MAX]
+
+        proposals_out.append({
+            "hypothesis": {
+                "target":       proposal.target,
+                "sweep_var":    proposal.sweep_var,
+                "given":        proposal.given,
+                "sweep_values": proposal.sweep_values,
+                "rationale":    proposal.rationale,
+                "title":        cand.title,
+            },
+            "physics":    {**physics_summary, **_explore_render_candidate(cand)},
+            "critique":   {
+                "verdict":          critique.verdict,
+                "reason":           critique.reason,
+                "confidence":       critique.confidence,
+                "corpus_passages":  critique.corpus_passages,
+                "source":           critique.source,
+            },
+            "proposer_source": proposal.source,
+        })
+
+    elapsed_s = round(time.perf_counter() - t0, 2)
+    return {
+        "proposals":         proposals_out,
+        "n_proposals":       len(proposals_out),
+        "scratchpad_size":   len(_agent_scratchpad),
+        "corpus_disclaimer": CORPUS_DISCLAIMER,
+        "elapsed_s":         elapsed_s,
+    }
+
+
+def _isnan(x) -> bool:
+    try:
+        return math.isnan(x)
+    except (TypeError, ValueError):
+        return False
 
 
 @app.post("/api/analyse")
