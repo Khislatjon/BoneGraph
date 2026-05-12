@@ -1,15 +1,13 @@
 """
 reasoning/semantic_anchor.py
 ────────────────────────────
-SPECTER2-backed semantic top-k retrieval for Variables in the v2
+SPECTER2-backed semantic top-k retrieval for Variables in the
 equation-graph reasoner.
 
-Phase 4 replaces the v0-style keyword anchor (``variables_in_query`` in
-:mod:`reasoning.physics_vars`) with a small, deterministic semantic
-matcher.  A free-text user query is embedded with the same SPECTER2
-adhoc-query adapter that the retriever and novelty classifier already
-use; cosine similarity against pre-embedded ``Variable.description``
-vectors gives a top-k list of plausible anchor variables.
+A free-text user query is embedded with the same SPECTER2 adhoc-query
+adapter that the retriever and novelty classifier already use; cosine
+similarity against pre-embedded ``Variable.description`` vectors gives
+a top-k list of plausible anchor variables.
 
 This module owns no model loading of its own — instead it borrows the
 tokenizer/model/device the :class:`retrieval.retriever.BoneMindRetriever`
@@ -145,12 +143,11 @@ class SemanticVariableAnchor:
     Map a free-text query to the most relevant Variable symbols in a
     :class:`RelationRegistry`.
 
-    Phase 4 deliverable: queries like *"bone stiffness under cyclic
-    load"* should anchor both Currey (stiffness → E) and Paris
-    (cyclic load → ΔK / da/dN) in the top-k.  The keyword anchor in
-    :mod:`reasoning.physics_vars` only catches whichever phrase happens
-    to overlap a curated keyword list; SPECTER2 embeddings handle
-    paraphrases and synonyms naturally.
+    Queries like *"bone stiffness under cyclic load"* should anchor
+    both Currey (stiffness → E) and Paris (cyclic load → ΔK / da/dN)
+    in the top-k.  A pure-keyword anchor would only catch whichever
+    phrase happens to overlap a curated keyword list; SPECTER2
+    embeddings handle paraphrases and synonyms naturally.
 
     Construction
     ------------

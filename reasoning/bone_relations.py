@@ -1,7 +1,7 @@
 """
 reasoning/bone_relations.py
 ───────────────────────────
-Bone-physics Relations for the v2 reasoning pipeline.
+Bone-physics Relations for the reasoning pipeline.
 
 :func:`build_bone_registry` wires seven Relations into a single
 :class:`~reasoning.relation.RelationRegistry`.  The Relations span the

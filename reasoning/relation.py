@@ -1,10 +1,10 @@
 """
 reasoning/relation.py
 ─────────────────────
-Equation-graph foundation for the v2 reasoning pipeline.
+Equation-graph foundation for the reasoning pipeline.
 
 This module is the substrate the rest of the new reasoner will be built
-on.  It replaces the per-law branches of :mod:`reasoning.physics_gen`
+on.  Replaces the per-law branches of an earlier physics-grid generator
 with a single uniform abstraction — every physical law is a
 :class:`Relation`, every quantity is a :class:`Variable`, and the
 :class:`RelationRegistry` discovers which laws can be chained simply by
@@ -12,7 +12,7 @@ observing which variables they share.
 
 Why this matters
 ----------------
-The v0 generator iterates a Cartesian product of pre-encoded
+An earlier physics-grid generator iterated a Cartesian product of pre-encoded
 perturbations.  Composition between laws (e.g. Currey ∘ Paris) cannot
 happen because the per-law branches do not exchange intermediate
 state.  Here, each Relation is a SymPy equation over typed Variables;
@@ -64,7 +64,7 @@ def _weighted_quantile(
 # ── LaTeX prettification ──────────────────────────────────────────────────────
 #
 # SymPy renders Symbol("eps") as "eps", Symbol("da_dN") as "da_{dN}", etc.
-# For the v2 step cards (KaTeX-rendered) we want conventional notation:
+# For the step cards (KaTeX-rendered) we want conventional notation:
 # ε, ΔK, da/dN, ΔBMD/Δt.  These substitutions swap each Symbol whose
 # *.name matches a key for a Symbol whose name is the LaTeX fragment we
 # want emitted verbatim.

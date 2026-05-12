@@ -1,7 +1,7 @@
 """
 reasoning/explorer.py
 ─────────────────────
-Phase 5 — active exploration over the v2 equation graph.
+Active exploration over the equation graph.
 
 The Explorer answers the "where does surprise come from?" critique from
 the original planning session.  It runs without a user query.  For each
@@ -30,7 +30,7 @@ present, will be detectable; agreement is the dull case.
 The sweep design is hand-picked but not hard-coded chains.  Each sweep
 declares ``target`` and ``sweep_var``; the chain itself is discovered
 by :meth:`RelationRegistry.forward` from variable sharing, exactly as
-the rest of the v2 pipeline.
+the rest of the reasoning pipeline.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class _SweepSpec:
 
 # Each spec touches a different part of the graph, so the seven specs
 # together exercise every relation at least once.  Held values come
-# from the same literature midpoints the v2 ask-endpoint defaults to.
+# from the same literature midpoints the ask-endpoint defaults to.
 
 _SWEEPS: tuple[_SweepSpec, ...] = (
     _SweepSpec(

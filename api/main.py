@@ -23,19 +23,19 @@ POST /api/ask              — SSE stream: RAG retrieval + Ollama LLM
                                 huatuogpt-bone tends to renumber citations, breaking the link
                                 between inline [N] and the cited paper
 POST /api/search           — semantic search, JSON response
-POST /api/reason           — LRM hypothesis generation, JSON response
-POST /api/reason_v2        — v2 equation-graph reasoner (forward / abductive /
-                              counterfactual), JSON response
-POST /api/reason_v2/ask    — Phase 4 free-text entry: single LLM call routes
-                              the query, SPECTER2 anchors the variables, the
+POST /api/reason           — equation-graph reasoner (forward / abductive /
+                              counterfactual) over a typed variable graph.
+POST /api/reason/ask       — free-text entry: single LLM call routes the
+                              query, SPECTER2 anchors the variables, the
                               deterministic reasoner runs.
-GET  /api/reason_v2/presets — v2 preset queries + variable/relation metadata
-GET  /api/reason_v2/explore — Phase 5 active exploration: walk the variable
-                              graph without a user query, score candidates
-                              against the corpus, rank by surprise.
-POST /api/reason_v2/agents  — Phase 7/8 agent loop: Proposer proposes a
-                              hypothesis, Explorer evaluates it deterministically,
-                              Critic decides whether it is interesting.
+GET  /api/reason/presets   — preset demo queries + variable/relation metadata
+GET  /api/reason/explore   — active exploration: walk the variable graph
+                              without a user query, score candidates against
+                              the corpus, rank by surprise.
+POST /api/reason/agents    — Proposer/Critic agent loop: Proposer suggests a
+                              hypothesis, the Explorer evaluates it
+                              deterministically, the Critic decides whether
+                              it is interesting.
 POST /api/analyse          — VLM image analysis (multipart), JSON response
 GET  /                     — serves frontend/index.html
 """
@@ -59,7 +59,7 @@ from reasoning.bone_relations import build_bone_registry, COVARIATE_SCHEMA
 from reasoning.explorer import Explorer, ExplorationCandidate
 from reasoning.semantic_anchor import SemanticVariableAnchor
 from reasoning.query_router import QueryRouter
-from reasoning.lrm import LRM
+from reasoning.graph_db import OntologyStore
 from reasoning.novelty import NoveltyClassifier, CORPUS_DISCLAIMER
 from reasoning.agent_tools import ToolDispatcher
 from reasoning.proposer_agent import ProposerAgent
@@ -160,16 +160,17 @@ print("Loading BoneMind retriever...")
 retriever = BoneMindRetriever()
 retriever.load()
 
-print("Loading LRM (bone knowledge graph)...")
-lrm = LRM()
+print("Loading bone knowledge graph (for /api/stats)...")
+with OntologyStore() as _store:
+    _graph_stats = _store.stats()
 
-print("Building v2 equation-graph registry...")
+print("Building equation-graph registry...")
 bone_registry = build_bone_registry()
 
-print("Wiring v2 semantic anchor (SPECTER2)...")
+print("Wiring semantic anchor (SPECTER2)...")
 semantic_anchor = SemanticVariableAnchor(bone_registry, retriever=retriever)
 
-print("Wiring v2 query router (Ollama)...")
+print("Wiring query router (Ollama)...")
 query_router = QueryRouter(ollama_url=OLLAMA_URL, model=GUARD_MODEL)
 
 print("Loading novelty classifier...")
@@ -180,12 +181,12 @@ novelty_clf = NoveltyClassifier(
     device=retriever._device,
 )
 
-print("Wiring v2 explorer (Phase 5)...")
+print("Wiring explorer...")
 explorer = Explorer(bone_registry, novelty_classifier=novelty_clf)
 # Lazily computed on first request and cached in process memory.
 _exploration_cache: list[ExplorationCandidate] | None = None
 
-print("Wiring Phase 6/7/8 agents...")
+print("Wiring proposer + critic agents...")
 _agent_dispatcher = ToolDispatcher(registry=bone_registry, retriever=retriever)
 _proposer = ProposerAgent(
     ollama_url=OLLAMA_URL,
@@ -346,14 +347,13 @@ def serve_test():
 
 @app.get("/api/stats")
 def get_stats():
-    graph = lrm.graph_stats()
     return {
         "papers_total":    STATS["papers_total"],
         "pdfs_downloaded": STATS["pdfs_downloaded"],
         "textbooks":       STATS["textbooks"],
         "chunks":          STATS["chunks"],
-        "graph_nodes":     graph["n_nodes"],
-        "graph_edges":     graph["n_edges"],
+        "graph_nodes":     _graph_stats["total_nodes"],
+        "graph_edges":     _graph_stats["total_edges"],
     }
 
 
@@ -550,121 +550,13 @@ def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = F
     return {"query": q, "elapsed_ms": round(elapsed_ms), "results": results}
 
 
-@app.post("/api/reason")
-def reason(
-    query: str = Form(...),
-    max_results: int = Form(8),
-    physics_filter: bool = Form(True),
-    keep_falsified: bool = Form(False),
-):
-    """
-    Physics-driven hypothesis generation.
+# ── Reasoner — equation graph ────────────────────────────────────────────────
+# Forward / abductive / counterfactual inference over a typed equation graph
+# (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus the density
+# / inertia / strain bridges).  The chain of Relations is discovered by
+# traversing shared variable symbols, not pre-encoded.
 
-    Pipeline (Items 1, 2, 5):
-      1. PhysicsGenerator runs each applicable physical law (currently
-         Currey's law) over a small perturbation grid and emits
-         candidate hypotheses with quantitative ΔY/Y predictions.
-      2. PhysicsCritic runs a four-round adversarial falsification
-         pass on each candidate.
-      3. Novelty classifier checks corpus presence on survivors.
-
-    The legacy graph-walk path (lrm.query) is no longer reached from
-    the UI, but remains in the codebase for the eval suite.
-    """
-    q = query.strip()
-    if not q:
-        return {"concept": q, "chains": [], "elapsed": 0}
-
-    t0 = time.perf_counter()
-
-    hypotheses = lrm.query_physics(
-        q,
-        max_results=max_results,
-        novelty_classifier=novelty_clf,
-        keep_falsified=keep_falsified,
-    )
-
-    NOVELTY_DISPLAY = {
-        "GROUNDED":    "Grounded",
-        "SPECULATIVE": "Speculative",
-        "NOVEL":       "Novel",
-        "UNCERTAIN":   "Uncertain",
-    }
-
-    chains = []
-    for h in hypotheses:
-        # Look up labels from the graph for nicer display, falling back
-        # to the snake_case → space form embedded on the hypothesis.
-        nodes_display = []
-        for nid, fallback in zip(h.chain, h.chain_labels):
-            node = lrm._graph.get_node(nid)
-            nodes_display.append(node.label if node else fallback)
-
-        critique = h.critique
-        validity = (
-            "PLAUSIBLE" if (critique and critique.survived) else "IMPLAUSIBLE"
-        )
-
-        chains.append({
-            # Chain — kept compatible with existing UI fields
-            "nodes":         nodes_display,
-            "relations":     h.relations,
-
-            # Physics-driven additions (Items 1, 2)
-            "law":           h.law,
-            "law_form":      h.law_form,
-            "scenario":      h.scenario,
-            "perturbation":  h.perturbation,
-            "prediction":    h.prediction,
-            "input_var":     h.input_var,
-            "output_var":    h.output_var,
-            "delta_input":   h.delta_input,
-            "delta_output":  h.delta_output,
-            "assumed_inputs": h.assumed_inputs,
-
-            # Critic results (Item 5)
-            "validity":         validity,
-            "critic_rounds_total":  critique.rounds_total if critique else 0,
-            "critic_rounds_passed": critique.rounds_passed if critique else 0,
-            "critic_failure":   critique.failure_reason if critique else "",
-            "critic_checks": [
-                {"name": c.name, "passed": c.passed, "detail": c.detail}
-                for c in (critique.checks if critique else [])
-            ],
-
-            # Novelty / corpus grounding
-            "novelty":         h.novelty or "UNCERTAIN",
-            "novelty_display": NOVELTY_DISPLAY.get(h.novelty, h.novelty or "Uncertain"),
-            "explanation":     h.novelty_reason,
-            "disclaimer":      bool(h.corpus_disclaimer),
-            "corpus_disclaimer": h.corpus_disclaimer,
-
-            # Summary + score
-            "summary":     h.summary,
-            "score":       round(h.score, 3),
-        })
-
-    elapsed = round(time.perf_counter() - t0, 2)
-    graph_stats = lrm.graph_stats()
-    return {
-        "concept":     q,
-        "elapsed":     elapsed,
-        "graph_stats": {
-            "nodes":      graph_stats["n_nodes"],
-            "edges":      graph_stats["n_edges"],
-            "components": graph_stats["n_components"],
-        },
-        "chains": chains,
-    }
-
-
-# ── v2 equation-graph reasoner ────────────────────────────────────────────────
-# Phase 2: forward / abductive / counterfactual inference over a typed equation
-# graph (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus the
-# density / inertia / strain bridges).  The chain of Relations is discovered
-# by traversing shared variable symbols, not pre-encoded.
-
-_V2_PRESETS: dict[str, dict] = {
+_REASON_PRESETS: dict[str, dict] = {
     # ── Forward ────────────────────────────────────────────────────────────
     "fwd_porosity_to_modulus": {
         "mode": "forward",
@@ -795,7 +687,7 @@ _V2_PRESETS: dict[str, dict] = {
         "description": (
             "Predict elastic modulus at φ = 0.15 for a 75-year-old female "
             "osteoporotic vertebra. Compare against the same φ on a young "
-            "femur — v2 gives ~3× different answer, v0 cannot."
+            "femur — composition through cortical_inertia and Hooke chain."
         ),
     },
     "cov_abductive_clinical_flip": {
@@ -837,7 +729,7 @@ _V2_PRESETS: dict[str, dict] = {
 # ── Result-shape helpers ─────────────────────────────────────────────────────
 
 
-def _v2_var(reg, symbol: str) -> dict:
+def _var_info(reg, symbol: str) -> dict:
     v = reg.variable(symbol)
     if v is None:
         return {"symbol": symbol, "display_symbol": symbol, "name": symbol, "unit": ""}
@@ -852,7 +744,7 @@ def _v2_var(reg, symbol: str) -> dict:
     }
 
 
-def _v2_display_map(reg) -> dict[str, str]:
+def _display_map(reg) -> dict[str, str]:
     """ASCII symbol → Unicode display, for the front-end to look up by key."""
     out: dict[str, str] = {}
     for sym in reg.variables_in_graph():
@@ -862,7 +754,7 @@ def _v2_display_map(reg) -> dict[str, str]:
     return out
 
 
-def _v2_render_forward(
+def _render_forward(
     reg, target: str, given: dict[str, float],
     covariates: dict | None = None,
 ) -> dict:
@@ -891,13 +783,13 @@ def _v2_render_forward(
     return {
         "mode":          "forward",
         "target":        target,
-        "target_info":   _v2_var(reg, target),
+        "target_info":   _var_info(reg, target),
         "given":         given,
-        "given_info":    {k: _v2_var(reg, k) for k in given},
+        "given_info":    {k: _var_info(reg, k) for k in given},
         "covariates":    covariates or {},
         "applied_shifts": reg.applied_shifts(chain, covariates),
-        "chain_vars":    [_v2_var(reg, v) for v in fr.chain_vars],
-        "display_map":   _v2_display_map(reg),
+        "chain_vars":    [_var_info(reg, v) for v in fr.chain_vars],
+        "display_map":   _display_map(reg),
         "steps":         steps,
         "result": {
             "variable":             target,
@@ -913,7 +805,7 @@ def _v2_render_forward(
     }
 
 
-def _v2_render_abductive(
+def _render_abductive(
     reg,
     target: str,
     observed: float,
@@ -934,7 +826,7 @@ def _v2_render_abductive(
     )
     inferred = [
         {
-            "variable":       _v2_var(reg, p.variable),
+            "variable":       _var_info(reg, p.variable),
             "prior_mean":     p.prior_mean,
             "prior_p5":       p.prior_p5,
             "prior_p95":      p.prior_p95,
@@ -951,15 +843,15 @@ def _v2_render_abductive(
     return {
         "mode":         "abductive",
         "target":       target,
-        "target_info":  _v2_var(reg, target),
+        "target_info":  _var_info(reg, target),
         "observed":     ar.observed,
         "observed_std": ar.observed_std,
         "given":        given or {},
-        "given_info":   {k: _v2_var(reg, k) for k in (given or {})},
+        "given_info":   {k: _var_info(reg, k) for k in (given or {})},
         "covariates":   covariates or {},
         "applied_shifts": reg.applied_shifts(chain, covariates),
-        "chain_vars":   [_v2_var(reg, v) for v in ar.chain_vars],
-        "display_map":  _v2_display_map(reg),
+        "chain_vars":   [_var_info(reg, v) for v in ar.chain_vars],
+        "display_map":  _display_map(reg),
         "inferred":     inferred,
         "result": {
             "effective_sample_size": ar.effective_sample_size,
@@ -969,7 +861,7 @@ def _v2_render_abductive(
     }
 
 
-def _v2_render_counterfactual(
+def _render_counterfactual(
     reg,
     target: str,
     given: dict[str, float],
@@ -985,15 +877,15 @@ def _v2_render_counterfactual(
     return {
         "mode":             "counterfactual",
         "target":           target,
-        "target_info":      _v2_var(reg, target),
+        "target_info":      _var_info(reg, target),
         "given":            given,
-        "given_info":       {k: _v2_var(reg, k) for k in given},
+        "given_info":       {k: _var_info(reg, k) for k in given},
         "intervention":     intervention,
-        "intervention_info": {k: _v2_var(reg, k) for k in intervention},
+        "intervention_info": {k: _var_info(reg, k) for k in intervention},
         "covariates":       covariates or {},
         "applied_shifts":   reg.applied_shifts(chain, covariates),
-        "chain_vars":       [_v2_var(reg, v) for v in cf.chain_vars],
-        "display_map":      _v2_display_map(reg),
+        "chain_vars":       [_var_info(reg, v) for v in cf.chain_vars],
+        "display_map":      _display_map(reg),
         "result": {
             "variable":        target,
             "unit":            target_var.unit if target_var else "",
@@ -1016,13 +908,13 @@ def _v2_render_counterfactual(
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 
-@app.get("/api/reason_v2/presets")
-def reason_v2_presets():
-    """Return the preset demo queries available to the v2 UI."""
+@app.get("/api/reason/presets")
+def reason_presets():
+    """Return the preset demo queries available to the reasoning UI."""
     return {
         "presets": [
             {"id": pid, **p}
-            for pid, p in _V2_PRESETS.items()
+            for pid, p in _REASON_PRESETS.items()
         ],
         "covariates": COVARIATE_SCHEMA,
         "variables": [
@@ -1092,8 +984,8 @@ def _normalise_covariates(raw) -> dict | None:
     return out or None
 
 
-@app.post("/api/reason_v2")
-def reason_v2(payload: dict):
+@app.post("/api/reason")
+def reason(payload: dict):
     """
     Forward / abductive / counterfactual inference over the equation graph.
 
@@ -1112,7 +1004,7 @@ def reason_v2(payload: dict):
     # normal dispatch path.
     preset_id = payload.get("preset")
     if preset_id is not None:
-        preset = _V2_PRESETS.get(preset_id)
+        preset = _REASON_PRESETS.get(preset_id)
         if preset is None:
             return {"error": f"Unknown preset: {preset_id!r}"}
         payload = {**preset, **{k: v for k, v in payload.items() if k != "preset"}}
@@ -1127,7 +1019,7 @@ def reason_v2(payload: dict):
         covariates = _normalise_covariates(payload.get("covariates"))
         if mode == "forward":
             given = _coerce_float_dict(payload.get("given") or {}, "given")
-            out = _v2_render_forward(
+            out = _render_forward(
                 bone_registry, target, given, covariates=covariates,
             )
         elif mode == "abductive":
@@ -1142,7 +1034,7 @@ def reason_v2(payload: dict):
             if infer is not None and not isinstance(infer, list):
                 return {"error": "Field 'infer' must be a list of variable names."}
             given = _coerce_float_dict(payload.get("given") or {}, "given")
-            out = _v2_render_abductive(
+            out = _render_abductive(
                 bone_registry, target,
                 observed=observed,
                 observed_std=observed_std,
@@ -1157,7 +1049,7 @@ def reason_v2(payload: dict):
             )
             if not intervention:
                 return {"error": "Field 'intervention' is required for counterfactual mode."}
-            out = _v2_render_counterfactual(
+            out = _render_counterfactual(
                 bone_registry, target, given, intervention,
                 covariates=covariates,
             )
@@ -1165,8 +1057,8 @@ def reason_v2(payload: dict):
             return {
                 "error": (
                     "Mode 'explore' does not take a target/given payload — "
-                    "call GET /api/reason_v2/explore for active exploration "
-                    "or POST /api/reason_v2/ask with a free-text query."
+                    "call GET /api/reason/explore for active exploration "
+                    "or POST /api/reason/ask with a free-text query."
                 ),
             }
         else:
@@ -1182,7 +1074,7 @@ def reason_v2(payload: dict):
 
 # Literature midpoints used when the router/anchor doesn't supply a value.
 # Chain roots only — derived variables are never given directly.
-_V2_DEFAULT_VALUES: dict[str, float] = {
+_REASON_DEFAULT_VALUES: dict[str, float] = {
     "phi": 0.10,
     "dK":  1.0,
     "R":   13.0,
@@ -1193,22 +1085,22 @@ _V2_DEFAULT_VALUES: dict[str, float] = {
 # Minimum cosine similarity for a SPECTER2 match to be trusted as an
 # anchor.  Below this we fall back to the top-1 result regardless —
 # the threshold guards against the router emitting an empty hint.
-_V2_ANCHOR_MIN_SCORE = 0.30
+_REASON_ANCHOR_MIN_SCORE = 0.30
 
 
-def _v2_anchor_symbol(
+def _anchor_symbol(
     text: str | None, fallback_symbol: str | None = None,
 ) -> tuple[str | None, float]:
     """Map a free-text hint to a variable symbol via SPECTER2 cosine."""
     if not text:
         return fallback_symbol, 0.0
-    match = semantic_anchor.best_match(text, min_score=_V2_ANCHOR_MIN_SCORE)
+    match = semantic_anchor.best_match(text, min_score=_REASON_ANCHOR_MIN_SCORE)
     if match is None:
         return fallback_symbol, 0.0
     return match.symbol, match.score
 
 
-def _v2_pick_target(
+def _pick_target(
     target_hint: str | None,
     candidate_matches: list,
 ) -> tuple[str, float]:
@@ -1226,7 +1118,7 @@ def _v2_pick_target(
     if target_hint:
         candidates = semantic_anchor.top_k(target_hint, k=5)
         for m in candidates:
-            if m.symbol in producers and m.score >= _V2_ANCHOR_MIN_SCORE:
+            if m.symbol in producers and m.score >= _REASON_ANCHOR_MIN_SCORE:
                 return m.symbol, m.score
     # Then fall back to the query-wide top-k that the router already attached.
     for m in candidate_matches or []:
@@ -1235,23 +1127,23 @@ def _v2_pick_target(
     return "E", 0.0
 
 
-def _v2_chain_roots(target: str) -> list[str]:
+def _chain_roots(target: str) -> list[str]:
     """Chain roots required to reach ``target``; literature defaults fill them."""
-    given_set = set(_V2_DEFAULT_VALUES.keys())
+    given_set = set(_REASON_DEFAULT_VALUES.keys())
     chain = bone_registry._find_chain(target, given_set)
     if chain is None:
         return []
     return bone_registry.chain_root_inputs(chain)
 
 
-def _v2_build_ask_payload(
+def _build_ask_payload(
     decision, query: str,
 ) -> tuple[dict, dict]:
     """
-    Translate a :class:`RouterDecision` into a /api/reason_v2 payload.
+    Translate a :class:`RouterDecision` into a /api/reason payload.
 
     Returns ``(payload, routing_block)``.  ``payload`` is suitable for
-    direct dispatch through :func:`reason_v2`; ``routing_block`` is
+    direct dispatch through :func:`reason`; ``routing_block`` is
     surfaced in the response so the UI can show *why* a particular
     mode + target was chosen.
     """
@@ -1261,7 +1153,7 @@ def _v2_build_ask_payload(
     # 1) Target: trust the router's text hint, fall back to the top
     #    semantic match against the raw query.  Constrained to variables
     #    that have a producer so the chain finder can actually solve it.
-    target, target_score = _v2_pick_target(
+    target, target_score = _pick_target(
         decision.target_hint, decision.matched_variables,
     )
 
@@ -1270,21 +1162,21 @@ def _v2_build_ask_payload(
     # 2) Mode-specific extraction.
     given_overrides: dict[str, float] = {}
     for phrase, value in (decision.given_hints or {}).items():
-        sym, _ = _v2_anchor_symbol(phrase)
-        if sym in _V2_DEFAULT_VALUES:
+        sym, _ = _anchor_symbol(phrase)
+        if sym in _REASON_DEFAULT_VALUES:
             given_overrides[sym] = float(value)
 
     if mode == "forward":
-        roots = _v2_chain_roots(target)
-        given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+        roots = _chain_roots(target)
+        given = {r: _REASON_DEFAULT_VALUES.get(r, 0.0) for r in roots}
         given.update(given_overrides)
         payload["given"] = given
 
     elif mode == "abductive":
         if decision.observed_value is None:
             # Without a number we cannot do abduction; fall back to forward.
-            roots = _v2_chain_roots(target)
-            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            roots = _chain_roots(target)
+            given = {r: _REASON_DEFAULT_VALUES.get(r, 0.0) for r in roots}
             given.update(given_overrides)
             payload = {"mode": "forward", "target": target, "given": given}
         else:
@@ -1293,32 +1185,32 @@ def _v2_build_ask_payload(
                 payload["observed_units"] = decision.observed_units
             # Infer porosity by default — the canonical clinical upstream.
             # Pin every other chain root at literature midpoints.
-            roots = _v2_chain_roots(target)
+            roots = _chain_roots(target)
             infer = ["phi"] if "phi" in roots else (roots[:1] if roots else [])
             payload["infer"] = infer
             given = {
-                r: _V2_DEFAULT_VALUES.get(r, 0.0)
+                r: _REASON_DEFAULT_VALUES.get(r, 0.0)
                 for r in roots if r not in infer
             }
             given.update({k: v for k, v in given_overrides.items() if k not in infer})
             payload["given"] = given
 
     elif mode == "counterfactual":
-        interv_sym, _ = _v2_anchor_symbol(decision.intervention_hint)
+        interv_sym, _ = _anchor_symbol(decision.intervention_hint)
         if interv_sym is None or decision.intervention_value is None or \
-                interv_sym not in _V2_DEFAULT_VALUES:
+                interv_sym not in _REASON_DEFAULT_VALUES:
             # Missing intervention — degrade to forward.
-            roots = _v2_chain_roots(target)
-            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            roots = _chain_roots(target)
+            given = {r: _REASON_DEFAULT_VALUES.get(r, 0.0) for r in roots}
             given.update(given_overrides)
             payload = {"mode": "forward", "target": target, "given": given}
         else:
-            roots = _v2_chain_roots(target)
-            given = {r: _V2_DEFAULT_VALUES.get(r, 0.0) for r in roots}
+            roots = _chain_roots(target)
+            given = {r: _REASON_DEFAULT_VALUES.get(r, 0.0) for r in roots}
             given.update(given_overrides)
             # Ensure the intervention key has a meaningful baseline.
             if interv_sym not in given:
-                given[interv_sym] = _V2_DEFAULT_VALUES.get(interv_sym, 0.0)
+                given[interv_sym] = _REASON_DEFAULT_VALUES.get(interv_sym, 0.0)
             payload["given"] = given
             payload["intervention"] = {interv_sym: float(decision.intervention_value)}
 
@@ -1326,7 +1218,7 @@ def _v2_build_ask_payload(
         "query":      query,
         "mode":       payload["mode"],
         "target":     target,
-        "target_info": _v2_var(bone_registry, target),
+        "target_info": _var_info(bone_registry, target),
         "target_score": round(target_score, 3),
         "rationale":  decision.rationale,
         "confidence": round(decision.confidence, 3),
@@ -1345,10 +1237,10 @@ def _v2_build_ask_payload(
     return payload, routing_block
 
 
-@app.post("/api/reason_v2/ask")
-def reason_v2_ask(payload: dict):
+@app.post("/api/reason/ask")
+def reason_ask(payload: dict):
     """
-    Free-text entry point into the v2 reasoner.
+    Free-text entry point into the reasoner.
 
     Request shape::
 
@@ -1365,7 +1257,7 @@ def reason_v2_ask(payload: dict):
       4. The existing forward / abductive / counterfactual renderer
          runs unchanged.
 
-    The response is the standard v2 result plus a ``routing`` block
+    The response is the standard reasoner result plus a ``routing`` block
     describing which mode / target the router chose, the matched
     variables (with cosine scores) and the rationale string.
     """
@@ -1410,12 +1302,12 @@ def reason_v2_ask(payload: dict):
             "elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
         }
 
-    inner_payload, routing_block = _v2_build_ask_payload(decision, query)
+    inner_payload, routing_block = _build_ask_payload(decision, query)
     # Forward covariates through verbatim — the router does not touch them.
     if payload.get("covariates"):
         inner_payload["covariates"] = payload["covariates"]
 
-    result = reason_v2(inner_payload)
+    result = reason(inner_payload)
     if "error" in result:
         result["routing"] = routing_block
         return result
@@ -1424,7 +1316,7 @@ def reason_v2_ask(payload: dict):
     return result
 
 
-# ── v2 active exploration (Phase 5) ──────────────────────────────────────────
+# ── Active exploration ──────────────────────────────────────────
 
 
 def _explore_render_candidate(c: ExplorationCandidate) -> dict:
@@ -1501,10 +1393,10 @@ def _run_exploration(refresh: bool = False) -> list[ExplorationCandidate]:
     return _exploration_cache
 
 
-@app.get("/api/reason_v2/explore")
-def reason_v2_explore(refresh: bool = Query(False)):
+@app.get("/api/reason/explore")
+def reason_explore(refresh: bool = Query(False)):
     """
-    Active exploration over the v2 equation graph.
+    Active exploration over the equation graph.
 
     Walks a hand-picked but principled set of variable-graph sweeps,
     runs forward inference at each sweep point, asks the corpus how
@@ -1532,8 +1424,8 @@ def reason_v2_explore(refresh: bool = Query(False)):
 
 # ── Phase 7/8 — agent-driven exploration ──────────────────────────────────────
 
-@app.post("/api/reason_v2/agents")
-def reason_v2_agents(payload: dict):
+@app.post("/api/reason/agents")
+def reason_agents(payload: dict):
     """
     Run the Proposer → Physics → Critic agent loop.
 

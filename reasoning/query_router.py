@@ -1,7 +1,7 @@
 """
 reasoning/query_router.py
 ─────────────────────────
-Phase 4 query router for the v2 equation-graph reasoner.
+Query router for the equation-graph reasoner.
 
 A single LLM call classifies a free-text query into one of four
 reasoning modes — forward / abductive / counterfactual / explore —
@@ -13,7 +13,7 @@ via SPECTER2 cosine similarity, and the existing
 :class:`RelationRegistry` runs the chosen inference mode unchanged.
 
 The LLM is intentionally the *only* place a language model enters the
-v2 reasoning loop.  Variable anchoring, parameter sampling, chain
+reasoning loop.  Variable anchoring, parameter sampling, chain
 discovery and Monte-Carlo propagation all stay deterministic and
 citable.  When the LLM is unreachable or emits unparseable JSON the
 router falls back to a "forward + top semantic match" guess so the
@@ -43,7 +43,7 @@ class RouterDecision:
     """
     Structured output of a single :class:`QueryRouter` call.
 
-    Every field except ``mode`` is optional; the v2 dispatcher fills in
+    Every field except ``mode`` is optional; the dispatcher fills in
     sensible defaults (literature midpoints) for anything the router
     or anchor couldn't extract.
     """

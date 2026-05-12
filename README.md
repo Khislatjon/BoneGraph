@@ -217,7 +217,7 @@ Example queries:
 
 ### Legacy LRM benchmark
 
-The `v0` graph-walk reasoner and its evaluator have been moved to `eval/legacy/`. A physics-pipeline evaluator will replace it in the next phase. See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for the original methodology.
+The original LRM graph-walk reasoner and its physics-grid successor have been removed from the codebase. The current reasoner is documented in [docs/reasoning/equation_graph.md](docs/reasoning/equation_graph.md); a retrospective on the retired physics-grid pipeline lives in [docs/reasoning/physics_grid.md](docs/reasoning/physics_grid.md). See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for the historical evaluation methodology.
 
 ---
 

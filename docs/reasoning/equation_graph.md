@@ -1,65 +1,17 @@
-# v2 — Equation-Graph Reasoner
+# Equation-Graph Reasoner
 
-**Status: ✅ Live — the "equation graph" toggle of the Reasoning tab,
-marked `experimental` in the UI.**
+**Status: ✅ Live — the Reasoning tab.**
 
-This document explains how the v2 reasoner works, how it differs from
-the v0 physics-grid system, and how to operate it. It is the
-reference for the architecture introduced across commits
-`Phase 0` through `Phase 5` on the `chore/reasoning-further` branch.
+This document describes the Reasoning tab's only reasoner: a typed
+equation graph supporting forward, abductive, and counterfactual
+inference, plus an active-exploration ("Surprises") panel and a
+Proposer / Critic agent loop that walks the graph for novel
+hypotheses without the user typing a query.
 
-The v0 pipeline that runs under the **`physics grid`** toggle is
-documented in [`physics_reasoning.md`](physics_grid.md). Both
-reasoners coexist in the same tab — use the toggle at the top of the
-page to switch between them.
-
----
-
-## Why a second reasoner?
-
-The original v0 pipeline (`physics.py`, `physics_gen.py`, `critic.py`)
-ran each physics law over a fixed grid of perturbations and
-filtered the output through a deterministic critic. It was reliable
-but had four structural limits, all of which motivated the v2 redesign:
-
-1. **No composition.** Currey, Paris, Frost, and beam-bending each
-   ran independently. There was no way for the output of one law to
-   feed the next.
-2. **Brittle anchoring.** A query like *"bone stiffness under cyclic
-   load"* never fired Paris law because *"cyclic load"* was not an
-   exact keyword in the variable registry.
-3. **No biological context.** Age, sex, anatomical site, and disease
-   state had no effect on the predictions — every query was answered
-   for an idealised "generic bone."
-4. **No surprise.** The system could only answer queries the user
-   typed. It could not propose hypotheses on its own.
-
-v2 keeps v0 alive for comparison and adds a parallel reasoner that
-addresses each of those limits.
-
----
-
-## The toggle
-
-In the Reasoning tab:
-
-```
-   ┌──────────────────────────────────────────────────────┐
-   │      Hypothesis Generator   experimental             │
-   │                                                      │
-   │       [ physics grid ]  [ equation graph ]           │
-   └──────────────────────────────────────────────────────┘
-```
-
-`physics grid` is the v0 system, untouched.
-`equation graph` is v2 — what this document describes. The
-`experimental` tag next to the title indicates this is preview-stage
-software (changing shape, no clinical validation yet); it does *not*
-mean "experimental data input."
-
-The two share nothing at the reasoning layer. They do share the corpus
-(`chunks.db`) for evidence retrieval, and the SPECTER2 embedding model
-that the v2 anchor and the v0 novelty classifier both use.
+It supersedes an earlier physics-grid pipeline whose code has been
+removed; that design — and the four structural limits that motivated
+the redesign — is preserved as a retrospective in
+[`physics_grid.md`](physics_grid.md) for future paper writing.
 
 ---
 
@@ -118,9 +70,11 @@ The `RelationRegistry` in [`relation.py`](../../reasoning/relation.py)
 just stores Relations in a dict keyed by output symbol; the
 topology is implicit.
 
-This is the key architectural difference from v0:
+This is the key architectural difference from the LLM-extracted bone
+ontology (`data/db/ontology.db`), which still exists as a separate
+artifact for future graph-driven reasoning modes:
 
-| v0 graph (extracted)          | v2 equation graph              |
+| LLM-extracted ontology        | Equation graph                 |
 |-------------------------------|--------------------------------|
 | Nodes are *concept strings*   | Nodes are *typed variables*    |
 | Edges are *qualitative claims* (`increases`, `decreases`) | Edges are *equations* |
@@ -301,7 +255,7 @@ ranks candidates by
 The UI panel is hidden behind a feature flag
 (`V2_SURPRISES_ENABLED = false` in
 [`frontend/index.html`](../../frontend/index.html)). The backend
-endpoint `GET /api/reason_v2/explore` still works if you `curl` it.
+endpoint `GET /api/reason/explore` still works if you `curl` it.
 Implementation lives in [`reasoning/explorer.py`](../../reasoning/explorer.py).
 
 ---
@@ -309,7 +263,7 @@ Implementation lives in [`reasoning/explorer.py`](../../reasoning/explorer.py).
 ## Covariate conditioning
 
 The same physical query should yield a different prediction for a
-30-year-old femur and a 75-year-old osteoporotic vertebra. The v2
+30-year-old femur and a 75-year-old osteoporotic vertebra. The
 reasoner achieves this by letting **patient covariates reshape the
 parameter priors** before sampling.
 
@@ -372,7 +326,7 @@ ratio: 0.50  (matches Burstein 1976 / McCalden 1993 expectation)
 ## Natural-language ask
 
 Most users do not want to type `forward('da_dN', given={'phi':0.10, 'dK':1.0})`.
-The v2 tab exposes a free-text input that handles the translation.
+The Reasoning tab exposes a free-text input that handles the translation.
 
 ### The pipeline
 
@@ -434,15 +388,12 @@ Six paraphrased queries, all picked the correct variable as top-1:
 
 ## UI walkthrough
 
-The v2 mode shares the same header skeleton as v0 — only the
-description, the toggle state, and what appears below differ. From
-top to bottom:
+From top to bottom of the Reasoning tab:
 
 ### 1. Header — free-text "Ask" bar
 
 ```
-   ┌─ Hypothesis Generator   experimental ───────────────────────┐
-   │      [ physics grid ]  [ equation graph ]                   │
+   ┌─ Hypothesis Generator ──────────────────────────────────────┐
    │  Forward, abductive and counterfactual inference over a     │
    │  typed equation graph. Patient covariates reshape each      │
    │  law's priors before propagation.                           │
@@ -452,10 +403,10 @@ top to bottom:
    └─────────────────────────────────────────────────────────────┘
 ```
 
-The bar uses the same `.reason-bar` / `.reason-input` / `.reason-btn`
-classes as the v0 search bar — same width, same Reason button. Hits
-`/api/reason_v2/ask`. The routing block is always rendered above the
-result card so you can see which mode and target the LLM picked.
+The bar uses `.reason-bar` / `.reason-input` / `.reason-btn` classes
+and hits `/api/reason/ask`. The routing block is always rendered
+above the result card so you can see which mode and target the LLM
+picked.
 
 ### 2. Patient covariates panel
 
@@ -484,20 +435,20 @@ different number.
 ```
 
 Click a chip → the header "Ask" bar fills in and the query fires.
-Chips disappear once a result is shown (matching v0's behaviour) and
-reappear if the user clears the result.
+Chips disappear once a result is shown and reappear if the user
+clears the result.
 
 ### 4. Result cards
 
 The renderer picks a card based on `result.mode`:
 
-- `V2ForwardCard`: chain visualisation + per-step intermediate values
+- `ForwardCard`: chain visualisation + per-step intermediate values
   with their 90% bands + KaTeX-rendered equation per step + final
   prediction + citations
-- `V2AbductiveCard`: observation + posterior over inferred variables
+- `AbductiveCard`: observation + posterior over inferred variables
   with prior-to-posterior shift score + effective sample size +
   citations
-- `V2CounterfactualCard`: baseline / intervened side-by-side + the
+- `CounterfactualCard`: baseline / intervened side-by-side + the
   paired delta with its 90% band + citations
 
 A `routing` block above the card lists the LLM rationale, confidence,
@@ -505,43 +456,55 @@ source (`llm` or `fallback`), and the SPECTER2 matched-variables
 table. KaTeX is loaded from CDN; the step equations render as proper
 math (`ρ = ρ_full · (1 − φ)`) rather than raw LaTeX strings.
 
+### 5. Agents panel
+
+A Proposer → Critic loop sits below the result card. The Proposer
+walks the variable graph and suggests novel `(target, sweep_var)`
+pairs the user hasn't asked about; the deterministic Explorer
+evaluates each, and the Critic queries the corpus to verdict each
+prediction as *interesting*, *trivial*, *out-of-domain*, or
+*needs-more-data*. Fully live; hits `/api/reason/agents`.
+
 ### Hidden by feature flag
 
 Two pieces of UI are present in the code but currently hidden:
 
 | Flag (in `frontend/index.html`) | What it hides |
 |---|---|
-| `V2_SURPRISES_ENABLED = false` | The Phase 5 active-exploration "Surprises" panel — and the auto-fetch on tab mount that would otherwise trigger a 25 s `/api/reason_v2/explore` cold start. |
-| `V2_PRESETS_ENABLED = false` | The three-column grid of canonical-form preset buttons (one column per inference mode), hidden because the canonical forms confused early users. |
+| `SURPRISES_ENABLED = false` | The active-exploration "Surprises" panel — and the auto-fetch on tab mount that would otherwise trigger a 25 s `/api/reason/explore` cold start. |
+| `PRESETS_ENABLED = false` | The three-column grid of canonical-form preset buttons (one column per inference mode), hidden because the canonical forms confused early users. |
 
 Flip either flag to `true` to bring the section back; the underlying
-backend (`/api/reason_v2/explore`, the preset metadata endpoint) is
+backend (`/api/reason/explore`, the preset metadata endpoint) is
 live regardless.
 
 ---
 
 ## Where the code lives
 
-| File                                                                          | Phase  | Role |
-|-------------------------------------------------------------------------------|--------|------|
-| [`reasoning/relation.py`](../../reasoning/relation.py)                           | 1–3    | `Variable`, `Prior`, `CovariateShift`, `Relation`, `RelationRegistry`. All four inference modes. |
-| [`reasoning/bone_relations.py`](../../reasoning/bone_relations.py)               | 1–3    | The seven bone-physics Relations + the covariate-shift library. |
-| [`reasoning/semantic_anchor.py`](../../reasoning/semantic_anchor.py)             | 4      | SPECTER2 embedding index over Variables. |
-| [`reasoning/query_router.py`](../../reasoning/query_router.py)                   | 4      | Single Ollama call for mode classification + value extraction. |
-| [`reasoning/explorer.py`](../../reasoning/explorer.py)                           | 5      | Active exploration (currently UI-hidden). |
-| [`api/main.py`](../../api/main.py) (≥ line 970)                                  | 1–5    | `/api/reason_v2`, `/api/reason_v2/ask`, `/api/reason_v2/presets`, `/api/reason_v2/explore`. |
-| [`frontend/index.html`](../../frontend/index.html)                               | 1–5    | `V2Section`, `V2ForwardCard`, `V2AbductiveCard`, `V2CounterfactualCard`, `V2CovariatePanel`, `V2Surprises` (flag-hidden). |
+| File                                                                          | Role |
+|-------------------------------------------------------------------------------|------|
+| [`reasoning/relation.py`](../../reasoning/relation.py)                           | `Variable`, `Prior`, `CovariateShift`, `Relation`, `RelationRegistry`. All inference modes. |
+| [`reasoning/bone_relations.py`](../../reasoning/bone_relations.py)               | The seven bone-physics Relations + the covariate-shift library. |
+| [`reasoning/semantic_anchor.py`](../../reasoning/semantic_anchor.py)             | SPECTER2 embedding index over Variables. |
+| [`reasoning/query_router.py`](../../reasoning/query_router.py)                   | Single Ollama call for mode classification + value extraction. |
+| [`reasoning/explorer.py`](../../reasoning/explorer.py)                           | Active exploration + `evaluate_proposal` bridge for the agent loop. |
+| [`reasoning/agent_tools.py`](../../reasoning/agent_tools.py)                     | Tool registry + dispatcher (`list_variables`, `list_relations`, `forward`, `corpus_search`). |
+| [`reasoning/proposer_agent.py`](../../reasoning/proposer_agent.py)               | LLM Proposer over the variable graph. |
+| [`reasoning/critic_agent.py`](../../reasoning/critic_agent.py)                   | LLM Critic — verdicts a proposal as interesting / trivial / out-of-domain / needs-more-data. |
+| [`api/main.py`](../../api/main.py)                                               | `/api/reason`, `/api/reason/ask`, `/api/reason/presets`, `/api/reason/explore`, `/api/reason/agents`. |
+| [`frontend/index.html`](../../frontend/index.html)                               | `ReasonSection`, `ForwardCard`, `AbductiveCard`, `CounterfactualCard`, `CovariatePanel`, `SurprisesPanel` (flag-hidden), `AgentsPanel`. |
 
 ---
 
 ## API endpoints
 
-### `GET /api/reason_v2/presets`
+### `GET /api/reason/presets`
 
 Returns the available preset queries plus full Variable and Relation
 metadata for the UI to render.
 
-### `POST /api/reason_v2`
+### `POST /api/reason`
 
 Typed entry point. Request:
 
@@ -557,7 +520,7 @@ Typed entry point. Request:
 For `abductive`: also `observed`, optional `observed_std`, optional
 `infer`. For `counterfactual`: also `intervention`.
 
-### `POST /api/reason_v2/ask`
+### `POST /api/reason/ask`
 
 Free-text entry point. Request:
 
@@ -571,28 +534,27 @@ Free-text entry point. Request:
 The routing block in the response describes the mode, target,
 confidence, and SPECTER2-matched variables.
 
-### `GET /api/reason_v2/explore`
+### `GET /api/reason/explore`
 
-Active exploration (Phase 5). Optional `?refresh=true` forces a
-recompute (default behaviour: serve cached result, ~25 s on first
-call, <1 ms thereafter).
+Active exploration. Optional `?refresh=true` forces a recompute
+(default behaviour: serve cached result, ~25 s on first call,
+<1 ms thereafter).
 
----
+### `POST /api/reason/agents`
 
-## Mapping back to the original critiques
-
-| Original dislike                              | Where it's addressed                                                |
-|-----------------------------------------------|---------------------------------------------------------------------|
-| "Lookup engine, no surprise"                  | Phase 5 active exploration (`reasoning/explorer.py`, currently hidden). |
-| "Keyword matching is brittle"                 | Phase 4 SPECTER2 semantic anchor (`reasoning/semantic_anchor.py`).  |
-| "Laws are independent, can't chain"           | Phase 1 — chains emerge from shared symbols via BFS in `RelationRegistry`. |
-| "No biological context"                       | Phase 3 — 12 citation-anchored covariate shifts in `bone_relations.py`. |
+Run the Proposer → Critic loop. Body: `{"n_proposals": 2}` (clamped
+to 1–4). Returns an array of `{hypothesis, physics, critique}`
+objects plus the current scratchpad size.
 
 ---
 
-## Comparison with v0 in one table
+## What changed from the physics-grid retrospective
 
-| Aspect                  | v0 (physics grid)                                | v2 (equation graph)                                |
+The earlier physics-grid pipeline (see
+[`physics_grid.md`](physics_grid.md)) had four structural limits;
+the equation graph addresses each:
+
+| Aspect                  | Physics grid (retired)                           | Equation graph (current)                           |
 |-------------------------|--------------------------------------------------|----------------------------------------------------|
 | Hypothesis source       | Pre-encoded perturbation grid                    | Discovered chains via BFS over variable graph      |
 | Composition across laws | None                                             | Automatic via shared symbols                       |
@@ -600,9 +562,5 @@ call, <1 ms thereafter).
 | Uncertainty             | Deterministic point estimates                    | Monte Carlo with 90% bands                         |
 | Biological context      | Cortical/trabecular only                         | Age, sex, site, disease via covariate shifts       |
 | Natural-language input  | Keyword anchor on node IDs                       | SPECTER2 embeddings + single LLM routing call      |
-| Hypothesis generation   | Cartesian product of fixed grids                 | Active graph walk with corpus-grounded scoring     |
+| Hypothesis generation   | Cartesian product of fixed grids                 | Active graph walk + LLM Proposer / Critic agents   |
 | Citation per prediction | Optional, attached to law name                   | Per-parameter, per-relation, per-shift             |
-
-Both reasoners coexist in the Reason tab and the user can compare
-their outputs side by side. v0 remains untouched; v2 is the new
-substrate.

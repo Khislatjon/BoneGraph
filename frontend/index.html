@@ -185,195 +185,191 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .legend-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
 .error-note{font-size:13.5px;color:#b01c1c;padding:12px 0}
 
-/* v2 (equation-graph reasoner) */
-.v2-switch{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);margin-bottom:14px}
-.v2-switch button{background:transparent;border:none;padding:6px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);letter-spacing:.02em;font-weight:500}
-.v2-switch button.active{background:var(--text);color:#fff}
-.v2-presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
-.v2-preset{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;text-align:left;font-family:var(--sans);max-width:340px;line-height:1.4}
-.v2-preset:hover{border-color:var(--amber);color:var(--text)}
-.v2-preset:disabled{opacity:.5;cursor:not-allowed}
-.v2-preset-label{font-weight:600;color:var(--text);display:block;margin-bottom:3px}
-.v2-preset-desc{font-size:12px;color:var(--text3)}
-.v2-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:16px;max-width:920px}
-.v2-card-hdr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
-.v2-card-title{font-size:14px;color:var(--text2);font-weight:600}
-.v2-meta{font-size:12px;color:var(--text3);font-family:var(--mono)}
-.v2-chain-row{display:flex;align-items:center;flex-wrap:wrap;gap:0;row-gap:10px;padding:4px 0}
-.v2-var-pill{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--text)}
-.v2-var-pill .v2-var-name{font-weight:400;color:var(--text3);font-size:11.5px;margin-left:4px}
-.v2-given-pill{background:#eaf5ec;border-color:#bcdcc4}
-.v2-target-pill{background:#fef5e4;border-color:var(--amber-border)}
-.v2-step{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--surface2)}
-.v2-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.v2-step-name{font-weight:600;font-size:13px;color:var(--text)}
-.v2-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
-.v2-step-eq{font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;overflow-x:auto;line-height:1.4}
-.v2-step-eq .katex{font-size:1.05em}
-.v2-tex{display:inline-block}
-.v2-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
-.v2-step-io .v2-io-arrow{color:var(--amber)}
-.v2-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
-.v2-step-band{font-family:var(--mono);font-size:11.5px;color:var(--text3);margin-left:6px}
-.v2-final{margin-top:6px;padding:16px 18px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
-.v2-final-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
-.v2-final-val{font-family:var(--mono);font-size:22px;font-weight:600;color:#5a3a06}
-.v2-final-band{font-family:var(--mono);font-size:12.5px;color:#7a5010}
-.v2-citations{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
-.v2-citation-row{display:flex;gap:8px}
-.v2-citation-row::before{content:"›";color:var(--amber);font-weight:600}
-.v2-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
-.v2-experimental-tag{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);background:#fef5e4;border:1px solid var(--amber-border);border-radius:4px;padding:1px 7px;margin-left:8px}
+/* equation-graph reasoner */
+.eqn-presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.eqn-preset{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;text-align:left;font-family:var(--sans);max-width:340px;line-height:1.4}
+.eqn-preset:hover{border-color:var(--amber);color:var(--text)}
+.eqn-preset:disabled{opacity:.5;cursor:not-allowed}
+.eqn-preset-label{font-weight:600;color:var(--text);display:block;margin-bottom:3px}
+.eqn-preset-desc{font-size:12px;color:var(--text3)}
+.eqn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:16px;max-width:920px}
+.eqn-card-hdr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.eqn-card-title{font-size:14px;color:var(--text2);font-weight:600}
+.eqn-meta{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.eqn-chain-row{display:flex;align-items:center;flex-wrap:wrap;gap:0;row-gap:10px;padding:4px 0}
+.eqn-var-pill{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--text)}
+.eqn-var-pill .eqn-var-name{font-weight:400;color:var(--text3);font-size:11.5px;margin-left:4px}
+.eqn-given-pill{background:#eaf5ec;border-color:#bcdcc4}
+.eqn-target-pill{background:#fef5e4;border-color:var(--amber-border)}
+.eqn-step{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--surface2)}
+.eqn-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.eqn-step-name{font-weight:600;font-size:13px;color:var(--text)}
+.eqn-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
+.eqn-step-eq{font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;overflow-x:auto;line-height:1.4}
+.eqn-step-eq .katex{font-size:1.05em}
+.eqn-tex{display:inline-block}
+.eqn-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
+.eqn-step-io .eqn-io-arrow{color:var(--amber)}
+.eqn-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
+.eqn-step-band{font-family:var(--mono);font-size:11.5px;color:var(--text3);margin-left:6px}
+.eqn-final{margin-top:6px;padding:16px 18px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+.eqn-final-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.eqn-final-val{font-family:var(--mono);font-size:22px;font-weight:600;color:#5a3a06}
+.eqn-final-band{font-family:var(--mono);font-size:12.5px;color:#7a5010}
+.eqn-citations{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+.eqn-citation-row{display:flex;gap:8px}
+.eqn-citation-row::before{content:"›";color:var(--amber);font-weight:600}
+.eqn-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
 
-/* v2 active exploration (Surprises panel — Phase 5) */
-.v2-surprises{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
-.v2-surprises-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border)}
-.v2-surprises-title{font-size:14px;font-weight:600;color:var(--text)}
-.v2-surprises-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5}
-.v2-surprises-actions{display:flex;align-items:center;gap:8px}
-.v2-surprises-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans)}
-.v2-surprises-btn:hover{border-color:var(--amber);color:var(--text)}
-.v2-surprises-btn:disabled{opacity:.5;cursor:not-allowed}
-.v2-surprise-list{display:flex;flex-direction:column;gap:10px}
-.v2-surprise-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-.v2-surprise-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
-.v2-surprise-rank{font-size:11.5px;color:var(--text3);font-family:var(--mono);min-width:24px}
-.v2-surprise-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
-.v2-surprise-score{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border);border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em}
-.v2-surprise-summary{font-size:12.5px;color:var(--text2);line-height:1.55}
-.v2-surprise-row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.v2-surprise-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
-.v2-surprise-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
-.v2-surprise-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
-.v2-surprise-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
-.v2-surprise-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--text3);font-family:var(--mono);padding-top:4px;border-top:1px dashed var(--border)}
-.v2-surprise-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
-.v2-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
-.v2-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
+/* active exploration (Surprises panel) */
+.eqn-surprises{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.eqn-surprises-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.eqn-surprises-title{font-size:14px;font-weight:600;color:var(--text)}
+.eqn-surprises-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5}
+.eqn-surprises-actions{display:flex;align-items:center;gap:8px}
+.eqn-surprises-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans)}
+.eqn-surprises-btn:hover{border-color:var(--amber);color:var(--text)}
+.eqn-surprises-btn:disabled{opacity:.5;cursor:not-allowed}
+.eqn-surprise-list{display:flex;flex-direction:column;gap:10px}
+.eqn-surprise-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.eqn-surprise-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.eqn-surprise-rank{font-size:11.5px;color:var(--text3);font-family:var(--mono);min-width:24px}
+.eqn-surprise-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.eqn-surprise-score{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border);border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em}
+.eqn-surprise-summary{font-size:12.5px;color:var(--text2);line-height:1.55}
+.eqn-surprise-row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.eqn-surprise-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.eqn-surprise-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.eqn-surprise-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.eqn-surprise-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.eqn-surprise-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--text3);font-family:var(--mono);padding-top:4px;border-top:1px dashed var(--border)}
+.eqn-surprise-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.eqn-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
+.eqn-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
 
-/* v2 agents panel (Phase 7/8) */
-.v2-agents{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
-.v2-agents-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
-.v2-agents-title{font-size:14px;font-weight:600;color:var(--text)}
-.v2-agents-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5;margin-top:3px}
-.v2-agents-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans);white-space:nowrap}
-.v2-agents-btn:hover{border-color:#6c7fd8;color:var(--text)}
-.v2-agents-btn:disabled{opacity:.5;cursor:not-allowed}
-.v2-agent-list{display:flex;flex-direction:column;gap:12px}
-.v2-agent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-.v2-agent-card.verdict-interesting{border-left:3px solid #4a7c59}
-.v2-agent-card.verdict-trivial{border-left:3px solid var(--text3)}
-.v2-agent-card.verdict-out-of-domain{border-left:3px solid #c0392b}
-.v2-agent-card.verdict-needs-more-data{border-left:3px solid var(--amber)}
-.v2-agent-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
-.v2-agent-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
-.v2-agent-verdict{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
-.v2-agent-verdict.interesting{background:#eaf5ee;color:#1a7a4e;border:1px solid #a8d8b8}
-.v2-agent-verdict.trivial{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
-.v2-agent-verdict.out-of-domain{background:#fdeaea;color:#b01c1c;border:1px solid #f0a8a8}
-.v2-agent-verdict.needs-more-data{background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border)}
-.v2-agent-rationale{font-size:12.5px;color:var(--text2);line-height:1.55}
-.v2-agent-reason{font-size:12px;color:var(--text3);font-style:italic;line-height:1.5}
-.v2-agent-pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.v2-agent-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
-.v2-agent-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
-.v2-agent-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
-.v2-agent-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
-.v2-agent-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
-.v2-agent-corpus{font-size:11px;color:var(--text3);font-style:italic;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px}
-.v2-agent-error{font-size:12px;color:#b01c1c;background:#fdeaea;border:1px solid #f0a8a8;border-radius:6px;padding:8px 12px}
+/* agents panel */
+.eqn-agents{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.eqn-agents-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.eqn-agents-title{font-size:14px;font-weight:600;color:var(--text)}
+.eqn-agents-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5;margin-top:3px}
+.eqn-agents-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans);white-space:nowrap}
+.eqn-agents-btn:hover{border-color:#6c7fd8;color:var(--text)}
+.eqn-agents-btn:disabled{opacity:.5;cursor:not-allowed}
+.eqn-agent-list{display:flex;flex-direction:column;gap:12px}
+.eqn-agent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.eqn-agent-card.verdict-interesting{border-left:3px solid #4a7c59}
+.eqn-agent-card.verdict-trivial{border-left:3px solid var(--text3)}
+.eqn-agent-card.verdict-out-of-domain{border-left:3px solid #c0392b}
+.eqn-agent-card.verdict-needs-more-data{border-left:3px solid var(--amber)}
+.eqn-agent-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.eqn-agent-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.eqn-agent-verdict{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.eqn-agent-verdict.interesting{background:#eaf5ee;color:#1a7a4e;border:1px solid #a8d8b8}
+.eqn-agent-verdict.trivial{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.eqn-agent-verdict.out-of-domain{background:#fdeaea;color:#b01c1c;border:1px solid #f0a8a8}
+.eqn-agent-verdict.needs-more-data{background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border)}
+.eqn-agent-rationale{font-size:12.5px;color:var(--text2);line-height:1.55}
+.eqn-agent-reason{font-size:12px;color:var(--text3);font-style:italic;line-height:1.5}
+.eqn-agent-pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.eqn-agent-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.eqn-agent-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.eqn-agent-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.eqn-agent-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.eqn-agent-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.eqn-agent-corpus{font-size:11px;color:var(--text3);font-style:italic;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px}
+.eqn-agent-error{font-size:12px;color:#b01c1c;background:#fdeaea;border:1px solid #f0a8a8;border-radius:6px;padding:8px 12px}
 
-/* v2 preset groups */
-.v2-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
-.v2-preset-group{display:flex;flex-direction:column;gap:8px}
-.v2-preset-group-hdr{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:left;padding-left:4px}
-.v2-mode-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle}
-.v2-mode-forward{background:#eaf5ec;color:#2e6b3a;border:1px solid #bcdcc4}
-.v2-mode-abductive{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
-.v2-mode-counterfactual{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+/* preset groups */
+.eqn-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
+.eqn-preset-group{display:flex;flex-direction:column;gap:8px}
+.eqn-preset-group-hdr{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:left;padding-left:4px}
+.eqn-mode-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.eqn-mode-forward{background:#eaf5ec;color:#2e6b3a;border:1px solid #bcdcc4}
+.eqn-mode-abductive{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.eqn-mode-counterfactual{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
 
 /* Abductive — ranked posterior bars */
-.v2-abd-hdr{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--text2)}
-.v2-abd-hdr b{color:var(--text);font-family:var(--mono)}
-.v2-posterior-row{display:grid;grid-template-columns:140px 1fr 90px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
-.v2-posterior-row:first-of-type{border-top:none}
-.v2-posterior-name{font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:2px}
-.v2-posterior-name .v2-pn-sub{font-size:11px;color:var(--text3);font-weight:400}
-.v2-posterior-bar{position:relative;height:34px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
-.v2-posterior-prior{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#eee2c8 0 4px,#f6ecd6 4px 8px);opacity:.7}
-.v2-posterior-post{position:absolute;top:4px;bottom:4px;background:var(--amber);border-radius:4px;border:1px solid #d18b1f}
-.v2-posterior-mean{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5a3a06}
-.v2-posterior-ticks{position:absolute;bottom:-16px;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:var(--mono)}
-.v2-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
-.v2-posterior-stats .v2-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.eqn-abd-hdr{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--text2)}
+.eqn-abd-hdr b{color:var(--text);font-family:var(--mono)}
+.eqn-posterior-row{display:grid;grid-template-columns:140px 1fr 90px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.eqn-posterior-row:first-of-type{border-top:none}
+.eqn-posterior-name{font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:2px}
+.eqn-posterior-name .eqn-pn-sub{font-size:11px;color:var(--text3);font-weight:400}
+.eqn-posterior-bar{position:relative;height:34px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.eqn-posterior-prior{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#eee2c8 0 4px,#f6ecd6 4px 8px);opacity:.7}
+.eqn-posterior-post{position:absolute;top:4px;bottom:4px;background:var(--amber);border-radius:4px;border:1px solid #d18b1f}
+.eqn-posterior-mean{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5a3a06}
+.eqn-posterior-ticks{position:absolute;bottom:-16px;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:var(--mono)}
+.eqn-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
+.eqn-posterior-stats .eqn-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 
 /* Covariate panel */
-.v2-cov-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:920px;width:100%}
-.v2-cov-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.v2-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
-.v2-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
-.v2-cov-summary b{color:var(--text)}
-.v2-cov-row{display:grid;grid-template-columns:120px auto;gap:14px;align-items:center}
-.v2-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
-.v2-cov-age{display:inline-flex;align-items:center;gap:12px}
-.v2-cov-age .range-slider{width:200px}
-.v2-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:left}
-.v2-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2);width:max-content}
-.v2-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
-.v2-cov-sex button.active{background:var(--amber);color:#fff}
-.v2-cov-site{appearance:none;-webkit-appearance:none;background:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:5px 28px 5px 10px;font-family:var(--sans);font-size:12.5px;color:#fff;font-weight:500;min-width:220px;max-width:260px;width:max-content;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
-.v2-cov-site option{color:var(--text);background:var(--surface)}
-.v2-cov-diseases{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
-.v2-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
-.v2-cov-disease.active{background:var(--amber);border-color:var(--amber);color:#fff}
-.v2-cov-disease.active input{accent-color:#fff}
-.v2-cov-disease input{accent-color:var(--amber)}
-.v2-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
-.v2-cov-reset:hover{color:var(--amber)}
+.eqn-cov-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:920px;width:100%}
+.eqn-cov-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.eqn-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.eqn-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.eqn-cov-summary b{color:var(--text)}
+.eqn-cov-row{display:grid;grid-template-columns:120px auto;gap:14px;align-items:center}
+.eqn-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
+.eqn-cov-age{display:inline-flex;align-items:center;gap:12px}
+.eqn-cov-age .range-slider{width:200px}
+.eqn-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:left}
+.eqn-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2);width:max-content}
+.eqn-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
+.eqn-cov-sex button.active{background:var(--amber);color:#fff}
+.eqn-cov-site{appearance:none;-webkit-appearance:none;background:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:5px 28px 5px 10px;font-family:var(--sans);font-size:12.5px;color:#fff;font-weight:500;min-width:220px;max-width:260px;width:max-content;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
+.eqn-cov-site option{color:var(--text);background:var(--surface)}
+.eqn-cov-diseases{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
+.eqn-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
+.eqn-cov-disease.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.eqn-cov-disease.active input{accent-color:#fff}
+.eqn-cov-disease input{accent-color:var(--amber)}
+.eqn-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
+.eqn-cov-reset:hover{color:var(--amber)}
 
-/* Free-text v2 query bar */
+/* Free-text query bar */
 
 /* Routing banner */
-.v2-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.v2-routing-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
-.v2-routing-hdr b{color:var(--text);font-family:var(--mono)}
-.v2-routing-rationale{font-size:12.5px;color:var(--text2);font-style:italic;line-height:1.45}
-.v2-routing-matches{display:flex;flex-wrap:wrap;gap:6px}
-.v2-routing-match{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-family:var(--mono)}
-.v2-routing-match b{color:var(--text)}
-.v2-routing-score{color:var(--text3);font-size:10.5px}
-.v2-routing-source{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px}
-.v2-routing-source.llm{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
-.v2-routing-source.fallback{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+.eqn-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.eqn-routing-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.eqn-routing-hdr b{color:var(--text);font-family:var(--mono)}
+.eqn-routing-rationale{font-size:12.5px;color:var(--text2);font-style:italic;line-height:1.45}
+.eqn-routing-matches{display:flex;flex-wrap:wrap;gap:6px}
+.eqn-routing-match{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-family:var(--mono)}
+.eqn-routing-match b{color:var(--text)}
+.eqn-routing-score{color:var(--text3);font-size:10.5px}
+.eqn-routing-source{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px}
+.eqn-routing-source.llm{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.eqn-routing-source.fallback{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
 
 /* Applied-shifts banner */
-.v2-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.v2-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
-.v2-shifts-list{display:flex;flex-direction:column;gap:4px}
-.v2-shift-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:12px;color:#5a3a06}
-.v2-shift-key{font-family:var(--mono);font-weight:600;color:#7a5010;white-space:nowrap}
-.v2-shift-desc{color:#5a3a06}
-.v2-shift-cite{font-size:11px;color:#7a5010;font-style:italic}
-.v2-shift-vals{font-family:var(--mono);font-size:11.5px;color:#7a5010;white-space:nowrap}
+.eqn-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.eqn-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.eqn-shifts-list{display:flex;flex-direction:column;gap:4px}
+.eqn-shift-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:12px;color:#5a3a06}
+.eqn-shift-key{font-family:var(--mono);font-weight:600;color:#7a5010;white-space:nowrap}
+.eqn-shift-desc{color:#5a3a06}
+.eqn-shift-cite{font-size:11px;color:#7a5010;font-style:italic}
+.eqn-shift-vals{font-family:var(--mono);font-size:11.5px;color:#7a5010;white-space:nowrap}
 
 /* Counterfactual — baseline / intervened / delta cards */
-.v2-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.v2-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
-.v2-cf-col.delta{background:#fef5e4;border-color:var(--amber-border)}
-.v2-cf-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
-.v2-cf-col.delta .v2-cf-lbl{color:#7a5010}
-.v2-cf-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
-.v2-cf-col.delta .v2-cf-val{color:#5a3a06}
-.v2-cf-val.up{color:#2e6b3a}
-.v2-cf-val.down{color:#8d3e28}
-.v2-cf-band{font-family:var(--mono);font-size:11.5px;color:var(--text3)}
-.v2-cf-col.delta .v2-cf-band{color:#7a5010}
-.v2-cf-rel{font-family:var(--mono);font-size:12px;color:#5a3a06;font-weight:600}
-.v2-cf-intervention{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12.5px;color:var(--text2)}
-.v2-cf-intervention b{color:var(--text)}
+.eqn-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.eqn-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.eqn-cf-col.delta{background:#fef5e4;border-color:var(--amber-border)}
+.eqn-cf-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.eqn-cf-col.delta .eqn-cf-lbl{color:#7a5010}
+.eqn-cf-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.eqn-cf-col.delta .eqn-cf-val{color:#5a3a06}
+.eqn-cf-val.up{color:#2e6b3a}
+.eqn-cf-val.down{color:#8d3e28}
+.eqn-cf-band{font-family:var(--mono);font-size:11.5px;color:var(--text3)}
+.eqn-cf-col.delta .eqn-cf-band{color:#7a5010}
+.eqn-cf-rel{font-family:var(--mono);font-size:12px;color:#5a3a06;font-weight:600}
+.eqn-cf-intervention{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12.5px;color:var(--text2)}
+.eqn-cf-intervention b{color:var(--text)}
 @media (max-width:760px){
-  .v2-cf-grid{grid-template-columns:1fr}
-  .v2-posterior-row{grid-template-columns:1fr}
+  .eqn-cf-grid{grid-template-columns:1fr}
+  .eqn-posterior-row{grid-template-columns:1fr}
 }
 
 /* Analyse tab */
@@ -902,9 +898,9 @@ function SearchTab({ totalChunks }) {
 }
 
 // ── REASON TAB ────────────────────────────────────────────────────────────────
-// Format a number for v2 result display.  Uses scientific notation
+// Format a number for result display.  Uses scientific notation
 // for very small or very large magnitudes; plain decimals otherwise.
-function v2Fmt(x, sig=3) {
+function fmt(x, sig=3) {
   if (x === null || x === undefined || Number.isNaN(x)) return '—';
   const ax = Math.abs(x);
   if (ax !== 0 && (ax < 1e-3 || ax >= 1e4)) return x.toExponential(2);
@@ -920,7 +916,7 @@ function dsym(v) {
 // KaTeX-rendered math.  Renders `tex` into a span using window.katex
 // once it has loaded.  If katex is not (yet) available, we fall back
 // to the raw LaTeX so the user still sees something — but we re-try
-// briefly so first-paint of the v2 tab does not lose the equation.
+// briefly so first-paint does not lose the equation.
 function TeX({tex, displayMode=false}) {
   const ref = useRef(null);
   useEffect(() => {
@@ -951,10 +947,10 @@ function TeX({tex, displayMode=false}) {
     }
   }, [tex, displayMode]);
   // Initial render: show plain text until katex paints.
-  return <span ref={ref} className="v2-tex">{tex}</span>;
+  return <span ref={ref} className="eqn-tex">{tex}</span>;
 }
 
-const V2_PRESETS = [
+const REASON_PRESETS = [
   // Forward
   {
     id: 'fwd_porosity_to_modulus', mode: 'forward',
@@ -1007,7 +1003,7 @@ const V2_PRESETS = [
   {
     id: 'cov_old_vertebra_modulus', mode: 'forward',
     label: 'Phase 3 · Same φ, two patients: E in a 75 F vertebra',
-    desc: 'Same porosity, but covariate shifts (site, age, sex) drop E ≈ 3× — a contrast v0 cannot produce.',
+    desc: 'Same porosity, but covariate shifts (site, age, sex) drop E ≈ 3× — covariate-conditioned priors at work.',
     syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
   },
   {
@@ -1024,62 +1020,62 @@ const V2_PRESETS = [
   },
 ];
 
-const V2_MODE_META = {
-  forward:        {tag: 'Forward',        cls: 'v2-mode-forward',
+const MODE_META = {
+  forward:        {tag: 'Forward',        cls: 'eqn-mode-forward',
                    hdr: 'Forward inference',
                    blurb: 'Given upstream variables, predict the target with a Monte-Carlo uncertainty band.'},
-  abductive:      {tag: 'Abductive',      cls: 'v2-mode-abductive',
+  abductive:      {tag: 'Abductive',      cls: 'eqn-mode-abductive',
                    hdr: 'Abductive inference',
                    blurb: 'Given an observed value, infer the upstream variables most likely to explain it.'},
-  counterfactual: {tag: 'Counterfactual', cls: 'v2-mode-counterfactual',
+  counterfactual: {tag: 'Counterfactual', cls: 'eqn-mode-counterfactual',
                    hdr: 'Counterfactual inference',
                    blurb: 'Compare the target distribution under a do(...) intervention against the baseline state.'},
 };
 
-const V2_DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
+const DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
 
 // Phase 5 Surprises panel — hidden for now. Flip to `true` to re-enable
 // the always-on exploration panel + the LLM-routed "explore" mode UI.
-const V2_SURPRISES_ENABLED = false;
+const SURPRISES_ENABLED = false;
 
 // Phase 7/8 Agents panel — Proposer + Critic loop over the equation graph.
-const V2_AGENTS_ENABLED = true;
+const AGENTS_ENABLED = true;
 
 // Per-mode preset buttons (forward / abductive / counterfactual demos).
 // Hidden for now — flip to `true` to expose the canonical-form examples.
-const V2_PRESETS_ENABLED = false;
+const PRESETS_ENABLED = false;
 
-const V2_SITES = [
+const SITES = [
   {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
   {value: 'tibia_cortical', label: 'Tibia — cortical midshaft'},
   {value: 'radius',         label: 'Distal radius'},
   {value: 'vertebra',       label: 'Lumbar vertebra (trabecular)'},
 ];
 
-const V2_DISEASES = [
+const DISEASES = [
   {value: 'osteoporosis',            label: 'Osteoporosis'},
   {value: 'glucocorticoid',          label: 'Glucocorticoids'},
   {value: 'osteogenesis_imperfecta', label: 'OI'},
 ];
 
-function v2IsDefaultCovariates(c) {
+function isDefaultCovariates(c) {
   if (!c) return true;
-  if (c.age !== V2_DEFAULT_COVARIATES.age) return false;
-  if (c.sex !== V2_DEFAULT_COVARIATES.sex) return false;
-  if (c.site !== V2_DEFAULT_COVARIATES.site) return false;
+  if (c.age !== DEFAULT_COVARIATES.age) return false;
+  if (c.sex !== DEFAULT_COVARIATES.sex) return false;
+  if (c.site !== DEFAULT_COVARIATES.site) return false;
   const dis = c.disease || [];
   return dis.length === 0;
 }
 
-function v2CovSummary(c) {
+function covSummary(c) {
   if (!c) return 'default — 30-year-old male femur, no disease';
-  const site = V2_SITES.find(s => s.value === c.site)?.label || c.site;
-  const dis = (c.disease || []).map(d => V2_DISEASES.find(x => x.value === d)?.label || d);
+  const site = SITES.find(s => s.value === c.site)?.label || c.site;
+  const dis = (c.disease || []).map(d => DISEASES.find(x => x.value === d)?.label || d);
   return `${c.age}-yr ${c.sex === 'F' ? 'female' : 'male'} · ${site}` + (dis.length ? ` · ${dis.join(', ')}` : '');
 }
 
-function V2CovariatePanel({covariates, onChange}) {
-  const c = covariates || V2_DEFAULT_COVARIATES;
+function CovariatePanel({covariates, onChange}) {
+  const c = covariates || DEFAULT_COVARIATES;
   const update = (patch) => onChange({...c, ...patch});
   const toggleDisease = (value) => {
     const cur = new Set(c.disease || []);
@@ -1087,47 +1083,47 @@ function V2CovariatePanel({covariates, onChange}) {
     update({disease: Array.from(cur)});
   };
   return (
-    <div className="v2-cov-panel">
-      <div className="v2-cov-hdr">
-        <span className="v2-cov-title">Patient covariates</span>
-        <span className="v2-cov-summary">{v2CovSummary(c)}</span>
-        {!v2IsDefaultCovariates(c) && (
-          <button className="v2-cov-reset" onClick={() => onChange({...V2_DEFAULT_COVARIATES})}>reset</button>
+    <div className="eqn-cov-panel">
+      <div className="eqn-cov-hdr">
+        <span className="eqn-cov-title">Patient covariates</span>
+        <span className="eqn-cov-summary">{covSummary(c)}</span>
+        {!isDefaultCovariates(c) && (
+          <button className="eqn-cov-reset" onClick={() => onChange({...DEFAULT_COVARIATES})}>reset</button>
         )}
       </div>
-      <div className="v2-cov-row">
-        <div className="v2-cov-lbl">Age</div>
-        <div className="v2-cov-age">
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Age</div>
+        <div className="eqn-cov-age">
           <input type="range" min="18" max="95" step="1" value={c.age}
-            className="range-slider v2-cov-age-slider"
+            className="range-slider eqn-cov-age-slider"
             style={(() => {
               const pct = ((c.age - 18) / (95 - 18)) * 100;
               return {background: `linear-gradient(to right, var(--amber) 0%, var(--amber) ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`};
             })()}
             onChange={e => update({age: Number(e.target.value)})}/>
-          <span className="v2-cov-age-val">{c.age} yr</span>
+          <span className="eqn-cov-age-val">{c.age} yr</span>
         </div>
       </div>
-      <div className="v2-cov-row">
-        <div className="v2-cov-lbl">Sex</div>
-        <div className="v2-cov-sex">
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Sex</div>
+        <div className="eqn-cov-sex">
           <button className={c.sex === 'M' ? 'active' : ''} onClick={() => update({sex: 'M'})}>Male</button>
           <button className={c.sex === 'F' ? 'active' : ''} onClick={() => update({sex: 'F'})}>Female</button>
         </div>
       </div>
-      <div className="v2-cov-row">
-        <div className="v2-cov-lbl">Site</div>
-        <select className="v2-cov-site" value={c.site} onChange={e => update({site: e.target.value})}>
-          {V2_SITES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Site</div>
+        <select className="eqn-cov-site" value={c.site} onChange={e => update({site: e.target.value})}>
+          {SITES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
-      <div className="v2-cov-row">
-        <div className="v2-cov-lbl">Disease</div>
-        <div className="v2-cov-diseases">
-          {V2_DISEASES.map(d => {
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Disease</div>
+        <div className="eqn-cov-diseases">
+          {DISEASES.map(d => {
             const on = (c.disease || []).includes(d.value);
             return (
-              <label key={d.value} className={`v2-cov-disease ${on ? 'active' : ''}`}>
+              <label key={d.value} className={`eqn-cov-disease ${on ? 'active' : ''}`}>
                 <input type="checkbox" checked={on} onChange={() => toggleDisease(d.value)}/>
                 {d.label}
               </label>
@@ -1139,30 +1135,30 @@ function V2CovariatePanel({covariates, onChange}) {
   );
 }
 
-function V2RoutingBanner({routing}) {
+function RoutingBanner({routing}) {
   if (!routing) return null;
   return (
-    <div className="v2-routing">
-      <div className="v2-routing-hdr">
-        <span className={`v2-routing-source ${routing.source}`}>{routing.source}</span>
+    <div className="eqn-routing">
+      <div className="eqn-routing-hdr">
+        <span className={`eqn-routing-source ${routing.source}`}>{routing.source}</span>
         <span>routed as <b>{routing.mode}</b> → target <b>{routing.target}</b></span>
         {routing.target_score > 0 && (
-          <span className="v2-routing-score">(target match {(routing.target_score * 100).toFixed(0)}%)</span>
+          <span className="eqn-routing-score">(target match {(routing.target_score * 100).toFixed(0)}%)</span>
         )}
         {routing.confidence > 0 && (
-          <span className="v2-routing-score">· confidence {(routing.confidence * 100).toFixed(0)}%</span>
+          <span className="eqn-routing-score">· confidence {(routing.confidence * 100).toFixed(0)}%</span>
         )}
       </div>
       {routing.rationale && (
-        <div className="v2-routing-rationale">{routing.rationale}</div>
+        <div className="eqn-routing-rationale">{routing.rationale}</div>
       )}
       {routing.matched_variables && routing.matched_variables.length > 0 && (
-        <div className="v2-routing-matches">
+        <div className="eqn-routing-matches">
           {routing.matched_variables.map((m, i) => (
-            <span key={i} className="v2-routing-match">
+            <span key={i} className="eqn-routing-match">
               <b>{dsym(m)}</b> · {m.name}
               {m.unit && <span style={{color:'var(--text3)'}}> · {m.unit}</span>}
-              <span className="v2-routing-score">{(m.score * 100).toFixed(0)}%</span>
+              <span className="eqn-routing-score">{(m.score * 100).toFixed(0)}%</span>
             </span>
           ))}
         </div>
@@ -1171,24 +1167,24 @@ function V2RoutingBanner({routing}) {
   );
 }
 
-function V2ShiftsBanner({shifts, covariates}) {
+function ShiftsBanner({shifts, covariates}) {
   if (!shifts || shifts.length === 0) return null;
   // Group consecutive shifts on the same parameter so the cascade
   // (e.g. Currey a: 7 → 3.85 → 2.12 → 2.01) reads as one trace.
   return (
-    <div className="v2-shifts-banner">
-      <div className="v2-shifts-hdr">
-        Covariate-driven parameter shifts · {v2CovSummary(covariates)}
+    <div className="eqn-shifts-banner">
+      <div className="eqn-shifts-hdr">
+        Covariate-driven parameter shifts · {covSummary(covariates)}
       </div>
-      <div className="v2-shifts-list">
+      <div className="eqn-shifts-list">
         {shifts.map((s, i) => (
-          <div key={i} className="v2-shift-row">
-            <span className="v2-shift-key">{s.relation}·{s.parameter}</span>
-            <span className="v2-shift-desc">
+          <div key={i} className="eqn-shift-row">
+            <span className="eqn-shift-key">{s.relation}·{s.parameter}</span>
+            <span className="eqn-shift-desc">
               {s.description}
-              {' '}<span className="v2-shift-cite">— {s.citation}</span>
+              {' '}<span className="eqn-shift-cite">— {s.citation}</span>
             </span>
-            <span className="v2-shift-vals">{v2Fmt(s.before_mean)} → {v2Fmt(s.after_mean)}</span>
+            <span className="eqn-shift-vals">{fmt(s.before_mean)} → {fmt(s.after_mean)}</span>
           </div>
         ))}
       </div>
@@ -1197,30 +1193,30 @@ function V2ShiftsBanner({shifts, covariates}) {
 }
 
 // Map a value in [lo, hi] to a percentage along a bar.
-function v2Pct(x, lo, hi) {
+function pct(x, lo, hi) {
   if (hi <= lo) return 0;
   const p = ((x - lo) / (hi - lo)) * 100;
   return Math.max(0, Math.min(100, p));
 }
 
-function V2ChainRow({result}) {
+function ChainRow({result}) {
   return (
-    <div className="v2-chain-row">
+    <div className="eqn-chain-row">
       {result.chain_vars.map((v, i) => {
         const isGiven    = result.given_info && result.given_info[v.symbol];
         const isInterv   = result.intervention_info && result.intervention_info[v.symbol];
         const isTarget   = v.symbol === result.target;
         const isInferred = result.inferred && result.inferred.some(p => p.variable.symbol === v.symbol);
-        const cls = 'v2-var-pill'
-          + (isGiven    ? ' v2-given-pill'  : '')
-          + (isTarget   ? ' v2-target-pill' : '')
-          + (isInterv   ? ' v2-target-pill' : '')
-          + (isInferred ? ' v2-target-pill' : '');
+        const cls = 'eqn-var-pill'
+          + (isGiven    ? ' eqn-given-pill'  : '')
+          + (isTarget   ? ' eqn-target-pill' : '')
+          + (isInterv   ? ' eqn-target-pill' : '')
+          + (isInferred ? ' eqn-target-pill' : '');
         return (
           <Fragment key={i}>
             <span className={cls}>
               {dsym(v)}
-              <span className="v2-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
+              <span className="eqn-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
             </span>
             {i < result.chain_vars.length - 1 && <ChainArrow/>}
           </Fragment>
@@ -1230,80 +1226,80 @@ function V2ChainRow({result}) {
   );
 }
 
-function V2ForwardCard({result, elapsed}) {
+function ForwardCard({result, elapsed}) {
   return (
-    <div className="v2-card">
-      <div className="v2-card-hdr">
-        <div className="v2-card-title">
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
           Forward inference: {result.target_info.name}
           {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
-        <div className="v2-meta">
+        <div className="eqn-meta">
           {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
         </div>
       </div>
 
-      <V2RoutingBanner routing={result.routing}/>
+      <RoutingBanner routing={result.routing}/>
 
-      <V2ChainRow result={result}/>
+      <ChainRow result={result}/>
 
-      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
 
       {result.steps.map((s, i) => (
-        <div key={i} className="v2-step">
-          <div className="v2-step-hdr">
-            <div className="v2-step-name">{i + 1}. {s.relation_name}</div>
-            <div className="v2-step-citation">{s.citation}</div>
+        <div key={i} className="eqn-step">
+          <div className="eqn-step-hdr">
+            <div className="eqn-step-name">{i + 1}. {s.relation_name}</div>
+            <div className="eqn-step-citation">{s.citation}</div>
           </div>
           {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
-          {s.latex && <div className="v2-step-eq"><TeX tex={s.latex}/></div>}
-          <div className="v2-step-io">
+          {s.latex && <div className="eqn-step-eq"><TeX tex={s.latex}/></div>}
+          <div className="eqn-step-io">
             {Object.entries(s.inputs).map(([k, v]) => (
-              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{(result.display_map && result.display_map[k]) || k} = {v2Fmt(v)}</span>
+              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{(result.display_map && result.display_map[k]) || k} = {fmt(v)}</span>
             ))}
-            <span className="v2-io-arrow">→</span>
-            <span className="v2-step-out">{(result.display_map && result.display_map[s.output_var]) || s.output_var} ≈ {v2Fmt(s.output_mean)} {s.output_unit}</span>
-            <span className="v2-step-band">[P5 {v2Fmt(s.output_p5)} · P95 {v2Fmt(s.output_p95)}]</span>
+            <span className="eqn-io-arrow">→</span>
+            <span className="eqn-step-out">{(result.display_map && result.display_map[s.output_var]) || s.output_var} ≈ {fmt(s.output_mean)} {s.output_unit}</span>
+            <span className="eqn-step-band">[P5 {fmt(s.output_p5)} · P95 {fmt(s.output_p95)}]</span>
           </div>
         </div>
       ))}
 
-      <div className="v2-final">
-        <div className="v2-final-lbl">Predicted {result.target_info.name}</div>
-        <div className="v2-final-val">{v2Fmt(result.result.mean)} {result.result.unit}</div>
-        <div className="v2-final-band">
-          90% band: [{v2Fmt(result.result.p5)}, {v2Fmt(result.result.p95)}] {result.result.unit}
-          {' · '}spread {v2Fmt(result.result.relative_uncertainty * 100, 2)}% of mean
+      <div className="eqn-final">
+        <div className="eqn-final-lbl">Predicted {result.target_info.name}</div>
+        <div className="eqn-final-val">{fmt(result.result.mean)} {result.result.unit}</div>
+        <div className="eqn-final-band">
+          90% band: [{fmt(result.result.p5)}, {fmt(result.result.p95)}] {result.result.unit}
+          {' · '}spread {fmt(result.result.relative_uncertainty * 100, 2)}% of mean
         </div>
       </div>
     </div>
   );
 }
 
-function V2AbductiveCard({result, elapsed}) {
+function AbductiveCard({result, elapsed}) {
   return (
-    <div className="v2-card">
-      <div className="v2-card-hdr">
-        <div className="v2-card-title">
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
           Abductive inference: {result.target_info.name}
           {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
-        <div className="v2-meta">
+        <div className="eqn-meta">
           ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
         </div>
       </div>
 
-      <V2RoutingBanner routing={result.routing}/>
+      <RoutingBanner routing={result.routing}/>
 
-      <V2ChainRow result={result}/>
+      <ChainRow result={result}/>
 
-      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
 
-      <div className="v2-abd-hdr">
-        <span>Observed <b>{dsym(result.target_info)}</b> = <b>{v2Fmt(result.observed)} {result.target_info.unit}</b> ± {v2Fmt(result.observed_std)}</span>
+      <div className="eqn-abd-hdr">
+        <span>Observed <b>{dsym(result.target_info)}</b> = <b>{fmt(result.observed)} {result.target_info.unit}</b> ± {fmt(result.observed_std)}</span>
         {Object.entries(result.given || {}).length > 0 && (
           <span>Held fixed: {Object.entries(result.given).map(([k, v], i) =>
-            <span key={k} style={{marginRight:8}}>{k} = <b>{v2Fmt(v)}</b></span>
+            <span key={k} style={{marginRight:8}}>{k} = <b>{fmt(v)}</b></span>
           )}</span>
         )}
       </div>
@@ -1312,33 +1308,33 @@ function V2AbductiveCard({result, elapsed}) {
         {result.inferred.map((p, i) => {
           const lo = Math.min(p.prior_p5, p.posterior_p5);
           const hi = Math.max(p.prior_p95, p.posterior_p95);
-          const priorL = v2Pct(p.prior_p5, lo, hi);
-          const priorW = v2Pct(p.prior_p95, lo, hi) - priorL;
-          const postL  = v2Pct(p.posterior_p5, lo, hi);
-          const postW  = v2Pct(p.posterior_p95, lo, hi) - postL;
-          const meanX  = v2Pct(p.posterior_mean, lo, hi);
+          const priorL = pct(p.prior_p5, lo, hi);
+          const priorW = pct(p.prior_p95, lo, hi) - priorL;
+          const postL  = pct(p.posterior_p5, lo, hi);
+          const postW  = pct(p.posterior_p95, lo, hi) - postL;
+          const meanX  = pct(p.posterior_mean, lo, hi);
           const shiftPct = (p.shift_score * 100).toFixed(0);
           return (
-            <div key={i} className="v2-posterior-row">
-              <div className="v2-posterior-name">
+            <div key={i} className="eqn-posterior-row">
+              <div className="eqn-posterior-name">
                 {dsym(p.variable)}
-                <span className="v2-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
+                <span className="eqn-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
               </div>
               <div>
-                <div className="v2-posterior-bar">
-                  <div className="v2-posterior-prior" style={{left:`${priorL}%`,width:`${priorW}%`}}/>
-                  <div className="v2-posterior-post"  style={{left:`${postL}%`,width:`${postW}%`}}/>
-                  <div className="v2-posterior-mean"  style={{left:`${meanX}%`}}/>
+                <div className="eqn-posterior-bar">
+                  <div className="eqn-posterior-prior" style={{left:`${priorL}%`,width:`${priorW}%`}}/>
+                  <div className="eqn-posterior-post"  style={{left:`${postL}%`,width:`${postW}%`}}/>
+                  <div className="eqn-posterior-mean"  style={{left:`${meanX}%`}}/>
                 </div>
-                <div className="v2-posterior-ticks">
-                  <span>{v2Fmt(lo)}</span>
-                  <span>{v2Fmt(hi)}</span>
+                <div className="eqn-posterior-ticks">
+                  <span>{fmt(lo)}</span>
+                  <span>{fmt(hi)}</span>
                 </div>
               </div>
-              <div className="v2-posterior-stats">
-                <span>{v2Fmt(p.posterior_mean)}</span>
-                <span style={{color:'var(--text3)'}}>[{v2Fmt(p.posterior_p5)}, {v2Fmt(p.posterior_p95)}]</span>
-                <span className="v2-shift">shift {shiftPct}%</span>
+              <div className="eqn-posterior-stats">
+                <span>{fmt(p.posterior_mean)}</span>
+                <span style={{color:'var(--text3)'}}>[{fmt(p.posterior_p5)}, {fmt(p.posterior_p95)}]</span>
+                <span className="eqn-shift">shift {shiftPct}%</span>
               </div>
             </div>
           );
@@ -1353,7 +1349,7 @@ function V2AbductiveCard({result, elapsed}) {
   );
 }
 
-function V2CounterfactualCard({result, elapsed}) {
+function CounterfactualCard({result, elapsed}) {
   const r = result.result;
   const deltaDir = r.delta_mean >= 0 ? 'up' : 'down';
   const deltaSign = r.delta_mean >= 0 ? '+' : '';
@@ -1366,60 +1362,60 @@ function V2CounterfactualCard({result, elapsed}) {
     Math.abs(r.baseline_mean) > 0.2 * Math.abs(r.delta_mean) &&
     Math.abs(r.relative_delta) < 50;
   return (
-    <div className="v2-card">
-      <div className="v2-card-hdr">
-        <div className="v2-card-title">
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
           Counterfactual inference: {result.target_info.name}
           {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
         </div>
-        <div className="v2-meta">
+        <div className="eqn-meta">
           n = {r.n_samples.toLocaleString()} paired samples · {elapsed}s
         </div>
       </div>
 
-      <V2RoutingBanner routing={result.routing}/>
+      <RoutingBanner routing={result.routing}/>
 
-      <V2ChainRow result={result}/>
+      <ChainRow result={result}/>
 
-      <V2ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
 
-      <div className="v2-cf-intervention">
+      <div className="eqn-cf-intervention">
         do(
         {Object.entries(result.intervention).map(([k, v], i) => (
-          <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.intervention_info[k]?.unit ? ` ${result.intervention_info[k].unit}` : ''}</span>
+          <span key={k}>{i > 0 && ', '}<b>{k}</b> = {fmt(v)}{result.intervention_info[k]?.unit ? ` ${result.intervention_info[k].unit}` : ''}</span>
         ))}
         )
         {Object.keys(result.given).length > 0 && (
           <span style={{color:'var(--text3)'}}>
             holding {Object.entries(result.given).filter(([k]) => !(k in result.intervention)).map(([k, v], i, arr) => (
-              <span key={k}>{i > 0 && ', '}<b>{k}</b> = {v2Fmt(v)}{result.given_info[k]?.unit ? ` ${result.given_info[k].unit}` : ''}</span>
+              <span key={k}>{i > 0 && ', '}<b>{k}</b> = {fmt(v)}{result.given_info[k]?.unit ? ` ${result.given_info[k].unit}` : ''}</span>
             ))}
           </span>
         )}
       </div>
 
-      <div className="v2-cf-grid">
-        <div className="v2-cf-col">
-          <div className="v2-cf-lbl">Baseline</div>
-          <div className="v2-cf-val">{v2Fmt(r.baseline_mean)} {r.unit}</div>
-          <div className="v2-cf-band">[{v2Fmt(r.baseline_p5)}, {v2Fmt(r.baseline_p95)}]</div>
+      <div className="eqn-cf-grid">
+        <div className="eqn-cf-col">
+          <div className="eqn-cf-lbl">Baseline</div>
+          <div className="eqn-cf-val">{fmt(r.baseline_mean)} {r.unit}</div>
+          <div className="eqn-cf-band">[{fmt(r.baseline_p5)}, {fmt(r.baseline_p95)}]</div>
         </div>
-        <div className="v2-cf-col">
-          <div className="v2-cf-lbl">Intervened</div>
-          <div className="v2-cf-val">{v2Fmt(r.intervened_mean)} {r.unit}</div>
-          <div className="v2-cf-band">[{v2Fmt(r.intervened_p5)}, {v2Fmt(r.intervened_p95)}]</div>
+        <div className="eqn-cf-col">
+          <div className="eqn-cf-lbl">Intervened</div>
+          <div className="eqn-cf-val">{fmt(r.intervened_mean)} {r.unit}</div>
+          <div className="eqn-cf-band">[{fmt(r.intervened_p5)}, {fmt(r.intervened_p95)}]</div>
         </div>
-        <div className="v2-cf-col delta">
-          <div className="v2-cf-lbl">Δ target</div>
-          <div className={`v2-cf-val ${deltaDir}`}>
-            {deltaSign}{v2Fmt(r.delta_mean)} {r.unit}
+        <div className="eqn-cf-col delta">
+          <div className="eqn-cf-lbl">Δ target</div>
+          <div className={`eqn-cf-val ${deltaDir}`}>
+            {deltaSign}{fmt(r.delta_mean)} {r.unit}
           </div>
-          <div className="v2-cf-band">
-            [{v2Fmt(r.delta_p5)}, {v2Fmt(r.delta_p95)}]
+          <div className="eqn-cf-band">
+            [{fmt(r.delta_p5)}, {fmt(r.delta_p95)}]
           </div>
           {relIsMeaningful
-            ? <div className="v2-cf-rel">{relSign}{v2Fmt(r.relative_delta * 100, 3)}% vs baseline</div>
-            : <div className="v2-cf-rel" style={{color:'#7a5010',opacity:.85}}>baseline crosses zero · absolute Δ shown</div>}
+            ? <div className="eqn-cf-rel">{relSign}{fmt(r.relative_delta * 100, 3)}% vs baseline</div>
+            : <div className="eqn-cf-rel" style={{color:'#7a5010',opacity:.85}}>baseline crosses zero · absolute Δ shown</div>}
         </div>
       </div>
 
@@ -1431,32 +1427,31 @@ function V2CounterfactualCard({result, elapsed}) {
   );
 }
 
-const V2_ASK_EXAMPLES = [
+const ASK_EXAMPLES = [
   'bone stiffness under cyclic load',
   'how does porosity affect modulus in a 70-year-old female?',
   'why is this patient’s E only 12 GPa?',
   'what if porosity dropped to 5%?',
 ];
 
-// ── v2 active exploration / Surprises panel (Phase 5) ──────────────────────
-function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
+// ── Active exploration / Surprises panel ─────────────────────────────────
+function SurprisesPanel({candidates, loading, error, onRefresh, fromAsk}) {
   return (
-    <div className="v2-surprises">
-      <div className="v2-surprises-hdr">
+    <div className="eqn-surprises">
+      <div className="eqn-surprises-hdr">
         <div>
-          <div className="v2-surprises-title">
+          <div className="eqn-surprises-title">
             {fromAsk ? 'Exploration matched your query' : 'Surprises — active exploration'}
-            <span className="v2-experimental-tag">phase 5</span>
           </div>
-          <div className="v2-surprises-blurb">
+          <div className="eqn-surprises-blurb">
             Walks the equation graph without a query, runs forward inference at each sweep point,
             and ranks candidates by <em>magnitude × physics-confidence × corpus-attestation</em>.
             High-ranked items are where physics says something concrete and the literature
             is actively discussing the same topic.
           </div>
         </div>
-        <div className="v2-surprises-actions">
-          <button className="v2-surprises-btn" onClick={onRefresh} disabled={loading}>
+        <div className="eqn-surprises-actions">
+          <button className="eqn-surprises-btn" onClick={onRefresh} disabled={loading}>
             {loading ? <Spinner/> : (candidates ? 'Re-run' : 'Run')}
           </button>
         </div>
@@ -1467,10 +1462,10 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
           <Dots/><span>Sweeping the graph and asking the corpus…</span>
         </div>
       )}
-      {error && <div className="v2-error">{error}</div>}
+      {error && <div className="eqn-error">{error}</div>}
 
       {candidates && candidates.length > 0 && (
-        <div className="v2-surprise-list">
+        <div className="eqn-surprise-list">
           {candidates.map((c, i) => {
             const dirClass = c.direction === 'increases' ? 'dir-up'
                            : c.direction === 'decreases' ? 'dir-down'
@@ -1482,37 +1477,37 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
                         ? '—'
                         : `${(c.relative_change * 100).toFixed(0)}%`;
             return (
-              <div key={i} className="v2-surprise-card">
-                <div className="v2-surprise-row1">
-                  <span className="v2-surprise-rank">#{i + 1}</span>
-                  <div className="v2-surprise-title">{c.title}</div>
-                  <span className="v2-surprise-score">surprise {c.surprise_score.toFixed(3)}</span>
+              <div key={i} className="eqn-surprise-card">
+                <div className="eqn-surprise-row1">
+                  <span className="eqn-surprise-rank">#{i + 1}</span>
+                  <div className="eqn-surprise-title">{c.title}</div>
+                  <span className="eqn-surprise-score">surprise {c.surprise_score.toFixed(3)}</span>
                 </div>
 
-                <div className="v2-surprise-summary">{c.summary}</div>
+                <div className="eqn-surprise-summary">{c.summary}</div>
 
-                <div className="v2-surprise-row2">
-                  <span className={`v2-surprise-pill ${dirClass}`}>{arrow} {c.direction} ({rel})</span>
-                  <span className="v2-surprise-pill">phys conf {c.physics_confidence.toFixed(2)}</span>
-                  <span className="v2-surprise-pill">mag {c.magnitude.toFixed(2)}</span>
+                <div className="eqn-surprise-row2">
+                  <span className={`eqn-surprise-pill ${dirClass}`}>{arrow} {c.direction} ({rel})</span>
+                  <span className="eqn-surprise-pill">phys conf {c.physics_confidence.toFixed(2)}</span>
+                  <span className="eqn-surprise-pill">mag {c.magnitude.toFixed(2)}</span>
                   <Badge label={c.corpus.label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[c.corpus.label]}/>
                 </div>
 
-                <div className="v2-surprise-sweep">
-                  {dsym(c.sweep_var_info)}: {c.sweep_points.map(p => v2Fmt(p.value)).join(' → ')}
+                <div className="eqn-surprise-sweep">
+                  {dsym(c.sweep_var_info)}: {c.sweep_points.map(p => fmt(p.value)).join(' → ')}
                   {'  ⇒  '}
-                  {dsym(c.target_info)}: {c.sweep_points.map(p => v2Fmt(p.mean)).join(' → ')}
+                  {dsym(c.target_info)}: {c.sweep_points.map(p => fmt(p.mean)).join(' → ')}
                   {c.target_info.unit ? ` ${c.target_info.unit}` : ''}
                 </div>
 
-                {c.error && <div className="v2-error">{c.error}</div>}
+                {c.error && <div className="eqn-error">{c.error}</div>}
 
-                <div className="v2-surprise-corpus-q">corpus query: {c.corpus.query}</div>
+                <div className="eqn-surprise-corpus-q">corpus query: {c.corpus.query}</div>
 
-                <div className="v2-surprise-meta">
+                <div className="eqn-surprise-meta">
                   <span>chain: {c.chain_vars.map(v => dsym(v)).join(' → ')}</span>
                   {Object.keys(c.held).length > 0 && (
-                    <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${v2Fmt(v)}`).join(', ')}</span>
+                    <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${fmt(v)}`).join(', ')}</span>
                   )}
                   <span>cite: {c.citations.join(' · ')}</span>
                 </div>
@@ -1525,7 +1520,7 @@ function V2Surprises({candidates, loading, error, onRefresh, fromAsk}) {
   );
 }
 
-// ── v2 agents panel (Phase 7/8) ────────────────────────────────────────────
+// ── Agents panel — Proposer + Critic loop ────────────────────────────────
 const VERDICT_LABELS = {
   'interesting':    'Interesting',
   'trivial':        'Trivial',
@@ -1533,22 +1528,21 @@ const VERDICT_LABELS = {
   'needs-more-data':'Needs more data',
 };
 
-function V2AgentsPanel({agents, loading, error, onRun}) {
+function AgentsPanel({agents, loading, error, onRun}) {
   return (
-    <div className="v2-agents">
-      <div className="v2-agents-hdr">
+    <div className="eqn-agents">
+      <div className="eqn-agents-hdr">
         <div>
-          <div className="v2-agents-title">
+          <div className="eqn-agents-title">
             Agents — hypothesis discovery
-            <span className="v2-experimental-tag">phase 7/8</span>
           </div>
-          <div className="v2-agents-blurb">
+          <div className="eqn-agents-blurb">
             A Proposer agent walks the variable graph and suggests novel (target, sweep) pairs.
             The deterministic engine evaluates each one. A Critic agent searches the corpus
             and decides whether the result is <em>interesting</em>, <em>trivial</em>, or needs more data.
           </div>
         </div>
-        <button className="v2-agents-btn" onClick={onRun} disabled={loading}>
+        <button className="eqn-agents-btn" onClick={onRun} disabled={loading}>
           {loading ? <Spinner/> : (agents ? 'Re-run' : 'Run agents')}
         </button>
       </div>
@@ -1558,14 +1552,14 @@ function V2AgentsPanel({agents, loading, error, onRun}) {
           <Dots/><span>Proposer is thinking… Critic is reading the corpus…</span>
         </div>
       )}
-      {error && <div className="v2-agent-error">{error}</div>}
+      {error && <div className="eqn-agent-error">{error}</div>}
 
       {agents && agents.length > 0 && (
-        <div className="v2-agent-list">
+        <div className="eqn-agent-list">
           {agents.map((item, i) => {
             if (item.error) return (
-              <div key={i} className="v2-agent-card">
-                <div className="v2-agent-error">{item.error}</div>
+              <div key={i} className="eqn-agent-card">
+                <div className="eqn-agent-error">{item.error}</div>
               </div>
             );
 
@@ -1583,46 +1577,46 @@ function V2AgentsPanel({agents, loading, error, onRun}) {
               ? `${(p.relative_change * 100).toFixed(0)}%` : '—';
 
             return (
-              <div key={i} className={`v2-agent-card verdict-${verdict}`}>
-                <div className="v2-agent-row1">
-                  <div className="v2-agent-title">
+              <div key={i} className={`eqn-agent-card verdict-${verdict}`}>
+                <div className="eqn-agent-row1">
+                  <div className="eqn-agent-title">
                     #{i + 1} · {h.sweep_var} → {h.target}
                   </div>
-                  <span className={`v2-agent-verdict ${verdict}`}>
+                  <span className={`eqn-agent-verdict ${verdict}`}>
                     {VERDICT_LABELS[verdict] || verdict}
                   </span>
                 </div>
 
                 {h.rationale && (
-                  <div className="v2-agent-rationale">{h.rationale}</div>
+                  <div className="eqn-agent-rationale">{h.rationale}</div>
                 )}
 
                 {c.reason && (
-                  <div className="v2-agent-reason">Critic: {c.reason}</div>
+                  <div className="eqn-agent-reason">Critic: {c.reason}</div>
                 )}
 
-                <div className="v2-agent-pills">
-                  <span className={`v2-agent-pill ${dirClass}`}>{arrow} {p.direction} ({relChange})</span>
+                <div className="eqn-agent-pills">
+                  <span className={`eqn-agent-pill ${dirClass}`}>{arrow} {p.direction} ({relChange})</span>
                   {p.physics_confidence != null && (
-                    <span className="v2-agent-pill">phys conf {p.physics_confidence.toFixed(2)}</span>
+                    <span className="eqn-agent-pill">phys conf {p.physics_confidence.toFixed(2)}</span>
                   )}
                   {p.magnitude != null && (
-                    <span className="v2-agent-pill">mag {p.magnitude.toFixed(2)}</span>
+                    <span className="eqn-agent-pill">mag {p.magnitude.toFixed(2)}</span>
                   )}
                   {p.corpus_label && (
                     <Badge label={p.corpus_label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[p.corpus_label]}/>
                   )}
                   {c.confidence != null && (
-                    <span className="v2-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
+                    <span className="eqn-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
                   )}
                 </div>
 
                 {p.summary && (
-                  <div className="v2-agent-sweep">{p.summary}</div>
+                  <div className="eqn-agent-sweep">{p.summary}</div>
                 )}
 
                 {c.corpus_passages && c.corpus_passages.length > 0 && (
-                  <div className="v2-agent-corpus">
+                  <div className="eqn-agent-corpus">
                     {c.corpus_passages.map((s, j) => (
                       <div key={j} style={{marginBottom:4}}>"{s}"</div>
                     ))}
@@ -1637,7 +1631,7 @@ function V2AgentsPanel({agents, loading, error, onRun}) {
   );
 }
 
-function V2Section({presets, onRun, loading, result, error, elapsed,
+function ReasonSection({presets, onRun, loading, result, error, elapsed,
                     covariates, onCovariatesChange,
                     query, onQueryChange, onAsk,
                     surprises, surprisesLoading, surprisesError, onSurprisesRefresh,
@@ -1656,34 +1650,34 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
-      <V2CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
+      <CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
 
       {!result && !loading && (
         <div className="ex-chips">
           <span className="chips-label">Try:</span>
-          {V2_ASK_EXAMPLES.map((ex, i) => (
+          {ASK_EXAMPLES.map((ex, i) => (
             <button key={i} className="chip"
               onClick={() => { onQueryChange(ex); onAsk(ex); }}>{ex}</button>
           ))}
         </div>
       )}
 
-      {V2_PRESETS_ENABLED && (
-      <div className="v2-preset-groups">
+      {PRESETS_ENABLED && (
+      <div className="eqn-preset-groups">
         {groups.map(g => {
-          const meta = V2_MODE_META[g.mode];
+          const meta = MODE_META[g.mode];
           return (
-            <div key={g.mode} className="v2-preset-group">
-              <div className="v2-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
-              <div className="v2-presets" style={{justifyContent:'flex-start'}}>
+            <div key={g.mode} className="eqn-preset-group">
+              <div className="eqn-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
+              <div className="eqn-presets" style={{justifyContent:'flex-start'}}>
                 {g.items.map(p => (
-                  <button key={p.id} className="v2-preset" onClick={() => onRun(p)} disabled={loading}>
-                    <span className="v2-preset-label">
-                      <span className={`v2-mode-tag ${meta.cls}`}>{meta.tag}</span>
+                  <button key={p.id} className="eqn-preset" onClick={() => onRun(p)} disabled={loading}>
+                    <span className="eqn-preset-label">
+                      <span className={`eqn-mode-tag ${meta.cls}`}>{meta.tag}</span>
                       {p.label}
-                      {p.syncCovariates && <span className="v2-mode-tag v2-mode-counterfactual" style={{marginLeft:8}}>covariates</span>}
+                      {p.syncCovariates && <span className="eqn-mode-tag eqn-mode-counterfactual" style={{marginLeft:8}}>covariates</span>}
                     </span>
-                    <span className="v2-preset-desc">{p.desc}</span>
+                    <span className="eqn-preset-desc">{p.desc}</span>
                   </button>
                 ))}
               </div>
@@ -1698,15 +1692,15 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           <Dots/><span>{loadingMsg[result?.mode] || loadingMsg.forward}</span>
         </div>
       )}
-      {error && <div className="v2-error">{error}</div>}
+      {error && <div className="eqn-error">{error}</div>}
 
       {result && !loading && (
         <Fragment>
-          {result.mode === 'forward'        && <V2ForwardCard        result={result} elapsed={elapsed}/>}
-          {result.mode === 'abductive'      && <V2AbductiveCard      result={result} elapsed={elapsed}/>}
-          {result.mode === 'counterfactual' && <V2CounterfactualCard result={result} elapsed={elapsed}/>}
-          {V2_SURPRISES_ENABLED && result.mode === 'explore' && (
-            <V2Surprises
+          {result.mode === 'forward'        && <ForwardCard        result={result} elapsed={elapsed}/>}
+          {result.mode === 'abductive'      && <AbductiveCard      result={result} elapsed={elapsed}/>}
+          {result.mode === 'counterfactual' && <CounterfactualCard result={result} elapsed={elapsed}/>}
+          {SURPRISES_ENABLED && result.mode === 'explore' && (
+            <SurprisesPanel
               candidates={result.candidates || []}
               loading={false}
               error=""
@@ -1716,11 +1710,11 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
           )}
 
           {result.citations && result.citations.length > 0 && (
-            <div className="v2-card" style={{paddingTop:14}}>
-              <div className="v2-card-title" style={{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>Citations</div>
-              <div className="v2-citations" style={{borderTop:'none',paddingTop:0}}>
+            <div className="eqn-card" style={{paddingTop:14}}>
+              <div className="eqn-card-title" style={{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>Citations</div>
+              <div className="eqn-citations" style={{borderTop:'none',paddingTop:0}}>
                 {result.citations.map((c, i) => (
-                  <div key={i} className="v2-citation-row">{c}</div>
+                  <div key={i} className="eqn-citation-row">{c}</div>
                 ))}
               </div>
             </div>
@@ -1729,8 +1723,8 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
       )}
 
       {/* Always-on Surprises panel — independent of any user query. */}
-      {V2_SURPRISES_ENABLED && result?.mode !== 'explore' && (
-        <V2Surprises
+      {SURPRISES_ENABLED && result?.mode !== 'explore' && (
+        <SurprisesPanel
           candidates={surprises}
           loading={surprisesLoading}
           error={surprisesError}
@@ -1740,8 +1734,8 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
       )}
 
       {/* Phase 7/8 — Agents panel */}
-      {V2_AGENTS_ENABLED && (
-        <V2AgentsPanel
+      {AGENTS_ENABLED && (
+        <AgentsPanel
           agents={agents}
           loading={agentsLoading}
           error={agentsError}
@@ -1753,315 +1747,154 @@ function V2Section({presets, onRun, loading, result, error, elapsed,
 }
 
 function ReasonTab() {
-  const [concept, setConcept]         = useState('');
-  const [result, setResult]           = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
-  const [clientElapsed, setClientElapsed] = useState(null);
-
-  // v2 (equation-graph) state — lives alongside the v0 state so a user
-  // can flip between them without losing context.
-  const [v2Mode, setV2Mode]           = useState(false);
-  const [v2Result, setV2Result]       = useState(null);
-  const [v2Loading, setV2Loading]     = useState(false);
-  const [v2Error, setV2Error]         = useState('');
-  const [v2Elapsed, setV2Elapsed]     = useState(null);
-  const [v2Covariates, setV2Covariates] = useState({...V2_DEFAULT_COVARIATES});
-  const [v2Query, setV2Query]           = useState('');
+  const [result, setResult]       = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [elapsed, setElapsed]     = useState(null);
+  const [covariates, setCovariates] = useState({...DEFAULT_COVARIATES});
+  const [query, setQuery]           = useState('');
 
   // Phase 5 — active exploration / Surprises panel state.
-  const [v2Surprises,        setV2Surprises]        = useState(null);
-  const [v2SurprisesLoading, setV2SurprisesLoading] = useState(false);
-  const [v2SurprisesError,   setV2SurprisesError]   = useState('');
+  const [surprises,        setSurprisesPanel]        = useState(null);
+  const [surprisesLoading, setSurprisesPanelLoading] = useState(false);
+  const [surprisesError,   setSurprisesPanelError]   = useState('');
 
   // Phase 7/8 — agents panel state.
-  const [v2Agents,        setV2Agents]        = useState(null);
-  const [v2AgentsLoading, setV2AgentsLoading] = useState(false);
-  const [v2AgentsError,   setV2AgentsError]   = useState('');
+  const [agents,        setAgents]        = useState(null);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [agentsError,   setAgentsError]   = useState('');
 
-  const loadV2Surprises = async (refresh = false) => {
-    if (v2SurprisesLoading) return;
-    setV2SurprisesLoading(true); setV2SurprisesError('');
+  const loadSurprisesPanel = async (refresh = false) => {
+    if (surprisesLoading) return;
+    setSurprisesPanelLoading(true); setSurprisesPanelError('');
     try {
-      const r = await fetch('/api/reason_v2/explore' + (refresh ? '?refresh=true' : ''));
+      const r = await fetch('/api/reason/explore' + (refresh ? '?refresh=true' : ''));
       const data = await r.json();
-      if (data.error) setV2SurprisesError(data.error);
-      else setV2Surprises(data.candidates || []);
-    } catch { setV2SurprisesError('Could not run active exploration. Please try again.'); }
-    setV2SurprisesLoading(false);
+      if (data.error) setSurprisesPanelError(data.error);
+      else setSurprisesPanel(data.candidates || []);
+    } catch { setSurprisesPanelError('Could not run active exploration. Please try again.'); }
+    setSurprisesPanelLoading(false);
   };
 
-  const runV2Agents = async () => {
-    if (v2AgentsLoading) return;
-    setV2AgentsLoading(true); setV2AgentsError('');
+  const runAgents = async () => {
+    if (agentsLoading) return;
+    setAgentsLoading(true); setAgentsError('');
     try {
-      const r = await fetch('/api/reason_v2/agents', {
+      const r = await fetch('/api/reason/agents', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({n_proposals: 2}),
       });
       const data = await r.json();
-      if (data.error) setV2AgentsError(data.error);
-      else setV2Agents(data.proposals || []);
-    } catch { setV2AgentsError('Could not run agents. Please try again.'); }
-    setV2AgentsLoading(false);
+      if (data.error) setAgentsError(data.error);
+      else setAgents(data.proposals || []);
+    } catch { setAgentsError('Could not run agents. Please try again.'); }
+    setAgentsLoading(false);
   };
 
-  // Lazy fetch the first time the user opens the v2 tab.  Gated by the
-  // Surprises feature flag so we don't trigger the (cold) 25s SPECTER2
-  // exploration run when the panel itself is hidden.
+  // Lazy fetch on mount, gated by the Surprises feature flag so we don't
+  // trigger the (cold) 25s SPECTER2 exploration run when the panel is hidden.
   useEffect(() => {
-    if (V2_SURPRISES_ENABLED && v2Mode && v2Surprises === null && !v2SurprisesLoading) {
-      loadV2Surprises(false);
+    if (SURPRISES_ENABLED && surprises === null && !surprisesLoading) {
+      loadSurprisesPanel(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [v2Mode]);
+  }, []);
 
-  const EXAMPLES = ['cortical porosity and elastic modulus','mechanical loading and bone remodeling','fatigue crack growth','cortical thickness and bending stiffness'];
-
-  const reason = async (c) => {
-    const term = (c || concept).trim();
-    if (!term || loading) return;
-    setConcept(term); setLoading(true); setResult(null); setError(''); setClientElapsed(null);
+  const runAsk = async (queryOverride) => {
+    const q = (queryOverride ?? query).trim();
+    if (!q || loading) return;
+    setQuery(q);
+    setLoading(true); setResult(null); setError(''); setElapsed(null);
     const t0 = performance.now();
     try {
-      const fd = new FormData();
-      fd.append('query', term); fd.append('max_results','8'); fd.append('physics_filter','true');
-      const r = await fetch('/api/reason', { method:'POST', body:fd });
+      const r = await fetch('/api/reason/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, covariates: covariates}),
+      });
       const data = await r.json();
-      setClientElapsed(((performance.now() - t0) / 1000).toFixed(2));
-      setResult(data);
-    } catch { setError('Could not generate hypothesis chains. Please try again.'); }
+      setElapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setError(data.error);
+      else setResult(data);
+    } catch { setError('Could not run inference. Please try again.'); }
     setLoading(false);
   };
 
-  const reasonV2Ask = async (queryOverride) => {
-    const q = (queryOverride ?? v2Query).trim();
-    if (!q || v2Loading) return;
-    setV2Query(q);
-    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
-    const t0 = performance.now();
-    try {
-      const r = await fetch('/api/reason_v2/ask', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({query: q, covariates: v2Covariates}),
-      });
-      const data = await r.json();
-      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
-      if (data.error) setV2Error(data.error);
-      else setV2Result(data);
-    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
-    setV2Loading(false);
-  };
-
-  const reasonV2 = async (preset) => {
-    if (v2Loading) return;
+  const runPreset = async (preset) => {
+    if (loading) return;
     // If the preset pins specific covariates (Phase 3 demos), sync the
     // panel to them so the user can see what the run is actually using.
     // The payload always reflects the (post-sync) panel state.
-    let covariatesForRequest = v2Covariates;
+    let covariatesForRequest = covariates;
     if (preset.syncCovariates) {
-      covariatesForRequest = {...V2_DEFAULT_COVARIATES, ...preset.syncCovariates};
-      setV2Covariates(covariatesForRequest);
+      covariatesForRequest = {...DEFAULT_COVARIATES, ...preset.syncCovariates};
+      setCovariates(covariatesForRequest);
     }
-    setV2Loading(true); setV2Result(null); setV2Error(''); setV2Elapsed(null);
+    setLoading(true); setResult(null); setError(''); setElapsed(null);
     const t0 = performance.now();
     try {
-      const r = await fetch('/api/reason_v2', {
+      const r = await fetch('/api/reason', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({preset: preset.id, covariates: covariatesForRequest}),
       });
       const data = await r.json();
-      setV2Elapsed(((performance.now() - t0) / 1000).toFixed(2));
-      if (data.error) setV2Error(data.error);
-      else setV2Result(data);
-    } catch { setV2Error('Could not run v2 inference. Please try again.'); }
-    setV2Loading(false);
+      setElapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setError(data.error);
+      else setResult(data);
+    } catch { setError('Could not run inference. Please try again.'); }
+    setLoading(false);
   };
 
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
-        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>
           Hypothesis Generator
-          {v2Mode && <span className="v2-experimental-tag">experimental</span>}
-        </div>
-        <div style={{display:'flex',justifyContent:'center'}}>
-          <div className="v2-switch">
-            <button className={!v2Mode ? 'active' : ''} onClick={() => setV2Mode(false)}>physics grid</button>
-            <button className={v2Mode ? 'active' : ''} onClick={() => setV2Mode(true)}>equation graph</button>
-          </div>
         </div>
         <div className="reason-desc">
-          {v2Mode
-            ? 'Forward, abductive and counterfactual inference over a typed equation graph. Patient covariates reshape each law’s priors before propagation.'
-            : 'Enter a bone-physics concept. BoneMind runs each applicable physical law over a perturbation grid and emits quantitative hypotheses. Each candidate is then run through a three-round adversarial physics critic before being shown.'}
+          Forward, abductive and counterfactual inference over a typed equation graph.
+          Patient covariates reshape each law’s priors before propagation.
         </div>
-        {!v2Mode && (
-          <div className="reason-bar">
-            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-            </svg>
-            <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
-              value={concept} onChange={e => setConcept(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
-            <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
-              {loading ? <Spinner/> : 'Reason'}
-            </button>
-          </div>
-        )}
-        {v2Mode && (
-          <div className="reason-bar">
-            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-            </svg>
-            <input className="reason-input"
-              placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
-              value={v2Query} onChange={e => setV2Query(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && reasonV2Ask()} disabled={v2Loading}/>
-            <button className="reason-btn" onClick={() => reasonV2Ask()}
-                    disabled={v2Loading || !(v2Query || '').trim()}>
-              {v2Loading ? <Spinner/> : 'Reason'}
-            </button>
-          </div>
-        )}
+        <div className="reason-bar">
+          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+          </svg>
+          <input className="reason-input"
+            placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+            value={query} onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && runAsk()} disabled={loading}/>
+          <button className="reason-btn" onClick={() => runAsk()}
+                  disabled={loading || !(query || '').trim()}>
+            {loading ? <Spinner/> : 'Reason'}
+          </button>
+        </div>
       </div>
 
       <div className="reason-body">
-        {v2Mode && (
-          <V2Section
-            presets={V2_PRESETS}
-            onRun={reasonV2}
-            loading={v2Loading}
-            result={v2Result}
-            error={v2Error}
-            elapsed={v2Elapsed}
-            covariates={v2Covariates}
-            onCovariatesChange={setV2Covariates}
-            query={v2Query}
-            onQueryChange={setV2Query}
-            onAsk={reasonV2Ask}
-            surprises={v2Surprises}
-            surprisesLoading={v2SurprisesLoading}
-            surprisesError={v2SurprisesError}
-            onSurprisesRefresh={() => loadV2Surprises(true)}
-            agents={v2Agents}
-            agentsLoading={v2AgentsLoading}
-            agentsError={v2AgentsError}
-            onAgentsRun={runV2Agents}
-          />
-        )}
-
-        {!v2Mode && !result && !loading && (
-          <div className="ex-chips">
-            <span className="chips-label">Try:</span>
-            {EXAMPLES.map((ex,i) => <button key={i} className="chip" onClick={() => reason(ex)}>{ex}</button>)}
-          </div>
-        )}
-
-        {!v2Mode && loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Running physics laws and adversarial critic…</span></div>}
-        {!v2Mode && error && <div className="error-note">{error}</div>}
-
-        {!v2Mode && result && !loading && (
-        <div className="reason-results">
-          <div className="results-title">Physics-derived hypotheses for <em>"{result.concept}"</em></div>
-          {result.graph_stats && (
-            <div className="graph-stats-line">
-              {result.graph_stats.nodes?.toLocaleString()} nodes · {result.graph_stats.edges?.toLocaleString()} edges · {clientElapsed}s
-            </div>
-          )}
-          {result.chains && result.chains.length > 0 ? result.chains.map((ch,i) => {
-            const survived = ch.critic_rounds_passed === ch.critic_rounds_total && ch.critic_rounds_total > 0;
-            return (
-            <div key={i} className="chain-card">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-                <div className="chain-lbl">Hypothesis {i+1} · score {ch.score}</div>
-                {ch.scenario && <span className="chain-scenario">{ch.scenario}</span>}
-              </div>
-
-              {ch.law && (
-                <div className="chain-law">
-                  <span className="chain-law-name">{ch.law}</span>
-                  {ch.law_form && <span className="chain-law-form">{ch.law_form}</span>}
-                </div>
-              )}
-
-              <div className="chain-nodes">
-                {ch.nodes.map((n,j) => (
-                  <Fragment key={j}>
-                    <div className="chain-node">{n}</div>
-                    {j < ch.nodes.length-1 && <ChainArrow/>}
-                  </Fragment>
-                ))}
-              </div>
-
-              {(ch.perturbation || ch.prediction) && (
-                <div className="pred-box">
-                  <div className="pred-half">
-                    <span className="pred-lbl">Perturbation</span>
-                    <span className="pred-val">{ch.perturbation}</span>
-                  </div>
-                  <div className="pred-half">
-                    <span className="pred-lbl">Predicted change</span>
-                    <span className="pred-val amber">{ch.prediction}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="critic-row">
-                <span className={`critic-pill ${survived?'ok':'fail'}`}>
-                  {survived
-                    ? `Survived ${ch.critic_rounds_passed}/${ch.critic_rounds_total} physics rounds`
-                    : `Falsified at round ${ch.critic_rounds_passed + 1}/${ch.critic_rounds_total}`}
-                </span>
-                <Badge label={ch.novelty} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[ch.novelty]}/>
-                {ch.relations?.length > 0 && (
-                  <span className="chain-rels">{ch.relations.join(' · ')}</span>
-                )}
-              </div>
-
-              {!survived && ch.critic_failure && (
-                <div className="critic-fail-detail">{ch.critic_failure}</div>
-              )}
-              {ch.explanation && <div className="chain-expl">{ch.explanation}</div>}
-              {ch.summary && <div className="chain-summary">{ch.summary}</div>}
-              {ch.disclaimer && ch.corpus_disclaimer && (
-                <div className="chain-disclaimer">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0,marginTop:1}}>
-                    <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3"/>
-                    <line x1="7" y1="5.5" x2="7" y2="9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                    <circle cx="7" cy="4" r="0.7" fill="currentColor"/>
-                  </svg>
-                  {ch.corpus_disclaimer}
-                </div>
-              )}
-            </div>
-            );
-          }) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No physics-driven hypotheses match this query yet. Try one of these:
-• Currey's law — "cortical porosity and elastic modulus"
-• Frost mechanostat — "mechanical loading and bone remodeling"
-• Paris law — "fatigue crack growth"
-• Beam bending — "cortical thickness and bending stiffness"</div>}
-
-          {result.chains?.length > 0 && (
-            <div className="badge-legend">
-              <div className="legend-grp">
-                <span className="legend-lbl">Physics</span>
-                <Badge label="PLAUSIBLE" map={VALIDITY_STYLES}/>
-                <Badge label="IMPLAUSIBLE" map={VALIDITY_STYLES}/>
-              </div>
-              <div className="legend-grp">
-                <span className="legend-lbl">Hypothesis</span>
-                {['GROUNDED','SPECULATIVE','NOVEL'].map(k => <Badge key={k} label={k} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[k]}/>)}
-              </div>
-            </div>
-          )}
-        </div>
-        )}
+        <ReasonSection
+          presets={REASON_PRESETS}
+          onRun={runPreset}
+          loading={loading}
+          result={result}
+          error={error}
+          elapsed={elapsed}
+          covariates={covariates}
+          onCovariatesChange={setCovariates}
+          query={query}
+          onQueryChange={setQuery}
+          onAsk={runAsk}
+          surprises={surprises}
+          surprisesLoading={surprisesLoading}
+          surprisesError={surprisesError}
+          onSurprisesRefresh={() => loadSurprisesPanel(true)}
+          agents={agents}
+          agentsLoading={agentsLoading}
+          agentsError={agentsError}
+          onAgentsRun={runAgents}
+        />
       </div>
     </div>
   );
