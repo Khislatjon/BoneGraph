@@ -3,7 +3,7 @@
 > **⚠️ Partially superseded (May 2026).** The reasoning engine described
 > below — graph-walk over corpus-extracted nodes with physics as an
 > IMPLAUSIBLE-only post-filter — was replaced after audit of the
-> LLM-extracted graph (see [`graph_cleanup.md`](graph_cleanup.md)) and
+> LLM-extracted graph (see [`graph_cleanup.md`](reasoning/graph_cleanup.md)) and
 > a full rework of the hypothesis pipeline (see
 > [`physics_reasoning.md`](reasoning/physics_grid.md)).
 >

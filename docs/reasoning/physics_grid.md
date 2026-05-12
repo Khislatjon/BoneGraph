@@ -17,7 +17,7 @@ for historical context.
 The Reasoning tab's v0 pipeline generates hypotheses **from physical
 laws** and falsifies them with **an adversarial physics critic**
 before any human-readable output is produced. The cleaned bone
-knowledge graph ([`graph_cleanup.md`](../graph_cleanup.md)) is consulted
+knowledge graph ([`graph_cleanup.md`](graph_cleanup.md)) is consulted
 only for node-id materialisation (the chain cards display extracted
 graph labels), not as a source of hypotheses.
 
