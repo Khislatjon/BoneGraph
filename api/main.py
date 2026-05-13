@@ -189,9 +189,9 @@ _exploration_cache: list[ExplorationCandidate] | None = None
 print("Wiring proposer + critic agents...")
 _agent_dispatcher = ToolDispatcher(registry=bone_registry, retriever=retriever)
 _proposer = ProposerAgent(
+    registry=bone_registry,
     ollama_url=OLLAMA_URL,
     model=OLLAMA_MODEL,
-    temperature=0.5,
 )
 _critic = CriticAgent(
     dispatcher=_agent_dispatcher,
@@ -1473,16 +1473,50 @@ def reason_agents(payload: dict):
         # ── Step 2: Physics evaluation (deterministic) ───────────────────────
         # Filter `given` to known symbols so a hallucinated key (e.g. "density"
         # instead of "rho") can't crash the Explorer downstream.
-        held = {
+        held_raw = {
             k: v for k, v in proposal.given.items()
             if bone_registry.variable(k) is not None
         }
+        # Auto-repair: drop the sweep_var from held and fill any missing
+        # chain-root inputs with midpoint values, so the engine can resolve
+        # the derivation even when the Proposer forgot a required pin.
+        held = bone_registry.complete_given(
+            target=proposal.target,
+            sweep_var=proposal.sweep_var,
+            given=held_raw,
+        )
+        if held is None:
+            proposals_out.append({
+                "error": (
+                    f"No derivation chain from sweep_var '{proposal.sweep_var}' "
+                    f"to target '{proposal.target}' exists in the registry."
+                ),
+                "proposal": {"target": proposal.target, "sweep_var": proposal.sweep_var,
+                             "rationale": proposal.rationale},
+                "source": "agent",
+            })
+            continue
+
+        # Clamp sweep values to the swept Variable's registered range so the
+        # Proposer can't push a sweep beyond physical validity (e.g. R=30 mm
+        # when the range is [5, 25]).
+        sweep_var_def = bone_registry.variable(proposal.sweep_var)
+        if sweep_var_def is not None:
+            lo, hi = sweep_var_def.lo, sweep_var_def.hi
+            clipped = [max(lo, min(hi, v)) for v in proposal.sweep_values]
+            if len(set(clipped)) < 2:
+                clipped = [lo, 0.5 * (lo + hi), hi]
+            sweep_values = clipped
+        else:
+            sweep_values = proposal.sweep_values
+
         cand = explorer.evaluate_proposal(
             target=proposal.target,
             sweep_var=proposal.sweep_var,
-            sweep_values=proposal.sweep_values,
+            sweep_values=sweep_values,
             held=held,
             title=f"[agent] {proposal.sweep_var} → {proposal.target}",
+            skip_novelty=True,   # Critic agent runs its own corpus search.
         )
 
         if cand is None:
@@ -1510,8 +1544,8 @@ def reason_agents(payload: dict):
             hypothesis={
                 "target":       proposal.target,
                 "sweep_var":    proposal.sweep_var,
-                "given":        proposal.given,
-                "sweep_values": proposal.sweep_values,
+                "given":        held,
+                "sweep_values": sweep_values,
                 "rationale":    proposal.rationale,
             },
             physics=physics_summary,
@@ -1529,8 +1563,8 @@ def reason_agents(payload: dict):
             "hypothesis": {
                 "target":       proposal.target,
                 "sweep_var":    proposal.sweep_var,
-                "given":        proposal.given,
-                "sweep_values": proposal.sweep_values,
+                "given":        held,
+                "sweep_values": sweep_values,
                 "rationale":    proposal.rationale,
                 "title":        cand.title,
             },

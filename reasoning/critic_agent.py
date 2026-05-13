@@ -96,7 +96,7 @@ class CriticAgent:
         dispatcher: ToolDispatcher,
         ollama_url: str,
         model: str,
-        timeout: float = 15.0,
+        timeout: float = 60.0,
     ) -> None:
         self._dispatcher = dispatcher
         self._url = ollama_url
@@ -186,7 +186,10 @@ class CriticAgent:
             resp.raise_for_status()
             return resp.json().get("message", {}).get("content", "")
         except Exception as exc:
-            logger.warning("CriticAgent LLM call failed: %s", exc)
+            logger.warning(
+                "CriticAgent LLM call failed (%s): %s",
+                type(exc).__name__, exc,
+            )
             return None
 
 

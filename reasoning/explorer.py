@@ -58,6 +58,7 @@ class _SweepSpec:
     held: dict[str, float]             # other chain roots, pinned
     corpus_query: str                  # academic-flavoured text for SPECTER2
     title: str                         # short label for the UI
+    skip_novelty: bool = False         # bypass the novelty classifier (agent path)
 
 
 # Each spec touches a different part of the graph, so the seven specs
@@ -250,13 +251,18 @@ class Explorer:
         held: dict[str, float],
         title: str | None = None,
         corpus_query: str | None = None,
+        skip_novelty: bool = False,
     ) -> ExplorationCandidate | None:
         """
         Evaluate an agent-proposed sweep using the same pipeline as run().
 
         This is the bridge between the Phase 7 ProposerAgent and the
         deterministic Explorer.  The proposer decides *what* to evaluate;
-        the Explorer computes the physics and corpus scores.
+        the Explorer computes the physics scores.
+
+        Pass ``skip_novelty=True`` from the agent pipeline — the Critic
+        agent already runs its own corpus search, so the novelty
+        classifier on top is redundant.
         """
         spec = _SweepSpec(
             target=target,
@@ -268,6 +274,7 @@ class Explorer:
                 f"Effect of {sweep_var} on {target} in bone tissue; "
                 "physics-based prediction and experimental evidence."
             ),
+            skip_novelty=skip_novelty,
         )
         return self._evaluate(spec)
 
@@ -317,8 +324,13 @@ class Explorer:
 
         # Corpus contact.
         summary = self._summary_text(spec, direction, rel_change)
-        corpus_label, corpus_score, corpus_sim, corpus_hits = \
-            self._corpus_lookup(spec.corpus_query)
+        if spec.skip_novelty:
+            corpus_label, corpus_score, corpus_sim, corpus_hits = (
+                "UNCERTAIN", 0.5, 0.0, 0,
+            )
+        else:
+            corpus_label, corpus_score, corpus_sim, corpus_hits = \
+                self._corpus_lookup(spec.corpus_query)
 
         corpus_weight = _CORPUS_WEIGHTS.get(corpus_label, 0.5)
 

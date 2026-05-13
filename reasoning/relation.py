@@ -623,6 +623,106 @@ class RelationRegistry:
 
         return resolve(target)
 
+    def complete_given(
+        self,
+        *,
+        target: str,
+        sweep_var: str,
+        given: dict[str, float],
+    ) -> dict[str, float] | None:
+        """
+        Repair a proposer-supplied ``given`` dict so the chain to ``target``
+        resolves.
+
+        The proposer LLM often (a) pins ``sweep_var`` itself, (b) pins
+        irrelevant variables, or (c) forgets required roots. This helper:
+
+        1. Drops ``sweep_var`` from ``given``.
+        2. Finds the derivation chain to ``target`` treating supplied keys
+           plus ``sweep_var`` as available.
+        3. Computes the chain's root inputs and fills any missing root
+           with the midpoint of its registered ``[lo, hi]`` range.
+
+        Returns the repaired ``given`` dict, or ``None`` if no chain can
+        be built even with midpoint fills (e.g. ``target`` has no producer
+        and was not supplied).
+        """
+        cleaned = {k: float(v) for k, v in given.items() if k != sweep_var}
+        # Walk producers backward from target until we reach root variables
+        # (those with no producer). The roots are exactly the variables the
+        # Proposer must pin — minus the sweep_var, which is supplied per
+        # sweep point.
+        roots: set[str] = set()
+        seen: set[str] = set()
+
+        def walk(var: str) -> None:
+            if var in seen:
+                return
+            seen.add(var)
+            producers = self._producers.get(var, [])
+            if not producers:
+                roots.add(var)
+                return
+            # Use the first producer — every Relation in the registry has a
+            # single producer per output anyway. If that changes, we still
+            # need a deterministic choice; first-registered is fine.
+            for inp in producers[0].inputs:
+                walk(inp)
+
+        walk(target)
+        if target in roots:
+            # target itself has no producer — nothing we can compute.
+            return None
+        if sweep_var not in seen:
+            # sweep_var isn't on the dependency tree of target, so varying
+            # it would produce a flat sweep. Reject so the caller can
+            # surface a clear error.
+            return None
+
+        # Keep only pins that are real roots of this chain; drop irrelevant
+        # ones (e.g. the Proposer pinning `E` when the chain expects `phi`).
+        cleaned = {k: v for k, v in cleaned.items() if k in roots}
+        for root in roots:
+            if root == sweep_var or root in cleaned:
+                continue
+            var = self._variables.get(root)
+            if var is None:
+                return None
+            cleaned[root] = 0.5 * (var.lo + var.hi)
+        return cleaned
+
+    def valid_sweep_pairs(self) -> list[tuple[str, str]]:
+        """
+        Enumerate every ``(sweep_var, target)`` pair the engine can evaluate.
+
+        A pair is valid iff ``sweep_var`` appears in the dependency tree of
+        ``target`` (so varying it produces a non-flat sweep) and ``target``
+        has a producer. Returned in registry insertion order so the list is
+        stable across runs — useful for prompting the Proposer with a
+        constrained menu of choices.
+        """
+        pairs: list[tuple[str, str]] = []
+        for target in self._variables:
+            if target not in self._producers:
+                continue
+            # Collect every Variable on the dependency tree of target.
+            seen: set[str] = set()
+
+            def walk(var: str) -> None:
+                if var in seen:
+                    return
+                seen.add(var)
+                for rel in self._producers.get(var, [])[:1]:
+                    for inp in rel.inputs:
+                        walk(inp)
+
+            walk(target)
+            seen.discard(target)
+            for sweep in self._variables:
+                if sweep in seen:
+                    pairs.append((sweep, target))
+        return pairs
+
     def chain_root_inputs(self, chain: list[Relation]) -> list[str]:
         """
         Variables a chain expects the caller to supply externally.

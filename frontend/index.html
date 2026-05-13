@@ -1587,14 +1587,6 @@ function AgentsPanel({agents, loading, error, onRun}) {
                   </span>
                 </div>
 
-                {h.rationale && (
-                  <div className="eqn-agent-rationale">{h.rationale}</div>
-                )}
-
-                {c.reason && (
-                  <div className="eqn-agent-reason">Critic: {c.reason}</div>
-                )}
-
                 <div className="eqn-agent-pills">
                   <span className={`eqn-agent-pill ${dirClass}`}>{arrow} {p.direction} ({relChange})</span>
                   {p.physics_confidence != null && (
@@ -1603,9 +1595,6 @@ function AgentsPanel({agents, loading, error, onRun}) {
                   {p.magnitude != null && (
                     <span className="eqn-agent-pill">mag {p.magnitude.toFixed(2)}</span>
                   )}
-                  {p.corpus_label && (
-                    <Badge label={p.corpus_label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[p.corpus_label]}/>
-                  )}
                   {c.confidence != null && (
                     <span className="eqn-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
                   )}
@@ -1613,6 +1602,14 @@ function AgentsPanel({agents, loading, error, onRun}) {
 
                 {p.summary && (
                   <div className="eqn-agent-sweep">{p.summary}</div>
+                )}
+
+                {h.rationale && (
+                  <div className="eqn-agent-rationale">{h.rationale}</div>
+                )}
+
+                {c.reason && (
+                  <div className="eqn-agent-reason">Critic: {c.reason}</div>
                 )}
 
                 {c.corpus_passages && c.corpus_passages.length > 0 && (

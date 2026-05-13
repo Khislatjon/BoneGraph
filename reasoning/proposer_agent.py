@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 
 import requests
 
+from reasoning.relation import RelationRegistry
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,10 +63,30 @@ Relations (inputs → output):
   beam_bending          : M, R, I_section → sigma
   hookes_law            : sigma, E → eps
   frost_mechanostat     : eps → dBMD_dt
+
+Required root inputs to reach each target (these are what `given` must pin,
+minus whatever you choose as sweep_var):
+  rho      : {phi}
+  E        : {phi}
+  da_dN    : {phi, dK}
+  I_section: {R, t}
+  sigma    : {M, R, t}
+  eps      : {M, R, t, phi}
+  dBMD_dt  : {M, R, t, phi}
 """
 
 
-def _build_system_prompt(scratchpad: list[dict] | None) -> str:
+def _format_valid_pairs(pairs: list[tuple[str, str]]) -> str:
+    if not pairs:
+        return ""
+    lines = [f"  {sweep} → {target}" for sweep, target in pairs]
+    return "Valid (sweep_var → target) pairs — pick ONE of these:\n" + "\n".join(lines) + "\n"
+
+
+def _build_system_prompt(
+    scratchpad: list[dict] | None,
+    valid_pairs: list[tuple[str, str]],
+) -> str:
     already = ""
     if scratchpad:
         items = [
@@ -73,17 +95,21 @@ def _build_system_prompt(scratchpad: list[dict] | None) -> str:
         ]
         already = f"\nAlready explored (avoid repeating): {', '.join(items)}\n"
 
+    pair_menu = _format_valid_pairs(valid_pairs)
+
     return f"""\
 You are a hypothesis proposer for a bone-physics equation-graph reasoner.
-{_GRAPH_CONTEXT}{already}
+{_GRAPH_CONTEXT}
+{pair_menu}{already}
 Propose ONE (target, sweep_var, given, sweep_values, rationale) hypothesis where:
-- target and sweep_var are real variable symbols from the list above.
-- sweep_var is the variable being swept; target is what gets predicted.
-- given pins all other upstream variables needed to complete the chain to realistic values.
-- sweep_values: exactly 3 floats within the variable's range (low, mid, high).
+- (sweep_var, target) MUST be one of the valid pairs listed above. Any other
+  combination has no derivation chain and will be rejected.
+- given pins all other upstream variables needed to complete the chain to
+  realistic values (see "Required root inputs" above).
+- sweep_values: exactly 3 floats within the sweep_var's range (low, mid, high).
 - rationale: 1–2 sentences explaining why this relationship is physically interesting.
 
-Prefer multi-hop chains over direct pairs (e.g. M→sigma→eps→dBMD_dt is more interesting
+Prefer multi-hop chains over direct pairs (e.g. M→dBMD_dt is more interesting
 than phi→E alone).  Explore parts of the graph the "already explored" list misses.
 
 Output a single JSON object — no prose, no code fences:
@@ -109,15 +135,18 @@ class ProposerAgent:
     def __init__(
         self,
         *,
+        registry: RelationRegistry,
         ollama_url: str,
         model: str,
-        timeout: float = 15.0,
-        temperature: float = 0.5,
+        timeout: float = 30.0,
+        temperature: float = 0.8,
     ) -> None:
         self._url = ollama_url
         self._model = model
         self._timeout = timeout
         self._temperature = temperature
+        # Computed once — the registry is fixed for the life of the agent.
+        self._valid_pairs = registry.valid_sweep_pairs()
 
     def propose(
         self,
@@ -129,7 +158,7 @@ class ProposerAgent:
         Returns None when Ollama is unreachable or the response is
         unparseable.  The caller should handle None gracefully.
         """
-        system = _build_system_prompt(scratchpad)
+        system = _build_system_prompt(scratchpad, self._valid_pairs)
         user   = "Propose one interesting hypothesis."
 
         # One retry on parse failure — matches the Critic's tolerance.
