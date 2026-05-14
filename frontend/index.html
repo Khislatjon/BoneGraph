@@ -1775,6 +1775,10 @@ function ReasonSection({view, presets, onRun, loading, result, error, elapsed,
 }
 
 function ReasonTab() {
+  return <div className="reason-tab" />;
+}
+
+function _ReasonTabArchived() {
   const [result, setResult]       = useState(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
