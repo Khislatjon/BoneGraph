@@ -38,6 +38,27 @@ registry:
 | `ε`         | `eps`           | peak strain            | µε         | 0 – 10 000       |
 | `ΔBMD/Δt`   | `dBMD_dt`       | bone adaptation rate   | %/yr       | -5 – 5           |
 
+**Per-bone-type sweep ranges.** Three Variables additionally carry a
+`typical_ranges` dict that narrows the sweep window when a tissue regime
+is active (set via the Agents panel's Tissue dropdown). The table above
+remains the full validity envelope used for clamping and Monte-Carlo
+sampling; the table below is used only by the Proposer agent, by
+`complete_given` midpoint fills, and for sweep-value clipping in the
+agent path. Variables without a `typical_ranges` entry fall back to
+`[lo, hi]` in every regime.
+
+| Symbol | Cortical    | Transitional | Trabecular |
+|--------|-------------|--------------|------------|
+| `φ`    | 0.02 – 0.15 | 0.15 – 0.50  | 0.50 – 0.95 |
+| `ρ`    | 1.70 – 2.00 | 1.20 – 1.70  | 0.10 – 0.60 |
+| `E`    | 15 – 25     | 5 – 15       | 0.05 – 2    |
+
+This prevents the engine from sweeping `φ` from 0.05 (healthy cortical)
+to 0.95 (trabecular foam) in a single hypothesis — a single sweep can
+otherwise walk across two distinct tissue regimes and produce
+extrapolation artefacts (e.g. +70,000 % changes in `da_dN`) that are
+mathematically correct but physically meaningless.
+
 Each Variable carries both an ASCII `symbol` (used in SymPy equations,
 JSON payloads, and code paths — easy to type, easy to grep) and a
 Unicode `display_symbol` (rendered in the UI, diagrams, and this
