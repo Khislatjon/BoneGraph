@@ -283,6 +283,11 @@ _VARIABLES: list[Variable] = [
         name="porosity",
         unit="",
         lo=0.0, hi=0.95,
+        typical_ranges={
+            "cortical":     (0.02, 0.15),   # healthy → mildly aged
+            "transitional": (0.15, 0.50),   # severe cortical osteoporosis
+            "trabecular":   (0.50, 0.95),
+        },
         description=(
             "Volume fraction of pores (porosity, void fraction) in the bone "
             "matrix. Cortical bone is roughly 5–15 % porous; trabecular "
@@ -295,6 +300,11 @@ _VARIABLES: list[Variable] = [
         name="apparent density",
         unit="g/cm³",
         lo=0.05, hi=2.10,
+        typical_ranges={
+            "cortical":     (1.70, 2.00),
+            "transitional": (1.20, 1.70),
+            "trabecular":   (0.10, 0.60),
+        },
         description=(
             "Apparent density — mass per unit total volume including pores. "
             "Clinically reported as bone mineral density (BMD); structural "
@@ -307,6 +317,11 @@ _VARIABLES: list[Variable] = [
         name="elastic modulus",
         unit="GPa",
         lo=0.001, hi=30.0,
+        typical_ranges={
+            "cortical":     (15.0, 25.0),
+            "transitional": (5.0, 15.0),
+            "trabecular":   (0.05, 2.0),
+        },
         description=(
             "Elastic (Young's) modulus — the stiffness coefficient relating "
             "stress to strain under uniaxial loading. A measure of how rigid "

@@ -34,27 +34,12 @@ class ProposerResult:
     given: dict[str, float]
     sweep_values: list[float]
     rationale: str
+    predicted_direction: str    # "up" | "down" | "mixed" | "unknown"
     source: str = "agent"       # "agent" | "fallback"
     llm_raw: str = ""           # raw LLM output, for debugging
 
 
-# Variable and relation context is embedded directly so we avoid a list_variables
-# round-trip.  Update this string if the registry changes.
-_GRAPH_CONTEXT = """\
-Variables (symbol → name, unit, typical range):
-  phi       → porosity, —, [0.05, 0.95]
-  rho       → apparent density, g/cm³, [0.05, 2.10]
-  E         → elastic modulus, GPa, [0.001, 30]
-  dK        → stress-intensity range, MPa·√m, [0, 6]
-  da_dN     → crack growth rate, m/cycle, [1e-14, 1e-3]
-  R         → outer cortical radius, mm, [5, 25]
-  t         → cortical thickness, mm, [0.5, 8]
-  I_section → second moment of area, mm⁴, [1, 1e5]
-  M         → applied bending moment, N·mm, [0, 1e6]
-  sigma     → bending stress, MPa, [0, 300]
-  eps       → peak strain, µε, [0, 10000]
-  dBMD_dt   → BMD adaptation rate, %/yr, [-5, 5]
-
+_RELATIONS_BLOCK = """\
 Relations (inputs → output):
   density_from_porosity : phi → rho
   currey_modulus        : rho → E
@@ -76,6 +61,18 @@ minus whatever you choose as sweep_var):
 """
 
 
+def _format_variable_block(registry: RelationRegistry, bone_type: str | None) -> str:
+    """Render the Variable list with ranges narrowed to ``bone_type``."""
+    header = "Variables (symbol → name, unit, sweep range"
+    header += f" for bone_type={bone_type!r})" if bone_type else ")"
+    lines = [header + ":"]
+    for v in registry.iter_variables():
+        lo, hi = v.range_for(bone_type)
+        unit = v.unit or "—"
+        lines.append(f"  {v.symbol:<9} → {v.name}, {unit}, [{lo:g}, {hi:g}]")
+    return "\n".join(lines)
+
+
 def _format_valid_pairs(pairs: list[tuple[str, str]]) -> str:
     if not pairs:
         return ""
@@ -86,6 +83,8 @@ def _format_valid_pairs(pairs: list[tuple[str, str]]) -> str:
 def _build_system_prompt(
     scratchpad: list[dict] | None,
     valid_pairs: list[tuple[str, str]],
+    variable_block: str,
+    bone_type: str | None,
 ) -> str:
     already = ""
     if scratchpad:
@@ -96,24 +95,46 @@ def _build_system_prompt(
         already = f"\nAlready explored (avoid repeating): {', '.join(items)}\n"
 
     pair_menu = _format_valid_pairs(valid_pairs)
+    bone_line = (
+        f"Active tissue regime: bone_type = {bone_type!r}. "
+        "All sweep_values MUST stay inside the per-variable sweep range above; "
+        "going outside extrapolates the equations past their fitted regime.\n\n"
+        if bone_type else ""
+    )
 
     return f"""\
 You are a hypothesis proposer for a bone-physics equation-graph reasoner.
-{_GRAPH_CONTEXT}
+{variable_block}
+
+{_RELATIONS_BLOCK}
 {pair_menu}{already}
-Propose ONE (target, sweep_var, given, sweep_values, rationale) hypothesis where:
+{bone_line}Propose ONE (target, sweep_var, given, sweep_values, rationale) hypothesis where:
 - (sweep_var, target) MUST be one of the valid pairs listed above. Any other
   combination has no derivation chain and will be rejected.
 - given pins all other upstream variables needed to complete the chain to
   realistic values (see "Required root inputs" above).
 - sweep_values: exactly 3 floats within the sweep_var's range (low, mid, high).
-- rationale: 1–2 sentences explaining why this relationship is physically interesting.
+- predicted_direction: one of "up" | "down" | "mixed", stating what you predict
+  will happen to TARGET as SWEEP_VAR increases. Decide this carefully by
+  counting the sign flips along the chain — e.g. higher phi → lower rho →
+  lower E → lower toughness → HIGHER da_dN (so predicted_direction = "up",
+  not "down"). The engine will compare your prediction to its computed
+  result, so an incorrect direction will be flagged.
+- rationale: 2 sentences that MUST contain all three of:
+  (a) a directional prediction with rough magnitude — e.g. "expect target to
+      fall by 50–90% as sweep_var doubles";
+  (b) the name of the Relation (or short chain) driving the prediction —
+      e.g. "via Currey's law" or "via beam_bending ∘ cortical_inertia";
+  (c) the regime the sweep covers — e.g. "spans healthy cortical to
+      osteoporotic", "femoral midshaft thickening", "physiological loading".
+  DO NOT use the words "interesting", "intriguing", "explore", "reveal",
+  "structural integrity", or "mechanical properties" — they add no information.
 
-Prefer multi-hop chains over direct pairs (e.g. M→dBMD_dt is more interesting
+Prefer multi-hop chains over direct pairs (e.g. M→dBMD_dt is more informative
 than phi→E alone).  Explore parts of the graph the "already explored" list misses.
 
 Output a single JSON object — no prose, no code fences:
-{{"target":"...","sweep_var":"...","given":{{...}},"sweep_values":[v1,v2,v3],"rationale":"..."}}"""
+{{"target":"...","sweep_var":"...","given":{{...}},"sweep_values":[v1,v2,v3],"predicted_direction":"up|down|mixed","rationale":"..."}}"""
 
 
 class ProposerAgent:
@@ -141,6 +162,7 @@ class ProposerAgent:
         timeout: float = 30.0,
         temperature: float = 0.8,
     ) -> None:
+        self._registry = registry
         self._url = ollama_url
         self._model = model
         self._timeout = timeout
@@ -151,6 +173,7 @@ class ProposerAgent:
     def propose(
         self,
         scratchpad: list[dict] | None = None,
+        bone_type: str | None = None,
     ) -> ProposerResult | None:
         """
         Propose one hypothesis.
@@ -158,7 +181,10 @@ class ProposerAgent:
         Returns None when Ollama is unreachable or the response is
         unparseable.  The caller should handle None gracefully.
         """
-        system = _build_system_prompt(scratchpad, self._valid_pairs)
+        variable_block = _format_variable_block(self._registry, bone_type)
+        system = _build_system_prompt(
+            scratchpad, self._valid_pairs, variable_block, bone_type,
+        )
         user   = "Propose one interesting hypothesis."
 
         # One retry on parse failure — matches the Critic's tolerance.
@@ -254,12 +280,17 @@ def _build_result(d: dict, raw: str) -> ProposerResult | None:
         # Emergency fallback — unlikely with a well-prompted model.
         sweep_values = [0.05, 0.15, 0.30]
 
+    pred = str(d.get("predicted_direction") or "").strip().lower()
+    if pred not in {"up", "down", "mixed"}:
+        pred = "unknown"
+
     return ProposerResult(
         target=target,
         sweep_var=sweep_var,
         given=given,
         sweep_values=sweep_values,
         rationale=rationale,
+        predicted_direction=pred,
         source="agent",
         llm_raw=raw,
     )

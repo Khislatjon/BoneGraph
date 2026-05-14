@@ -69,13 +69,20 @@ Verdict options:
 Rules:
 - Call corpus_search exactly once, then finish.
 - Base the verdict on both the physics result AND the corpus hits.
+- Your "reason" field MUST quote a short fragment (≤15 words) from one of the
+  retrieved passages in double quotes, or explicitly say
+  "no retrieved passage addressed this directly" — vague hedging without
+  either is not allowed.
+- "reason" MUST also engage the physics number (e.g. "the predicted -83 %
+  drop is consistent with σ ∝ 1/R² scaling" or "the magnitude exceeds typical
+  reported values of …"), not just talk about whether research exists.
 - Output only JSON — no prose, no code fences.
 
 Turn 1 format:
 {"thought":"...","action":"corpus_search","action_input":{"query":"..."}}
 
 Turn 2 format:
-{"thought":"...","action":"finish","answer":{"verdict":"...","reason":"1-2 sentences","confidence":0.0-1.0,"corpus_passages":["snippet 1","snippet 2"]}}
+{"thought":"...","action":"finish","answer":{"verdict":"...","reason":"1-2 sentences with a quoted fragment AND a physics check","confidence":0.0-1.0,"corpus_passages":["snippet 1","snippet 2"]}}
 """
 
 
@@ -205,14 +212,31 @@ def _build_context(hypothesis: dict, physics: dict) -> str:
         except (TypeError, ValueError):
             pass
 
+    pred_dir = hypothesis.get("predicted_direction", "unknown")
+    mismatch = bool(physics.get("proposer_mismatch"))
+
     lines = [
         f"Hypothesis: sweeping {hypothesis.get('sweep_var','?')} predicts {hypothesis.get('target','?')}.",
         f"Rationale: {hypothesis.get('rationale','')}",
+        f"Proposer's predicted direction: {pred_dir}",
         f"Physics: {physics.get('summary', '')}",
-        f"Direction: {physics.get('direction','?')}",
+        f"Engine direction: {physics.get('direction','?')}",
         f"Relative change: {rel_pct}",
         f"Physics confidence: {physics.get('physics_confidence', 0):.2f}",
         f"Citations: {', '.join(physics.get('citations', [])[:3])}",
+    ]
+    if mismatch:
+        lines += [
+            "",
+            "⚠ DISAGREEMENT: The Proposer predicted direction "
+            f"'{pred_dir}', but the deterministic engine computed "
+            f"'{physics.get('direction','?')}'. The engine is the source of "
+            "truth. Your reason MUST explicitly flag this disagreement and "
+            "explain (in physics terms) why the engine's direction is the "
+            "correct one — e.g. count the sign flips along the relation "
+            "chain. Do not just hedge with 'more data needed'.",
+        ]
+    lines += [
         "",
         "Search the corpus and evaluate this hypothesis.",
     ]

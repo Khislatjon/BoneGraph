@@ -1438,15 +1438,23 @@ def reason_agents(payload: dict):
 
     Body (all optional):
       n_proposals : int  — number of hypotheses to generate (default 2, max 4)
+      bone_type   : str  — "cortical" | "transitional" | "trabecular" — narrows
+                          Variable sweep ranges to the active tissue regime
       covariates  : dict — patient context passed to forward()
     """
     n = min(int(payload.get("n_proposals") or 2), 4)
+    bone_type = str(payload.get("bone_type") or "cortical").strip().lower()
+    if bone_type not in {"cortical", "transitional", "trabecular"}:
+        bone_type = "cortical"
     t0 = time.perf_counter()
 
     proposals_out = []
     for _ in range(n):
         # ── Step 1: Proposer ─────────────────────────────────────────────────
-        proposal = _proposer.propose(scratchpad=_agent_scratchpad)
+        proposal = _proposer.propose(
+            scratchpad=_agent_scratchpad,
+            bone_type=bone_type,
+        )
         if proposal is None:
             proposals_out.append({
                 "error": "Proposer agent unavailable (Ollama unreachable or parsing failed).",
@@ -1484,6 +1492,7 @@ def reason_agents(payload: dict):
             target=proposal.target,
             sweep_var=proposal.sweep_var,
             given=held_raw,
+            bone_type=bone_type,
         )
         if held is None:
             proposals_out.append({
@@ -1502,7 +1511,7 @@ def reason_agents(payload: dict):
         # when the range is [5, 25]).
         sweep_var_def = bone_registry.variable(proposal.sweep_var)
         if sweep_var_def is not None:
-            lo, hi = sweep_var_def.lo, sweep_var_def.hi
+            lo, hi = sweep_var_def.range_for(bone_type)
             clipped = [max(lo, min(hi, v)) for v in proposal.sweep_values]
             if len(set(clipped)) < 2:
                 clipped = [lo, 0.5 * (lo + hi), hi]
@@ -1528,25 +1537,42 @@ def reason_agents(payload: dict):
             })
             continue
 
+        # Compare the Proposer's declared direction against what the engine
+        # actually computed. A mismatch means the Proposer's rationale and
+        # the engine result disagree — the Critic must be told so it can
+        # address the disagreement.
+        engine_dir = cand.direction
+        pred_dir   = proposal.predicted_direction
+        dir_map = {"increases": "up", "decreases": "down", "non-monotonic": "mixed"}
+        engine_dir_norm = dir_map.get(engine_dir, "unknown")
+        proposer_mismatch = (
+            pred_dir in {"up", "down", "mixed"}
+            and engine_dir_norm in {"up", "down", "mixed"}
+            and pred_dir != engine_dir_norm
+        )
+
         physics_summary = {
-            "direction":          cand.direction,
-            "relative_change":    cand.relative_change if not _isnan(cand.relative_change) else None,
-            "physics_confidence": cand.physics_confidence,
-            "magnitude":          cand.magnitude,
-            "summary":            cand.summary,
-            "citations":          cand.citations,
-            "corpus_label":       cand.corpus_label,
-            "surprise_score":     cand.surprise_score,
+            "direction":           cand.direction,
+            "relative_change":     cand.relative_change if not _isnan(cand.relative_change) else None,
+            "physics_confidence":  cand.physics_confidence,
+            "magnitude":           cand.magnitude,
+            "summary":             cand.summary,
+            "citations":           cand.citations,
+            "corpus_label":        cand.corpus_label,
+            "surprise_score":      cand.surprise_score,
+            "predicted_direction": pred_dir,
+            "proposer_mismatch":   proposer_mismatch,
         }
 
         # ── Step 3: Critic ───────────────────────────────────────────────────
         critique = _critic.critique(
             hypothesis={
-                "target":       proposal.target,
-                "sweep_var":    proposal.sweep_var,
-                "given":        held,
-                "sweep_values": sweep_values,
-                "rationale":    proposal.rationale,
+                "target":              proposal.target,
+                "sweep_var":           proposal.sweep_var,
+                "given":               held,
+                "sweep_values":        sweep_values,
+                "rationale":           proposal.rationale,
+                "predicted_direction": pred_dir,
             },
             physics=physics_summary,
         )

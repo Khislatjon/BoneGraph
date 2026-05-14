@@ -142,6 +142,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .reason-hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:24px 32px 20px;position:sticky;top:0;z-index:50;display:flex;flex-direction:column;align-items:center}
 .reason-desc{font-size:14px;color:var(--text2);line-height:1.65;max-width:760px;width:100%;margin-bottom:14px;text-align:center}
 .reason-bar{display:flex;align-items:center;max-width:760px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 12px;gap:10px}
+.reason-view-toggle{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;margin-bottom:14px;gap:2px}
+.reason-view-toggle button{background:transparent;border:none;padding:6px 16px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--sans);border-radius:6px;transition:background .15s,color .15s}
+.reason-view-toggle button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.reason-view-toggle button:hover:not(.active){color:var(--text)}
 .reason-bar:focus-within{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
 .reason-input{flex:1;height:46px;background:none;border:none;outline:none;font-family:var(--sans);font-size:14.5px;color:var(--text)}
 .reason-input::placeholder{color:var(--text3)}
@@ -1528,7 +1532,7 @@ const VERDICT_LABELS = {
   'needs-more-data':'Needs more data',
 };
 
-function AgentsPanel({agents, loading, error, onRun}) {
+function AgentsPanel({agents, loading, error, onRun, boneType, onBoneTypeChange}) {
   return (
     <div className="eqn-agents">
       <div className="eqn-agents-hdr">
@@ -1542,9 +1546,22 @@ function AgentsPanel({agents, loading, error, onRun}) {
             and decides whether the result is <em>interesting</em>, <em>trivial</em>, or needs more data.
           </div>
         </div>
-        <button className="eqn-agents-btn" onClick={onRun} disabled={loading}>
-          {loading ? <Spinner/> : (agents ? 'Re-run' : 'Run agents')}
-        </button>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <label style={{fontSize:12,color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
+            Tissue:
+            <select value={boneType}
+                    onChange={e => onBoneTypeChange(e.target.value)}
+                    disabled={loading}
+                    style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--text)',fontFamily:'var(--sans)'}}>
+              <option value="cortical">Cortical</option>
+              <option value="transitional">Transitional</option>
+              <option value="trabecular">Trabecular</option>
+            </select>
+          </label>
+          <button className="eqn-agents-btn" onClick={onRun} disabled={loading}>
+            {loading ? <Spinner/> : (agents ? 'Re-run' : 'Run agents')}
+          </button>
+        </div>
       </div>
 
       {loading && (
@@ -1598,6 +1615,11 @@ function AgentsPanel({agents, loading, error, onRun}) {
                   {c.confidence != null && (
                     <span className="eqn-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
                   )}
+                  {p.proposer_mismatch && (
+                    <span className="eqn-agent-pill dir-down" title={`Proposer predicted ${p.predicted_direction}; engine got ${p.direction}`}>
+                      ⚠ proposer wrong
+                    </span>
+                  )}
                 </div>
 
                 {p.summary && (
@@ -1605,7 +1627,7 @@ function AgentsPanel({agents, loading, error, onRun}) {
                 )}
 
                 {h.rationale && (
-                  <div className="eqn-agent-rationale">{h.rationale}</div>
+                  <div className="eqn-agent-rationale">Proposer: {h.rationale}</div>
                 )}
 
                 {c.reason && (
@@ -1628,11 +1650,12 @@ function AgentsPanel({agents, loading, error, onRun}) {
   );
 }
 
-function ReasonSection({presets, onRun, loading, result, error, elapsed,
+function ReasonSection({view, presets, onRun, loading, result, error, elapsed,
                     covariates, onCovariatesChange,
                     query, onQueryChange, onAsk,
                     surprises, surprisesLoading, surprisesError, onSurprisesRefresh,
-                    agents, agentsLoading, agentsError, onAgentsRun}) {
+                    agents, agentsLoading, agentsError, onAgentsRun,
+                    boneType, onBoneTypeChange}) {
   const groups = [
     {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
     {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
@@ -1644,6 +1667,23 @@ function ReasonSection({presets, onRun, loading, result, error, elapsed,
     abductive:      'Sampling prior, propagating, and weighting by likelihood…',
     counterfactual: 'Running paired baseline / intervened passes…',
   };
+
+  if (view === 'agents') {
+    return (
+      <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+        {AGENTS_ENABLED && (
+          <AgentsPanel
+            agents={agents}
+            loading={agentsLoading}
+            error={agentsError}
+            onRun={onAgentsRun}
+            boneType={boneType}
+            onBoneTypeChange={onBoneTypeChange}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
@@ -1730,15 +1770,6 @@ function ReasonSection({presets, onRun, loading, result, error, elapsed,
         />
       )}
 
-      {/* Phase 7/8 — Agents panel */}
-      {AGENTS_ENABLED && (
-        <AgentsPanel
-          agents={agents}
-          loading={agentsLoading}
-          error={agentsError}
-          onRun={onAgentsRun}
-        />
-      )}
     </div>
   );
 }
@@ -1760,6 +1791,11 @@ function ReasonTab() {
   const [agents,        setAgents]        = useState(null);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [agentsError,   setAgentsError]   = useState('');
+  const [boneType,      setBoneType]      = useState('cortical');
+
+  // Header toggle: 'reason' shows search/presets/result/surprises; 'agents'
+  // shows only the Proposer/Critic panel.
+  const [view, setView] = useState('reason');
 
   const loadSurprisesPanel = async (refresh = false) => {
     if (surprisesLoading) return;
@@ -1780,7 +1816,7 @@ function ReasonTab() {
       const r = await fetch('/api/reason/agents', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({n_proposals: 2}),
+        body: JSON.stringify({n_proposals: 2, bone_type: boneType}),
       });
       const data = await r.json();
       if (data.error) setAgentsError(data.error);
@@ -1851,27 +1887,37 @@ function ReasonTab() {
           Hypothesis Generator
         </div>
         <div className="reason-desc">
-          Forward, abductive and counterfactual inference over a typed equation graph.
-          Patient covariates reshape each law’s priors before propagation.
+          {view === 'reason'
+            ? 'Forward, abductive and counterfactual inference over a typed equation graph. Patient covariates reshape each law’s priors before propagation.'
+            : 'A Proposer agent walks the equation graph and suggests novel (sweep_var → target) pairs. The deterministic engine evaluates each. A Critic agent searches the corpus and decides what is interesting.'}
         </div>
-        <div className="reason-bar">
-          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          </svg>
-          <input className="reason-input"
-            placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
-            value={query} onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && runAsk()} disabled={loading}/>
-          <button className="reason-btn" onClick={() => runAsk()}
-                  disabled={loading || !(query || '').trim()}>
-            {loading ? <Spinner/> : 'Reason'}
-          </button>
+        <div className="reason-view-toggle">
+          <button className={view === 'reason' ? 'active' : ''}
+                  onClick={() => setView('reason')}>Reasoning</button>
+          <button className={view === 'agents' ? 'active' : ''}
+                  onClick={() => setView('agents')}>Agents</button>
         </div>
+        {view === 'reason' && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input"
+              placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+              value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && runAsk()} disabled={loading}/>
+            <button className="reason-btn" onClick={() => runAsk()}
+                    disabled={loading || !(query || '').trim()}>
+              {loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="reason-body">
         <ReasonSection
+          view={view}
           presets={REASON_PRESETS}
           onRun={runPreset}
           loading={loading}
@@ -1891,6 +1937,8 @@ function ReasonTab() {
           agentsLoading={agentsLoading}
           agentsError={agentsError}
           onAgentsRun={runAgents}
+          boneType={boneType}
+          onBoneTypeChange={setBoneType}
         />
       </div>
     </div>

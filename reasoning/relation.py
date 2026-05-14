@@ -144,6 +144,13 @@ class Variable:
     hi: float
     description: str = ""
     display_symbol: str = ""
+    # Per-bone-type sweep ranges, narrower than [lo, hi]. The full [lo, hi]
+    # stays the validity envelope (clamping, MC sampling); typical_ranges
+    # provides the context-specific sweep window used by the Proposer agent
+    # and by Explorer auto-fills. Example: phi typical_ranges =
+    # {"cortical": (0.02, 0.15), "trabecular": (0.50, 0.95)}. Variables
+    # without an entry for the active bone_type fall back to [lo, hi].
+    typical_ranges: dict[str, tuple[float, float]] = field(default_factory=dict)
 
     def render(self) -> str:
         """Unicode display form; falls back to the ASCII symbol."""
@@ -152,6 +159,12 @@ class Variable:
     def clamp(self, value: float | np.ndarray) -> float | np.ndarray:
         """Clip ``value`` to the variable's physical range."""
         return np.clip(value, self.lo, self.hi)
+
+    def range_for(self, bone_type: str | None) -> tuple[float, float]:
+        """Sweep range for ``bone_type``, or the full validity range."""
+        if bone_type and bone_type in self.typical_ranges:
+            return self.typical_ranges[bone_type]
+        return (self.lo, self.hi)
 
 
 @dataclass(frozen=True)
@@ -629,6 +642,7 @@ class RelationRegistry:
         target: str,
         sweep_var: str,
         given: dict[str, float],
+        bone_type: str | None = None,
     ) -> dict[str, float] | None:
         """
         Repair a proposer-supplied ``given`` dict so the chain to ``target``
@@ -688,7 +702,8 @@ class RelationRegistry:
             var = self._variables.get(root)
             if var is None:
                 return None
-            cleaned[root] = 0.5 * (var.lo + var.hi)
+            lo, hi = var.range_for(bone_type)
+            cleaned[root] = 0.5 * (lo + hi)
         return cleaned
 
     def valid_sweep_pairs(self) -> list[tuple[str, str]]:
