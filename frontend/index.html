@@ -466,13 +466,31 @@ function stripThinking(text) {
 }
 
 // ── Inline citations renderer ─────────────────────────────────────────────────
+// Renders **bold**, *italic*, citation markers [N] and markdown links inline.
+function renderInline(text, keyPrefix) {
+  const inlineRe = /(\*\*([^*\n]+)\*\*|\*([^*\n]+)\*)/g;
+  const out = [];
+  let last = 0;
+  let m;
+  let i = 0;
+  while ((m = inlineRe.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[2] !== undefined) out.push(<strong key={`${keyPrefix}-b${i}`}>{m[2]}</strong>);
+    else if (m[3] !== undefined) out.push(<em key={`${keyPrefix}-i${i}`}>{m[3]}</em>);
+    last = m.index + m[0].length;
+    i++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 function parseCit(text) {
   const lines = text.split('\n');
   const result = [];
   lines.forEach((line, li) => {
     const headingMatch = line.match(/^##\s+(.+)$/);
     if (headingMatch) {
-      result.push(<div key={`h${li}`} className="resp-heading">{headingMatch[1]}</div>);
+      result.push(<div key={`h${li}`} className="resp-heading">{renderInline(headingMatch[1], `h${li}`)}</div>);
       return;
     }
     const parts = line.split(/(\[\d+\]|\[[^\]]+\]\(https?:\/\/[^)]+\))/g);
@@ -481,7 +499,7 @@ function parseCit(text) {
       const linkM = p.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
       if (citM) result.push(<sup key={`${li}-${i}`} className="cite">[{citM[1]}]</sup>);
       else if (linkM) result.push(<a key={`${li}-${i}`} href={linkM[2]} target="_blank" rel="noopener noreferrer" className="ref-link">{linkM[1]}</a>);
-      else result.push(p);
+      else result.push(<React.Fragment key={`${li}-${i}`}>{renderInline(p, `${li}-${i}`)}</React.Fragment>);
     });
     if (li < lines.length - 1) result.push('\n');
   });
@@ -1774,8 +1792,221 @@ function ReasonSection({view, presets, onRun, loading, result, error, elapsed,
   );
 }
 
+// ── REASON TAB ────────────────────────────────────────────────────────────────
+// Phase 2 — pure-LLM reasoning agent (no RAG). Turn shape:
+//   { id, query, answer, physical_check, critic_notes, user_feedback, timestamp }
+// physical_check / critic_notes / user_feedback are reserved for later phases.
 function ReasonTab() {
-  return <div className="reason-tab" />;
+  const [turns, setTurns]   = useState([]);
+  const [pendingQuery, setPendingQuery] = useState('');
+  const [input, setInput]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState('');
+  const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
+  const endRef     = useRef(null);
+  const inputRef   = useRef(null);
+  const chatAreaRef = useRef(null);
+  const autoScroll = useRef(true);
+
+  const handleWheel = () => { autoScroll.current = false; };
+  const handleTouchStart = () => { autoScroll.current = false; };
+  const handleChatScroll = () => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
+      autoScroll.current = true;
+    }
+  };
+
+  useEffect(() => {
+    if (autoScroll.current && endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [turns, loading, streaming, pendingQuery]);
+
+  const send = async (text) => {
+    const t = text.trim();
+    if (!t || loading) return;
+    autoScroll.current = true;
+    setInput('');
+    setPendingQuery(t);   // show user bubble immediately
+    setLoading(true);
+    setStreaming('');
+
+    // Sliding window of the last 10 messages (5 pairs). Strip thinking from
+    // assistant turns so we resend only the visible reasoning.
+    const recent = turns.slice(-5);
+    const history = [];
+    recent.forEach(turn => {
+      history.push({ role: 'user', content: turn.query });
+      history.push({ role: 'assistant', content: stripThinking(turn.answer) });
+    });
+    const allQuestions = turns.map(turn => turn.query);
+
+    let answer = '';
+    let physicalCheck = null;
+    try {
+      const fd = new FormData();
+      fd.append('question', t);
+      fd.append('history', JSON.stringify(history));
+      fd.append('all_questions', JSON.stringify(allQuestions));
+      const resp = await fetch('/api/reason/chat', { method:'POST', body:fd });
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'token') { answer += ev.content; setStreaming(answer); }
+          else if (ev.type === 'physical_check') { physicalCheck = ev; }
+          else if (ev.type === 'done')  {
+            answer = ev.answer;
+            if (typeof ev.prompt_tokens === 'number') {
+              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192, estimated: true });
+            }
+          }
+          else if (ev.type === 'error') { answer = '⚠️ ' + ev.message; }
+        }
+      }
+    } catch(e) { answer = '⚠️ Error: ' + e.message; }
+    const turn = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      query: t,
+      answer,
+      physical_check: physicalCheck,
+      critic_notes: null,
+      user_feedback: null,
+      timestamp: new Date().toISOString(),
+    };
+    setTurns(prev => [...prev, turn]);
+    setStreaming('');
+    setPendingQuery('');
+    setLoading(false);
+    inputRef.current?.focus();
+  };
+
+  const CHIPS = [
+    'What raises fracture risk in postmenopausal cortical bone?',
+    'How does a lytic lesion change vertebral failure load?',
+    'Why does trabecular bone fail before cortical in osteoporosis?',
+  ];
+
+  const empty = turns.length === 0 && !loading;
+  return (
+    <div className="ask">
+      <div className="chat-area" ref={chatAreaRef} onScroll={handleChatScroll} onWheel={handleWheel} onTouchStart={handleTouchStart}>
+        <div className="chat-inner">
+          {empty ? (
+            <div className="empty-state">
+              <div className="empty-avatar"><BoneSVG size={100}/></div>
+              <div className="empty-title">Reasoning</div>
+              <div className="empty-sub">Hypothesis generation grounded in bone mechanics</div>
+              <div className="chips">
+                {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
+              </div>
+            </div>
+          ) : (
+            <div className="messages">
+              {turns.map(turn => <ReasonTurn key={turn.id} turn={turn}/>)}
+              {pendingQuery && (
+                <div className="msg msg-user">
+                  <div className="msg-bubble"><div className="msg-text">{pendingQuery}</div></div>
+                </div>
+              )}
+              {(loading || streaming) && (
+                <div className="msg msg-asst">
+                  <div className="msg-avatar"><BoneSVG size={34}/></div>
+                  <div className="msg-bubble">
+                    <div className="msg-text">
+                      {streaming
+                        ? /final response/i.test(streaming)
+                          ? <>{parseCit(stripThinking(streaming))}<span className="blink">▍</span></>
+                          : <Dots/>
+                        : <Dots/>}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={endRef}/>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="chat-bar">
+        <div style={{width:'100%',maxWidth:760,display:'flex',alignItems:'center',gap:6}}>
+          {usage && <CtxRing usage={usage}/>}
+          <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
+            <input ref={inputRef} className="chat-input"
+              placeholder="Ask a reasoning question about bone fracture, fragility, remodelling…"
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
+              disabled={loading}/>
+            <button className="send-btn" onClick={() => send(input)} disabled={loading || !input.trim()}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 9h12M10 4l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhysicalCheckBadge({ check }) {
+  const passed = check.passed;
+  const n = check.rule_count || 0;
+  const vCount = (check.violations || []).length;
+  const headerBg = passed ? 'rgba(46,125,50,.08)' : 'rgba(176,32,32,.08)';
+  const headerColor = passed ? '#2e7d32' : '#b02020';
+  return (
+    <div style={{marginTop:12,border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',fontSize:12}}>
+      <div style={{padding:'6px 10px',background:headerBg,color:headerColor,fontWeight:500,display:'flex',justifyContent:'space-between'}}>
+        <span>{passed ? '✓ Passed physical grounding' : `✗ ${vCount} violation${vCount===1?'':'s'} of physical grounding`}</span>
+        <span style={{color:'var(--text3)',fontWeight:400}}>{n} rules checked</span>
+      </div>
+      {!passed && (
+        <ul style={{margin:0,padding:'8px 10px 8px 26px',color:'var(--text2)',lineHeight:1.5}}>
+          {check.violations.map((v,i) => (
+            <li key={i}><strong>{v.name}:</strong> {v.detail}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ReasonTurn({ turn }) {
+  return (
+    <>
+      <div className="msg msg-user">
+        <div className="msg-bubble"><div className="msg-text">{turn.query}</div></div>
+      </div>
+      <div className="msg msg-asst">
+        <div className="msg-avatar"><BoneSVG size={34}/></div>
+        <div className="msg-bubble">
+          <div className="msg-text">{parseCit(stripThinking(turn.answer))}</div>
+          {turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
+          {turn.critic_notes && (
+            <div style={{marginTop:8,fontSize:12,color:'var(--text2)'}}>
+              <strong>Reviewer notes:</strong> {turn.critic_notes}
+            </div>
+          )}
+          {turn.user_feedback && (
+            <div style={{marginTop:8,fontSize:12,color:'var(--text3)',fontStyle:'italic'}}>
+              You said: {turn.user_feedback}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
 function _ReasonTabArchived() {
@@ -2083,8 +2314,8 @@ function App() {
         <div className={`panel-scroll${tab==='search'?' active':''}`}>
           <div className="panel-inner"><SearchTab totalChunks={stats?.chunks}/></div>
         </div>
-        <div className={`panel-scroll${tab==='reason'?' active':''}`}>
-          <div className="panel-inner"><ReasonTab/></div>
+        <div className={`panel${tab==='reason'?' active':''}`}>
+          <ReasonTab/>
         </div>
         <div className={`panel-scroll${tab==='analyse'?' active':''}`}>
           <div className="panel-inner"><AnalyseTab/></div>

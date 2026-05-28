@@ -44,6 +44,7 @@ import base64
 import io
 import json
 import math
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -70,6 +71,54 @@ from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 OLLAMA_URL   = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "huatuogpt-bone"
 GUARD_MODEL  = "llama3.2:3b"  # general-purpose classifier for topic guard
+
+
+# ── Shared topic guard (Ask + Reasoning tabs) ────────────────────────────────
+GUARD_PROMPT = (
+    "{prior_block}"
+    "The user's current question is: {q}\n\n"
+    "Is the current question (taking the previous questions as context "
+    "to resolve pronouns) about bone, the skeleton, bones, bone cells "
+    "(osteoblasts, osteoclasts, osteocytes), bone diseases (osteoporosis, "
+    "fractures, osteoarthritis, bone tumours), bone mechanics, bone "
+    "imaging, bone biomaterials, bone metabolism, or orthopaedics?\n\n"
+    "Reply with exactly one word: YES or NO."
+)
+
+
+def _is_bone_science(q: str, prior_questions: list[str]) -> bool:
+    """Lightweight bone-science classifier used by Ask and Reasoning tabs.
+
+    Includes the last few user questions so the classifier can resolve
+    pronouns ("it", "this", "they"). Assistant replies are deliberately
+    excluded — their off-topic-adjacent vocabulary confuses small classifiers.
+    Fails open on network errors so a hiccup doesn't block real questions.
+    """
+    recent = prior_questions[-8:]
+    if recent:
+        prior_block = (
+            "The user's previous questions in this conversation were:\n"
+            + "\n".join(f"- {p}" for p in recent)
+            + "\n\n"
+        )
+    else:
+        prior_block = ""
+    try:
+        resp = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": GUARD_MODEL,
+                "messages": [{"role": "user", "content": GUARD_PROMPT.format(q=q, prior_block=prior_block)}],
+                "stream": False,
+                "options": {"temperature": 0, "num_predict": 5},
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        answer = resp.json()["message"]["content"].strip().upper()
+        return answer.startswith("YES")
+    except Exception:
+        return True
 VLM_MODEL    = "llava:13b"
 
 VLM_PROMPT = (
@@ -373,47 +422,6 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
     prior_turns: list[dict] = json.loads(history) if history else []
     prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
 
-    GUARD_PROMPT = (
-        "{prior_block}"
-        "The user's current question is: {q}\n\n"
-        "Is the current question (taking the previous questions as context "
-        "to resolve pronouns) about bone, the skeleton, bones, bone cells "
-        "(osteoblasts, osteoclasts, osteocytes), bone diseases (osteoporosis, "
-        "fractures, osteoarthritis, bone tumours), bone mechanics, bone "
-        "imaging, bone biomaterials, bone metabolism, or orthopaedics?\n\n"
-        "Reply with exactly one word: YES or NO."
-    )
-
-    def _is_bone_science(q: str, prior_questions: list[str]) -> bool:
-        # Include the last few user questions so the classifier can resolve
-        # pronouns ("it", "this", "they"). Assistant replies are deliberately
-        # excluded — their off-topic-adjacent vocabulary confuses small classifiers.
-        recent = prior_questions[-8:]
-        if recent:
-            prior_block = (
-                "The user's previous questions in this conversation were:\n"
-                + "\n".join(f"- {p}" for p in recent)
-                + "\n\n"
-            )
-        else:
-            prior_block = ""
-        try:
-            resp = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": GUARD_MODEL,
-                    "messages": [{"role": "user", "content": GUARD_PROMPT.format(q=q, prior_block=prior_block)}],
-                    "stream": False,
-                    "options": {"temperature": 0, "num_predict": 5},
-                },
-                timeout=15,
-            )
-            resp.raise_for_status()
-            answer = resp.json()["message"]["content"].strip().upper()
-            return answer.startswith("YES")
-        except Exception:
-            return True  # fail open so a network hiccup doesn't block real questions
-
     def generate():
         q = question.strip()
         if not q:
@@ -492,6 +500,123 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
 
             linked = _inject_ref_links(answer, results)
             yield f"data: {json.dumps({'type':'done','answer':linked,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':8192})}\n\n"
+
+        except requests.ConnectionError:
+            yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ── Reasoning tab — reasoning agent (Phase 2) ─────────────────────────────────
+#
+# Pure LLM, no retrieval. Produces a numbered chain of reasoning steps about
+# bone mechanics / fracture / fragility. Later phases add (3) physical-grounding
+# filter, (4) user-feedback memory, (5) critic agent.
+
+REASONING_SYSTEM_PROMPT = """You are BoneMind's reasoning agent. Given a question about bone
+mechanics, fracture, fragility, remodelling, or related pathology, work through it as a chain
+of reasoning points.
+
+Output format (markdown):
+
+**Point 1.** One-sentence claim or mechanism.
+*Basis.* 1–2 sentences explaining the biological or mechanical grounding.
+
+Repeat for 2–4 points that build on each other, ending with the conclusion you reach.
+
+Rules:
+- Reason about mechanisms (cause → effect), not just list facts.
+- Stay within bone science (mechanics, biology, pathology, imaging, biomaterials). If the question
+  is out of scope, reply with exactly: "Out of scope for BoneMind's reasoning tab."
+- Be honest about uncertainty. If a point is speculative, say so in the *Basis* line.
+- No preamble, no closing summary. Start directly with "**Point 1.**"."""
+
+
+@app.post("/api/reason/chat")
+async def reason_chat(
+    question: str = Form(...),
+    history: str = Form("[]"),
+    all_questions: str = Form("[]"),
+):
+    """SSE stream — reasoning agent, pure LLM + physical-grounding filter.
+
+    Multi-turn: `history` is a JSON array of {role, content} for prior turns,
+    already stripped of thinking blocks client-side.
+
+    Events:
+      {"type": "token",          "content": "..."}
+      {"type": "physical_check", "passed": bool, "violations": [...]}
+      {"type": "done",           "answer": "...", "prompt_tokens": N,
+                                 "completion_tokens": N, "context_window": N}
+      {"type": "error",          "message": "..."}
+    """
+    from reasoning.physical_grounding import check as physical_check
+    prior_turns: list[dict] = json.loads(history) if history else []
+    prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
+
+    def generate():
+        q = question.strip()
+        if not q:
+            yield f"data: {json.dumps({'type':'error','message':'Empty question'})}\n\n"
+            return
+
+        # Topic guard — same classifier as the Ask tab, with pronoun context
+        # from the user's full question history.
+        if not _is_bone_science(q, prior_questions_all):
+            out = (
+                "This question is outside BoneMind's reasoning scope. "
+                "I cover bone mechanics, fracture and fragility, remodelling, "
+                "imaging, biomaterials, and related pathology. "
+                "Please ask within that domain."
+            )
+            yield f"data: {json.dumps({'type':'done','answer':out,'prompt_tokens':0,'completion_tokens':0,'context_window':8192})}\n\n"
+            return
+
+        messages = [
+            {"role": "system", "content": REASONING_SYSTEM_PROMPT},
+            *prior_turns,
+            {"role": "user",   "content": q},
+        ]
+
+        # Local token estimate — Ollama caches the prefix between turns so its
+        # reported prompt count stays flat across follow-ups. ~3.5 chars/token
+        # is a good Llama-3 approximation for English / scientific text.
+        char_count = sum(len(m.get("content", "")) for m in messages)
+        prompt_tokens = max(1, round(char_count / 3.5))
+        completion_tokens = 0
+        answer = ""
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True,
+                      "options": {"temperature": 0.3, "num_ctx": 8192}},
+                stream=True,
+                timeout=180,
+            )
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                data = json.loads(line)
+                if data.get("done"):
+                    completion_tokens = data.get("eval_count", 0)
+                    continue
+                token = data["message"]["content"]
+                answer += token
+                yield f"data: {json.dumps({'type':'token','content':token})}\n\n"
+
+            # Strip the thinking block before running rules so we only check
+            # the agent's final reasoning, not its scratchpad.
+            visible = answer
+            m = re.search(r"final response\s*", visible, flags=re.IGNORECASE)
+            if m:
+                visible = visible[m.end():].lstrip()
+            pc = physical_check(visible)
+            yield f"data: {json.dumps({'type':'physical_check', **pc})}\n\n"
+
+            yield f"data: {json.dumps({'type':'done','answer':answer,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':8192})}\n\n"
 
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
