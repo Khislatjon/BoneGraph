@@ -1,5 +1,14 @@
 # Hypothesis Generator — What Makes It Different
 
+> **⚠️ Superseded — archived May 2026.**
+> This document describes the previous hypothesis-generator framing,
+> built on the equation-graph reasoner with corpus + ontology + physics
+> grounding. The current Reasoning tab uses a different architecture —
+> a reasoning + critic loop with deterministic physical-grounding rules
+> and a user-feedback rule registry — documented in
+> [`../reasoning_tab.md`](../reasoning_tab.md). The framing below is
+> retained for context only.
+
 A common question: *I have a hypothesis generator. What is its hypothesis
 based on? Any AI — Claude Chat or ChatGPT — can also give me a hypothesis.
 What's the difference?*

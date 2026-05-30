@@ -1,5 +1,14 @@
 # Phase 4 — Reasoning Layer
 
+> **Update — late May 2026.** The Reasoning tab described in this plan
+> (equation-graph reasoner, Proposer/Critic loop over 12 Variables / 7
+> Relations, Surprises panel) has been retired and rebuilt clean-slate
+> following supervision feedback on 21 May. The live Reasoning tab is
+> documented in [`reasoning_tab.md`](reasoning_tab.md). Knowledge-graph
+> artefacts produced during steps 4.1–4.3 (`data/db/ontology.db`, the
+> cleanup and reclassification scripts) are unaffected and still used by
+> other parts of BoneMind. The plan below remains for historical context.
+
 > **Design-to-as-built note (May 2026).** The original design planned a
 > graph-walk LRM over corpus-extracted triples. The reasoning engine went
 > through two iterations before reaching its current form — see

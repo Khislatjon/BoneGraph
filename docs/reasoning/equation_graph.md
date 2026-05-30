@@ -1,6 +1,13 @@
 # Equation-Graph Reasoner
 
-**Status: ✅ Live — the Reasoning tab.**
+> **⚠️ Superseded — archived May 2026.**
+> The Reasoning tab has been rebuilt from clean slate. The current design
+> is documented in [`../reasoning_tab.md`](../reasoning_tab.md): a reasoning
+> agent + critic loop, an 8-rule physical-grounding filter, and a user-feedback
+> rule registry. The equation-graph reasoner described below is retained for
+> historical reference only; none of its code is in the live request path.
+
+**Status: 🗄 Archived — historical design.**
 
 This document describes the Reasoning tab's only reasoner: a typed
 equation graph supporting forward, abductive, and counterfactual
