@@ -33,23 +33,52 @@ from typing import Callable
 
 _NUMBER = r"(-?\d+(?:\.\d+)?)"
 
+# Reject a leading minus that's actually a range separator (e.g. "10-20").
+# The lookbehind asserts no digit, decimal point, or another minus immediately
+# precedes the matched number.
+_NUMBER_GUARDED = r"(?<![\d.\-])" + _NUMBER
+
 
 def _find_values(text: str, unit_pattern: str, context_terms: list[str]) -> list[tuple[float, str]]:
     """Find numeric claims like "12.3 GPa" near any of the context terms.
 
-    Returns (value, snippet) pairs. A claim is "near" a context term if both
-    appear within the same sentence.
+    Returns (value, snippet) pairs, deduplicated by (value, sentence). A claim
+    is "near" a context term if both appear within the same sentence. Also
+    recognises explicit ranges of the form "A–B unit" / "A-B unit" and emits
+    both endpoints so range rules can check each end.
     """
+    seen: set[tuple[float, str]] = set()
     out: list[tuple[float, str]] = []
     for sentence in re.split(r"(?<=[.!?])\s+", text):
         low = sentence.lower()
         if not any(term in low for term in context_terms):
             continue
-        for m in re.finditer(rf"{_NUMBER}\s*{unit_pattern}", sentence, flags=re.IGNORECASE):
+        # Explicit numeric ranges: "10-20 GPa", "10–20 GPa", "10 to 20 GPa"
+        range_re = rf"(?<![\d.\-]){_NUMBER}\s*(?:[-–—]|to)\s*{_NUMBER}\s*{unit_pattern}"
+        for m in re.finditer(range_re, sentence, flags=re.IGNORECASE):
             try:
-                out.append((float(m.group(1)), sentence.strip()))
+                lo, hi = float(m.group(1)), float(m.group(2))
             except ValueError:
                 continue
+            for v in (lo, hi):
+                key = (v, sentence.strip())
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(key)
+        # Single values (won't double-count range endpoints because the
+        # range_re already consumed them; standalone scan still finds isolated
+        # numbers, and the seen-set dedupes any overlap).
+        for m in re.finditer(rf"{_NUMBER_GUARDED}\s*{unit_pattern}", sentence, flags=re.IGNORECASE):
+            try:
+                v = float(m.group(1))
+            except ValueError:
+                continue
+            key = (v, sentence.strip())
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(key)
     return out
 
 
@@ -218,28 +247,116 @@ RULES: list[Rule] = [
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def check(text: str) -> dict:
-    """Run all rules over the agent's text.
+# ── User rule compilation (Tier 2) ────────────────────────────────────────────
+
+def _compile_user_rule(user_rule: dict) -> Rule | None:
+    """Turn a stored user-rule row (dict from feedback_store) into a Rule."""
+    rid = user_rule.get("rule_id") or f"user_{user_rule.get('id', 'x')}"
+    name = user_rule.get("name") or rid
+    kind = user_rule.get("kind")
+    params = user_rule.get("params") or {}
+
+    if kind == "range":
+        unit = params.get("unit", "")
+        lo = float(params["lo"]); hi = float(params["hi"])
+        unit_pattern = re.escape(unit).replace(r"\ ", r"\s*")
+        ctx = params.get("context_terms") or []
+        val_terms = params.get("value_terms") or []
+
+        def fn(text: str, _unit=unit, _lo=lo, _hi=hi, _pat=unit_pattern,
+               _ctx=ctx, _val=val_terms, _name=name) -> list[str]:
+            hits = _find_values(text, _pat, _ctx)
+            bad = []
+            for v, snip in hits:
+                if _val and not any(re.search(t, snip, re.IGNORECASE) for t in _val):
+                    continue
+                if v < _lo or v > _hi:
+                    bad.append(f"Claimed {v} {_unit} — outside user rule '{_name}' range {_lo}–{_hi} {_unit}.")
+            return bad
+        return Rule(rid, name, fn)
+
+    if kind == "forbid_pattern":
+        ctx = params.get("context_terms") or []
+        forbid = params.get("forbidden_terms") or []
+        excepts = params.get("exception_terms") or []
+        explanation = params.get("explanation") or ""
+
+        def fn(text: str, _ctx=ctx, _forbid=forbid, _exc=excepts,
+               _exp=explanation, _name=name) -> list[str]:
+            bad = []
+            for sentence in re.split(r"(?<=[.!?])\s+", text):
+                s = sentence.lower()
+                if not any(c in s for c in _ctx):
+                    continue
+                if not any(f in s for f in _forbid):
+                    continue
+                if _exc and any(e in s for e in _exc):
+                    continue
+                detail = f"User rule '{_name}' triggered: \"{sentence.strip()}\""
+                if _exp:
+                    detail += f" — {_exp}"
+                bad.append(detail)
+            return bad
+        return Rule(rid, name, fn)
+
+    return None
+
+
+def check(text: str, user_rules: list[dict] | None = None) -> dict:
+    """Run built-in (Tier 1) + user (Tier 2) rules over the agent's text.
+
+    Parameters
+    ----------
+    text : str
+        Agent's visible answer (post thinking-block strip).
+    user_rules : list[dict] | None
+        Stored rows from feedback_store.list_user_rules(). Each compiled into
+        a Rule at call time and merged with the built-in registry.
 
     Returns
     -------
     dict with keys:
-      passed (bool): True if no rule produced a violation.
-      violations (list): [{"rule": rule_id, "name": rule_name, "detail": str}, ...]
-      applied (list): ids of rules that actually inspected text in their domain.
-                      (Currently every rule runs; "applied" reports which ones
-                      reached past their early-exit guard.)
+      passed (bool):
+      violations (list): [{"rule", "name", "detail", "source"}]
+      rule_count (int): total rules executed (built-in + user)
+      user_rule_count (int): number of user rules executed
     """
+    compiled_user: list[Rule] = []
+    if user_rules:
+        for ur in user_rules:
+            try:
+                r = _compile_user_rule(ur)
+                if r is not None:
+                    compiled_user.append(r)
+            except Exception:
+                continue
+
     violations: list[dict] = []
+    seen_pairs: set[tuple[str, str]] = set()  # (rule_id, detail) — dedupe identical hits
+    def _add(rule: Rule, details: list[str], source: str) -> None:
+        for d in details:
+            key = (rule.id, d)
+            if key in seen_pairs:
+                continue
+            seen_pairs.add(key)
+            violations.append({"rule": rule.id, "name": rule.name,
+                               "detail": d, "source": source})
+
     for rule in RULES:
         try:
             details = rule.check(text) or []
-        except Exception as e:  # never let a buggy rule kill the request
+        except Exception as e:
             details = [f"(rule {rule.id} errored: {e})"]
-        for detail in details:
-            violations.append({"rule": rule.id, "name": rule.name, "detail": detail})
+        _add(rule, details, "builtin")
+    for rule in compiled_user:
+        try:
+            details = rule.check(text) or []
+        except Exception as e:
+            details = [f"(user rule {rule.id} errored: {e})"]
+        _add(rule, details, "user")
     return {
         "passed": len(violations) == 0,
         "violations": violations,
-        "rule_count": len(RULES),
+        "rule_count": len(RULES) + len(compiled_user),
+        "user_rule_count": len(compiled_user),
     }
