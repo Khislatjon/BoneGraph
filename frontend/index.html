@@ -1803,6 +1803,8 @@ function ReasonTab() {
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState('');
   const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
+  const [proposedFor, setProposedFor] = useState({}); // turn_id -> {proposal, correction_id}
+  const [status, setStatus] = useState('');             // pipeline status pill while loading
   const endRef     = useRef(null);
   const inputRef   = useRef(null);
   const chatAreaRef = useRef(null);
@@ -1845,6 +1847,11 @@ function ReasonTab() {
 
     let answer = '';
     let physicalCheck = null;
+    let outOfScope = false;
+    let rounds = [];
+    let phase = 'agent';           // 'agent' | 'critic' | 'agent_revise'
+    let critic_resolved = true;
+    setStatus('Reasoning…');
     try {
       const fd = new FormData();
       fd.append('question', t);
@@ -1863,10 +1870,28 @@ function ReasonTab() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'token') { answer += ev.content; setStreaming(answer); }
-          else if (ev.type === 'physical_check') { physicalCheck = ev; }
+          if (ev.type === 'round_start') {
+            phase = ev.phase;
+            if (ev.phase === 'agent') setStatus('Reasoning…');
+            else if (ev.phase === 'critic') setStatus(ev.round === 2 ? 'Critic reviewing…' : 'Critic re-checking…');
+            else if (ev.phase === 'agent_revise') { answer = ''; setStreaming(''); setStatus('Revising…'); }
+          }
+          else if (ev.type === 'token') {
+            if (ev.phase === 'agent_revise') {
+              // Replace the displayed streaming text with the revision-in-progress.
+              answer += ev.content; setStreaming(answer);
+            } else {
+              answer += ev.content; setStreaming(answer);
+            }
+          }
+          else if (ev.type === 'physical_check') { physicalCheck = ev; rounds.push({role:'physical_check', round: ev.round, ...ev}); }
+          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision}); }
           else if (ev.type === 'done')  {
             answer = ev.answer;
+            outOfScope = !!ev.out_of_scope;
+            critic_resolved = !!ev.critic_resolved;
+            if (ev.final_physical_check) physicalCheck = ev.final_physical_check;
+            if (Array.isArray(ev.rounds) && ev.rounds.length) rounds = ev.rounds;
             if (typeof ev.prompt_tokens === 'number') {
               setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192, estimated: true });
             }
@@ -1879,13 +1904,17 @@ function ReasonTab() {
       id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       query: t,
       answer,
+      out_of_scope: outOfScope,
       physical_check: physicalCheck,
+      rounds,
+      critic_resolved,
       critic_notes: null,
       user_feedback: null,
       timestamp: new Date().toISOString(),
     };
     setTurns(prev => [...prev, turn]);
     setStreaming('');
+    setStatus('');
     setPendingQuery('');
     setLoading(false);
     inputRef.current?.focus();
@@ -1913,7 +1942,19 @@ function ReasonTab() {
             </div>
           ) : (
             <div className="messages">
-              {turns.map(turn => <ReasonTurn key={turn.id} turn={turn}/>)}
+              {turns.map(turn => (
+                <ReasonTurn key={turn.id} turn={turn}
+                  proposed={proposedFor[turn.id]}
+                  onFeedback={ev => {
+                    if (ev.polarity === -1 && ev.proposed_rule) {
+                      setProposedFor(prev => ({...prev, [turn.id]: {proposal: ev.proposed_rule, correction_id: ev.correction_id}}));
+                    }
+                  }}
+                  onProposalDone={() => {
+                    setProposedFor(prev => { const cp = {...prev}; delete cp[turn.id]; return cp; });
+                  }}
+                />
+              ))}
               {pendingQuery && (
                 <div className="msg msg-user">
                   <div className="msg-bubble"><div className="msg-text">{pendingQuery}</div></div>
@@ -1923,6 +1964,11 @@ function ReasonTab() {
                 <div className="msg msg-asst">
                   <div className="msg-avatar"><BoneSVG size={34}/></div>
                   <div className="msg-bubble">
+                    {status && (
+                      <div style={{fontSize:11,color:'var(--text3)',marginBottom:6,letterSpacing:.3,textTransform:'uppercase'}}>
+                        {status}
+                      </div>
+                    )}
                     <div className="msg-text">
                       {streaming
                         ? /final response/i.test(streaming)
@@ -1959,9 +2005,234 @@ function ReasonTab() {
   );
 }
 
+function ReviewDialogue({ turn }) {
+  const [open, setOpen] = useState(false);
+  const rounds = (turn.rounds || []).filter(r => r.role === 'critic' || r.role === 'agent');
+  const criticRounds = rounds.filter(r => r.role === 'critic');
+  if (!criticRounds.length) return null;
+  const finalVerdict = criticRounds[criticRounds.length - 1].verdict;
+  const color = finalVerdict === 'accept' ? '#2e7d32' : '#b02020';
+  const label = finalVerdict === 'accept'
+    ? (criticRounds.length === 1 ? 'Critic: accepted on first review' : 'Critic: accepted after revision')
+    : 'Critic: unresolved after revision';
+  return (
+    <div style={{marginTop:10,fontSize:12}}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{background:'transparent',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{color}}>●</span>
+        <span>{label}</span>
+        <span style={{color:'var(--text3)'}}>· {open ? 'hide' : 'show'} dialogue</span>
+      </button>
+      {open && (
+        <div style={{marginTop:8,border:'1px solid var(--border)',borderRadius:6,padding:10,background:'var(--surface2)',display:'flex',flexDirection:'column',gap:10}}>
+          {criticRounds.map((r, i) => (
+            <div key={i}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Round {r.round} · Critic ({r.verdict})
+              </div>
+              {(r.notes || []).length > 0 && (
+                <ul style={{margin:'2px 0 4px 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                  {r.notes.map((n,j) => <li key={j}>{n}</li>)}
+                </ul>
+              )}
+              {r.suggested_revision && (
+                <div style={{fontSize:12,color:'var(--text3)',fontStyle:'italic'}}>
+                  Suggestion: {r.suggested_revision}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedbackBar({ turn, onFeedback }) {
+  const [polarity, setPolarity] = useState(turn._feedback_polarity || null);
+  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const sendUp = async () => {
+    if (polarity) return;
+    setPolarity(1);
+    try {
+      await fetch('/api/reason/feedback', {
+        method:'POST',
+        body: (() => { const fd = new FormData(); fd.append('turn_id', turn.id); fd.append('polarity','1'); return fd; })(),
+      });
+      onFeedback && onFeedback({turn_id: turn.id, polarity: 1});
+    } catch(e) { setError(e.message); setPolarity(null); }
+  };
+
+  const startDown = () => {
+    if (polarity) return;
+    setShowInput(true);
+  };
+
+  const submitDown = async () => {
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('turn_id', turn.id);
+      fd.append('polarity', '-1');
+      fd.append('question', turn.query);
+      fd.append('answer', stripThinking(turn.answer || ''));
+      fd.append('feedback_text', text);
+      const resp = await fetch('/api/reason/feedback', { method:'POST', body: fd });
+      const data = await resp.json();
+      setPolarity(-1);
+      setShowInput(false);
+      onFeedback && onFeedback({turn_id: turn.id, polarity: -1, proposed_rule: data.proposed_rule, correction_id: data.correction_id});
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const cancelDown = () => { setShowInput(false); setText(''); };
+
+  const btn = (selected, color) => ({
+    background: selected ? color : 'transparent',
+    color: selected ? '#fff' : 'var(--text2)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '3px 9px',
+    fontSize: 13,
+    cursor: polarity ? 'default' : 'pointer',
+    opacity: polarity && !selected ? 0.4 : 1,
+  });
+
+  return (
+    <div style={{marginTop:10}}>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <button style={btn(polarity===1, '#2e7d32')} onClick={sendUp} disabled={!!polarity}>👍</button>
+        <button style={btn(polarity===-1, '#b02020')} onClick={startDown} disabled={!!polarity}>👎</button>
+        {polarity === -1 && !showInput && <span style={{fontSize:12,color:'var(--text3)'}}>feedback saved</span>}
+        {polarity === 1 && <span style={{fontSize:12,color:'var(--text3)'}}>thanks</span>}
+        {error && <span style={{fontSize:12,color:'#b02020'}}>{error}</span>}
+      </div>
+      {showInput && (
+        <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:6}}>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="What was wrong? Be specific — e.g. 'cortical modulus is 10–25 GPa, not 80'."
+            style={{minHeight:60,padding:8,border:'1px solid var(--border)',borderRadius:6,fontFamily:'var(--sans)',fontSize:13,resize:'vertical',background:'var(--surface2)',color:'var(--text)'}}/>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={submitDown} disabled={submitting}
+              style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              {submitting ? 'Submitting…' : 'Submit feedback'}
+            </button>
+            <button onClick={cancelDown} disabled={submitting}
+              style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProposedRuleCard({ proposal, onConfirm, onDismiss, correctionId }) {
+  const [editable, setEditable] = useState(() => JSON.parse(JSON.stringify(proposal)));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!proposal) return null;
+  if (proposal.kind === 'none') {
+    return (
+      <div style={{marginTop:10,padding:'8px 10px',border:'1px dashed var(--border)',borderRadius:6,fontSize:12,color:'var(--text3)'}}>
+        Saved your correction. Couldn't extract a structured rule — {proposal.reason || 'too open-ended'}.
+        <div style={{marginTop:4}}>
+          <button onClick={onDismiss} style={{background:'transparent',color:'var(--text2)',border:'none',padding:0,fontSize:12,cursor:'pointer',textDecoration:'underline'}}>dismiss</button>
+        </div>
+      </div>
+    );
+  }
+
+  const kind = editable.kind;
+  const p = editable.params || {};
+
+  const setParam = (k, v) => setEditable({...editable, params:{...p, [k]: v}});
+  const setList  = (k, v) => setParam(k, v.split(',').map(s => s.trim()).filter(Boolean));
+
+  const confirm = async () => {
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('name', editable.name || 'User rule');
+      fd.append('kind', kind);
+      fd.append('params', JSON.stringify(editable.params));
+      if (correctionId) fd.append('source_correction_id', String(correctionId));
+      const resp = await fetch('/api/reason/rules/confirm', { method:'POST', body: fd });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to save');
+      onConfirm && onConfirm(data.rule);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop:10,border:'1px solid var(--amber-border)',borderRadius:8,padding:10,background:'rgba(176,120,32,.05)'}}>
+      <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:6}}>
+        Proposed rule from your feedback
+        <span style={{marginLeft:6,fontWeight:400,color:'var(--text3)'}}>· {kind === 'range' ? 'numeric range' : 'forbidden pattern'}</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:12}}>
+        <RuleField label="Name" value={editable.name} onChange={v => setEditable({...editable, name:v})}/>
+        {kind === 'range' && <>
+          <RuleField label="Unit" value={p.unit} onChange={v => setParam('unit', v)}/>
+          <div style={{display:'flex',gap:6}}>
+            <RuleField label="Min" value={p.lo} onChange={v => setParam('lo', parseFloat(v) || 0)}/>
+            <RuleField label="Max" value={p.hi} onChange={v => setParam('hi', parseFloat(v) || 0)}/>
+          </div>
+          <RuleField label="Context terms" value={(p.context_terms||[]).join(', ')} onChange={v => setList('context_terms', v)}/>
+          <RuleField label="Value terms"   value={(p.value_terms||[]).join(', ')}   onChange={v => setList('value_terms', v)}/>
+        </>}
+        {kind === 'forbid_pattern' && <>
+          <RuleField label="Context terms"   value={(p.context_terms||[]).join(', ')}   onChange={v => setList('context_terms', v)}/>
+          <RuleField label="Forbidden terms" value={(p.forbidden_terms||[]).join(', ')} onChange={v => setList('forbidden_terms', v)}/>
+          <RuleField label="Exception terms" value={(p.exception_terms||[]).join(', ')} onChange={v => setList('exception_terms', v)}/>
+          <RuleField label="Explanation" value={p.explanation} onChange={v => setParam('explanation', v)}/>
+        </>}
+      </div>
+      <div style={{display:'flex',gap:6,marginTop:8}}>
+        <button onClick={confirm} disabled={submitting}
+          style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+          {submitting ? 'Saving…' : 'Confirm rule'}
+        </button>
+        <button onClick={onDismiss} disabled={submitting}
+          style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+          Discard
+        </button>
+        {error && <span style={{fontSize:12,color:'#b02020',alignSelf:'center'}}>{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+function RuleField({ label, value, onChange }) {
+  return (
+    <label style={{display:'flex',gap:6,alignItems:'center',fontSize:12}}>
+      <span style={{minWidth:110,color:'var(--text3)'}}>{label}</span>
+      <input value={value ?? ''} onChange={e => onChange(e.target.value)}
+        style={{flex:1,padding:'3px 6px',border:'1px solid var(--border)',borderRadius:4,fontFamily:'var(--sans)',fontSize:12,background:'var(--surface)',color:'var(--text)'}}/>
+    </label>
+  );
+}
+
 function PhysicalCheckBadge({ check }) {
   const passed = check.passed;
   const n = check.rule_count || 0;
+  const userN = check.user_rule_count || 0;
   const vCount = (check.violations || []).length;
   const headerBg = passed ? 'rgba(46,125,50,.08)' : 'rgba(176,32,32,.08)';
   const headerColor = passed ? '#2e7d32' : '#b02020';
@@ -1969,12 +2240,16 @@ function PhysicalCheckBadge({ check }) {
     <div style={{marginTop:12,border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',fontSize:12}}>
       <div style={{padding:'6px 10px',background:headerBg,color:headerColor,fontWeight:500,display:'flex',justifyContent:'space-between'}}>
         <span>{passed ? '✓ Passed physical grounding' : `✗ ${vCount} violation${vCount===1?'':'s'} of physical grounding`}</span>
-        <span style={{color:'var(--text3)',fontWeight:400}}>{n} rules checked</span>
+        <span style={{color:'var(--text3)',fontWeight:400}}>{n} rules checked{userN ? ` (${userN} your rule${userN===1?'':'s'})` : ''}</span>
       </div>
       {!passed && (
         <ul style={{margin:0,padding:'8px 10px 8px 26px',color:'var(--text2)',lineHeight:1.5}}>
           {check.violations.map((v,i) => (
-            <li key={i}><strong>{v.name}:</strong> {v.detail}</li>
+            <li key={i}>
+              <strong>{v.name}</strong>
+              {v.source === 'user' && <span style={{marginLeft:4,fontSize:10,padding:'1px 5px',borderRadius:3,background:'rgba(176,120,32,.15)',color:'#8a5010'}}>your rule</span>}
+              : {v.detail}
+            </li>
           ))}
         </ul>
       )}
@@ -1982,7 +2257,7 @@ function PhysicalCheckBadge({ check }) {
   );
 }
 
-function ReasonTurn({ turn }) {
+function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
   return (
     <>
       <div className="msg msg-user">
@@ -1992,16 +2267,16 @@ function ReasonTurn({ turn }) {
         <div className="msg-avatar"><BoneSVG size={34}/></div>
         <div className="msg-bubble">
           <div className="msg-text">{parseCit(stripThinking(turn.answer))}</div>
-          {turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
-          {turn.critic_notes && (
-            <div style={{marginTop:8,fontSize:12,color:'var(--text2)'}}>
-              <strong>Reviewer notes:</strong> {turn.critic_notes}
-            </div>
-          )}
-          {turn.user_feedback && (
-            <div style={{marginTop:8,fontSize:12,color:'var(--text3)',fontStyle:'italic'}}>
-              You said: {turn.user_feedback}
-            </div>
+          {!turn.out_of_scope && turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
+          {!turn.out_of_scope && <ReviewDialogue turn={turn}/>}
+          {!turn.out_of_scope && <FeedbackBar turn={turn} onFeedback={onFeedback}/>}
+          {!turn.out_of_scope && proposed && (
+            <ProposedRuleCard
+              proposal={proposed.proposal}
+              correctionId={proposed.correction_id}
+              onConfirm={onProposalDone}
+              onDismiss={onProposalDone}
+            />
           )}
         </div>
       </div>

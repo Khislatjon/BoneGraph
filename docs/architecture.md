@@ -80,8 +80,9 @@ BoneMind is intentionally restricted to bone science. This is not a limitation �
 | Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
 | Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](phase3_vlm_plan.md) |
-| Phase 4 — LRM reasoning layer | 🔶 In Progress (April 2026) | Steps 4.1–4.6 complete · paper extraction pending · [phase4_lrm_plan.md](phase4_lrm_plan.md) |
-| Phase 5 — Feedback loop | ⏳ Planned | — |
+| Phase 4 — LRM reasoning layer | 🔶 Knowledge-graph artefacts retained; equation-graph Reasoning tab retired (May 2026) | [phase4_lrm_plan.md](phase4_lrm_plan.md) |
+| Phase 4b — Reasoning tab (rebuild) | 🟢 Live (May 2026) | Agent + critic loop · physical grounding · feedback-driven user rules · [reasoning_tab.md](reasoning_tab.md) |
+| Phase 5 — Feedback loop | 🟢 Live for the Reasoning tab (May 2026); other tabs pending | Reasoning-tab feedback flow documented in [reasoning_tab.md](reasoning_tab.md) |
 
 ---
 
@@ -107,10 +108,13 @@ Move from retrieval to reasoning. Steps 4.1–4.7 are complete:
 - **4.4 — Equation-graph reasoner** (`reasoning/relation.py`, `reasoning/bone_relations.py`, `reasoning/explorer.py`, `reasoning/semantic_anchor.py`, `reasoning/query_router.py`): a typed equation graph over 12 bone-physics variables and 7 Relations (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus density / inertia / strain bridges). Forward / abductive / counterfactual inference modes; chains are discovered by traversing shared symbols. Patient covariates (age, sex, site, disease) reshape per-relation parameter priors before Monte-Carlo propagation. Free-text queries are routed by a single Ollama call and anchored to variables via SPECTER2 embeddings. An active-exploration ("Surprises") panel walks the graph without a query and scores candidates by corpus surprise. Supersedes the retired physics-grid pipeline preserved as a retrospective in [`reasoning/physics_grid.md`](reasoning/physics_grid.md).
 - **4.5 — Proposer / Critic agents** (`reasoning/agent_tools.py`, `reasoning/proposer_agent.py`, `reasoning/critic_agent.py`): a two-agent loop on top of the equation graph. The Proposer walks the variable graph and suggests novel `(target, sweep_var)` pairs the user has not asked about; the deterministic Explorer evaluates each; the Critic queries the corpus and verdicts the prediction as *interesting*, *trivial*, *out-of-domain*, or *needs-more-data*.
 - **4.6 — Novelty classifier** (`reasoning/novelty.py`): two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
-- **4.7 — Reasoning tab** (`api/main.py` + `frontend/index.html`): React UI for the equation-graph reasoner. Endpoints: `/api/reason`, `/api/reason/ask`, `/api/reason/presets`, `/api/reason/explore`, `/api/reason/agents`. See [`reasoning/equation_graph.md`](reasoning/equation_graph.md) for the full architecture, and [`reasoning/physics_grid.md`](reasoning/physics_grid.md) for the retrospective on the retired physics-grid design.
+- **4.7 — Reasoning tab (equation-graph version, retired May 2026)** (`reasoning/legacy/`): React UI for the equation-graph reasoner. Endpoints `/api/reason`, `/api/reason/ask`, `/api/reason/presets`, `/api/reason/explore`, `/api/reason/agents` remain available for the archived UI; they are not used by the live tab. See [`reasoning/equation_graph.md`](reasoning/equation_graph.md) for the archived architecture and [`reasoning/physics_grid.md`](reasoning/physics_grid.md) for the earlier physics-grid retrospective.
 
-### Phase 5 — Feedback loop ⏳
-Make the system improve with use. User feedback (corrections, confirmations) updates the ontology, refining retrieval and reasoning in subsequent queries.
+### Phase 4b — Reasoning tab (clean-slate rebuild) 🟢
+Following the 21 May supervision direction, the Reasoning tab was rebuilt around three pillars: an agentic reasoning + critic loop, a deterministic fracture-scoped physical-grounding filter, and a user-feedback rule registry. Endpoints: `/api/reason/chat`, `/api/reason/feedback`, `/api/reason/rules/*`. Full architecture, data model, API surface, and demo flow in [`reasoning_tab.md`](reasoning_tab.md).
+
+### Phase 5 — Feedback loop 🟢 (Reasoning tab) · ⏳ (other tabs)
+Make the system improve with use. **For the Reasoning tab** this is live: thumbs-down + free-text corrections feed an LLM rule extractor whose proposals the user confirms into a personal SQLite-backed rule registry, merged into the physical-grounding check on every future request. See [`reasoning_tab.md`](reasoning_tab.md) §"Feedback loop". For the Ask and Analyse tabs, a feedback channel into the ontology / retrieval is still planned.
 
 ---
 

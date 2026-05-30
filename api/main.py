@@ -86,14 +86,57 @@ GUARD_PROMPT = (
 )
 
 
+_BONE_VOCAB = {
+    # general
+    "bone", "bones", "skeleton", "skeletal", "osseous",
+    # tissue types
+    "cortical", "trabecular", "cancellous", "compact bone", "spongy bone",
+    "lamellar", "woven",
+    # cells / biology
+    "osteoblast", "osteoclast", "osteocyte", "osteoid", "osteogen",
+    # diseases
+    "osteoporosis", "osteopenia", "osteomalacia", "osteoarthritis",
+    "osteosarcoma", "paget", "fragility", "fracture",
+    # mechanics & physics
+    "wolff", "mechanostat", "remodel", "bmd", "bv/tv", "porosity",
+    "modulus of bone", "bone modulus", "bone stiffness", "bone density",
+    "bone strength", "bone toughness",
+    # imaging & diagnostics
+    "dxa", "dexa", "t-score", "z-score", "qct", "micro-ct", "ucbt",
+    # anatomy
+    "femur", "femoral", "tibia", "vertebr", "humer", "radius (bone)",
+    "metaphys", "diaphys", "epiphys", "calcaneus",
+    # therapy / drugs commonly associated
+    "bisphosphonate", "denosumab", "teriparatide", "alendronate",
+    # tumours
+    "lytic", "metastatic bone", "bone metastas",
+    # field
+    "orthopaed", "orthoped", "biomaterial", "biomechan",
+}
+
+
+def _looks_bone_related(text: str) -> bool:
+    low = (text or "").lower()
+    return any(term in low for term in _BONE_VOCAB)
+
+
 def _is_bone_science(q: str, prior_questions: list[str]) -> bool:
     """Lightweight bone-science classifier used by Ask and Reasoning tabs.
 
-    Includes the last few user questions so the classifier can resolve
-    pronouns ("it", "this", "they"). Assistant replies are deliberately
-    excluded — their off-topic-adjacent vocabulary confuses small classifiers.
-    Fails open on network errors so a hiccup doesn't block real questions.
+    Two-stage:
+      1. Fast lexical pass — if the question (or a recent question, for pronoun
+         carry-over) contains explicit bone vocabulary, accept immediately. This
+         is the common path and avoids the small classifier's misfires.
+      2. LLM fallback — for ambiguous wording, ask llama3.2:3b. Fails open on
+         network errors so a hiccup doesn't block real questions.
     """
+    if _looks_bone_related(q):
+        return True
+    # Pronoun-carry: if the user just said "and trabecular?" after a bone question
+    for prev in prior_questions[-3:]:
+        if _looks_bone_related(prev):
+            return True
+
     recent = prior_questions[-8:]
     if recent:
         prior_block = (
@@ -524,7 +567,11 @@ Output format (markdown):
 **Point 1.** One-sentence claim or mechanism.
 *Basis.* 1–2 sentences explaining the biological or mechanical grounding.
 
-Repeat for 2–4 points that build on each other, ending with the conclusion you reach.
+Use as few points as the question actually needs — anywhere from 1 to 4.
+- A direct factual question often needs only one point.
+- A "why" question with a single causal chain may need 2.
+- Only use 3–4 when the answer genuinely depends on multiple mechanisms that build on each other.
+Do not pad. If one point is enough, stop there. Never repeat the same idea across points.
 
 Rules:
 - Reason about mechanisms (cause → effect), not just list facts.
@@ -534,27 +581,192 @@ Rules:
 - No preamble, no closing summary. Start directly with "**Point 1.**"."""
 
 
+CRITIC_SYSTEM_PROMPT = """You are BoneMind's critic agent. You review another agent's bone-science reasoning for correctness, internal consistency, completeness, and appropriately calibrated uncertainty.
+
+You will receive:
+  - the original question
+  - the reasoning agent's answer (in Point / Basis format)
+  - a list of physical-grounding rule violations (may be empty)
+  - a short summary of the user's own learned rules (may be empty)
+
+Reply with ONE JSON object on a single line. No prose. No markdown fences. Shape:
+
+{"verdict":"accept" | "dispute",
+ "notes":["short bullet 1","short bullet 2"],
+ "suggested_revision":"<short instruction to the reasoning agent>"}
+
+Rules:
+- VERDICT must be "accept" or "dispute".
+- ACCEPT if the answer is broadly correct and well-reasoned. A physical-grounding violation flagged on an edge case the agent already qualified is still acceptable — say so in notes.
+- DISPUTE only if there is a factual error, internal contradiction, missing key mechanism, or a genuine physical-grounding violation that the agent did not address.
+- NOTES: 1–3 short bullets, each ≤ 15 words. Be specific. No generic praise.
+- SUGGESTED_REVISION: present only when verdict is "dispute". One sentence telling the reasoning agent what to change. Do NOT rewrite the answer.
+- Do not dispute just to look thorough. If the answer is good, accept it.
+"""
+
+
+REVISION_PROMPT_TEMPLATE = """Your earlier answer was reviewed by a critic. Critic verdict: DISPUTE.
+
+Critic notes:
+{notes}
+
+Suggested revision: {suggestion}
+
+Please revise your answer in the same Point / Basis format. Address the critic's points concretely. If you believe the critic is wrong about a specific point, you may keep your original claim — but explain why in that Point's *Basis* line.
+
+Original question: {question}
+"""
+
+
+CRITIC_MAX_ROUNDS = 2  # max revision iterations (= up to 4 LLM calls total)
+
+
+def _llm_stream(messages, result_out: dict, temperature=0.3):
+    """Generator yielding token strings as Ollama emits them. After the
+    iterator is exhausted, result_out['full'] and result_out['eval_count']
+    are populated."""
+    resp = requests.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_MODEL, "messages": messages, "stream": True,
+              "options": {"temperature": temperature, "num_ctx": 8192}},
+        stream=True,
+        timeout=240,
+    )
+    resp.raise_for_status()
+    chunks: list[str] = []
+    evc = 0
+    for line in resp.iter_lines():
+        if not line:
+            continue
+        data = json.loads(line)
+        if data.get("done"):
+            evc = data.get("eval_count", 0)
+            continue
+        t = data["message"]["content"]
+        chunks.append(t)
+        yield t
+    result_out["full"] = "".join(chunks)
+    result_out["eval_count"] = evc
+
+
+def _call_critic(question: str, agent_answer: str, violations: list, user_rule_summary: str) -> dict:
+    """Single non-streaming call to the critic. Returns parsed dict with keys
+    verdict, notes, suggested_revision. Falls back to verdict='accept' on
+    parse failure so a flaky critic never blocks the user."""
+    viol_str = "\n".join(f"- [{v['name']}] {v['detail']}" for v in violations) or "(none)"
+    user_msg = (
+        f"QUESTION:\n{question}\n\n"
+        f"AGENT ANSWER:\n{agent_answer}\n\n"
+        f"PHYSICAL-GROUNDING VIOLATIONS:\n{viol_str}\n\n"
+        f"USER RULES IN EFFECT:\n{user_rule_summary or '(none)'}\n"
+    )
+    try:
+        resp = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "messages": [
+                    {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_msg},
+                ],
+                "stream": False,
+                "format": "json",
+                "options": {"temperature": 0.2, "num_predict": 300, "num_ctx": 8192},
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        raw = resp.json()["message"]["content"].strip()
+    except Exception as e:
+        return {"verdict": "accept", "notes": [f"(critic unavailable: {e})"], "suggested_revision": ""}
+
+    parsed = _safe_json(raw)
+    if not parsed:
+        return {"verdict": "accept", "notes": ["(critic returned unparseable output)"], "suggested_revision": ""}
+    verdict = str(parsed.get("verdict", "accept")).strip().lower()
+    if verdict not in ("accept", "dispute"):
+        verdict = "accept"
+    notes = parsed.get("notes") or []
+    if isinstance(notes, str):
+        notes = [notes]
+    notes = [str(n).strip() for n in notes if str(n).strip()][:3]
+    suggestion = str(parsed.get("suggested_revision") or "").strip()
+    return {"verdict": verdict, "notes": notes, "suggested_revision": suggestion}
+
+
+def _safe_json(raw: str):
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.MULTILINE)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        mm = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+        if not mm:
+            return None
+        try:
+            return json.loads(mm.group(0))
+        except Exception:
+            return None
+
+
+def _strip_thinking(text: str) -> str:
+    m = re.search(r"final response\s*", text, flags=re.IGNORECASE)
+    return text[m.end():].lstrip() if m else text
+
+
+def _user_rules_summary(user_rules: list[dict]) -> str:
+    if not user_rules:
+        return ""
+    lines = []
+    for r in user_rules[:10]:
+        if r["kind"] == "range":
+            p = r["params"]
+            lines.append(f"- {r['name']}: {p.get('lo')}–{p.get('hi')} {p.get('unit','')} "
+                         f"(context: {', '.join(p.get('context_terms', []))})")
+        elif r["kind"] == "forbid_pattern":
+            p = r["params"]
+            lines.append(f"- {r['name']}: avoid {p.get('forbidden_terms', [])} near "
+                         f"{p.get('context_terms', [])} unless {p.get('exception_terms', [])}")
+    return "\n".join(lines)
+
+
 @app.post("/api/reason/chat")
 async def reason_chat(
     question: str = Form(...),
     history: str = Form("[]"),
     all_questions: str = Form("[]"),
 ):
-    """SSE stream — reasoning agent, pure LLM + physical-grounding filter.
+    """SSE stream — reasoning agent + critic loop with conditional revision.
 
-    Multi-turn: `history` is a JSON array of {role, content} for prior turns,
-    already stripped of thinking blocks client-side.
+    Pipeline per request:
+      Round 1: reasoning agent answers (streamed)
+               → physical-grounding check
+      Round 2: critic reviews (non-streaming, JSON verdict)
+               → if ACCEPT, done.
+               → if DISPUTE, agent revises (streamed)
+                          → physical-grounding check
+                          → critic re-reviews
+                          → done (even if still disputed; surface unresolved)
 
-    Events:
-      {"type": "token",          "content": "..."}
-      {"type": "physical_check", "passed": bool, "violations": [...]}
-      {"type": "done",           "answer": "...", "prompt_tokens": N,
-                                 "completion_tokens": N, "context_window": N}
+    Hard cap: CRITIC_MAX_ROUNDS iterations (≤4 LLM calls total).
+
+    SSE events:
+      {"type": "round_start",    "phase": "agent"|"critic"|"agent_revise", "round": N}
+      {"type": "token",          "content": "...", "phase": "agent"|"agent_revise"}
+      {"type": "physical_check", "round": N, "passed": bool, "violations": [...]}
+      {"type": "critic_review",  "round": N, "verdict": "accept"|"dispute",
+                                 "notes": [...], "suggested_revision": "..."}
+      {"type": "done",           "answer": "...", "rounds": [...],
+                                 "prompt_tokens": N, "completion_tokens": N,
+                                 "context_window": N, "out_of_scope": bool,
+                                 "critic_resolved": bool}
       {"type": "error",          "message": "..."}
     """
     from reasoning.physical_grounding import check as physical_check
+    from reasoning.feedback_store import list_user_rules
     prior_turns: list[dict] = json.loads(history) if history else []
     prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
+    user_rules = list_user_rules()
+    user_rule_summary = _user_rules_summary(user_rules)
 
     def generate():
         q = question.strip()
@@ -562,8 +774,6 @@ async def reason_chat(
             yield f"data: {json.dumps({'type':'error','message':'Empty question'})}\n\n"
             return
 
-        # Topic guard — same classifier as the Ask tab, with pronoun context
-        # from the user's full question history.
         if not _is_bone_science(q, prior_questions_all):
             out = (
                 "This question is outside BoneMind's reasoning scope. "
@@ -571,52 +781,77 @@ async def reason_chat(
                 "imaging, biomaterials, and related pathology. "
                 "Please ask within that domain."
             )
-            yield f"data: {json.dumps({'type':'done','answer':out,'prompt_tokens':0,'completion_tokens':0,'context_window':8192})}\n\n"
+            yield f"data: {json.dumps({'type':'done','answer':out,'prompt_tokens':0,'completion_tokens':0,'context_window':8192,'out_of_scope':True,'rounds':[],'critic_resolved':True})}\n\n"
             return
 
-        messages = [
+        base_messages = [
             {"role": "system", "content": REASONING_SYSTEM_PROMPT},
             *prior_turns,
             {"role": "user",   "content": q},
         ]
 
-        # Local token estimate — Ollama caches the prefix between turns so its
-        # reported prompt count stays flat across follow-ups. ~3.5 chars/token
-        # is a good Llama-3 approximation for English / scientific text.
-        char_count = sum(len(m.get("content", "")) for m in messages)
+        char_count = sum(len(m.get("content", "")) for m in base_messages)
         prompt_tokens = max(1, round(char_count / 3.5))
         completion_tokens = 0
-        answer = ""
+
+        rounds: list[dict] = []
+
         try:
-            resp = requests.post(
-                OLLAMA_URL,
-                json={"model": OLLAMA_MODEL, "messages": messages, "stream": True,
-                      "options": {"temperature": 0.3, "num_ctx": 8192}},
-                stream=True,
-                timeout=180,
-            )
-            resp.raise_for_status()
-            for line in resp.iter_lines():
-                if not line:
-                    continue
-                data = json.loads(line)
-                if data.get("done"):
-                    completion_tokens = data.get("eval_count", 0)
-                    continue
-                token = data["message"]["content"]
-                answer += token
-                yield f"data: {json.dumps({'type':'token','content':token})}\n\n"
+            # ── Round 1: Reasoning agent ───────────────────────────────
+            yield f"data: {json.dumps({'type':'round_start','phase':'agent','round':1})}\n\n"
+            agent_result: dict = {}
+            for t in _llm_stream(base_messages, agent_result):
+                yield f"data: {json.dumps({'type':'token','content':t,'phase':'agent'})}\n\n"
+            answer = agent_result.get("full", "")
+            completion_tokens += agent_result.get("eval_count", 0)
+            answer_visible = _strip_thinking(answer)
 
-            # Strip the thinking block before running rules so we only check
-            # the agent's final reasoning, not its scratchpad.
-            visible = answer
-            m = re.search(r"final response\s*", visible, flags=re.IGNORECASE)
-            if m:
-                visible = visible[m.end():].lstrip()
-            pc = physical_check(visible)
-            yield f"data: {json.dumps({'type':'physical_check', **pc})}\n\n"
+            pc = physical_check(answer_visible, user_rules=user_rules)
+            yield f"data: {json.dumps({'type':'physical_check','round':1, **pc})}\n\n"
+            rounds.append({"role": "agent", "round": 1, "content": answer, "physical_check": pc})
 
-            yield f"data: {json.dumps({'type':'done','answer':answer,'prompt_tokens':prompt_tokens,'completion_tokens':completion_tokens,'context_window':8192})}\n\n"
+            # ── Round 2: Critic review ─────────────────────────────────
+            yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':2})}\n\n"
+            critic1 = _call_critic(q, answer_visible, pc["violations"], user_rule_summary)
+            yield f"data: {json.dumps({'type':'critic_review','round':2, **critic1})}\n\n"
+            rounds.append({"role": "critic", "round": 2, **critic1})
+
+            critic_resolved = critic1["verdict"] == "accept"
+            final_answer = answer
+
+            # ── Optional Round 3: Agent revises ────────────────────────
+            if critic1["verdict"] == "dispute":
+                revision_messages = base_messages + [
+                    {"role": "assistant", "content": answer},
+                    {"role": "user", "content": REVISION_PROMPT_TEMPLATE.format(
+                        notes="\n".join(f"- {n}" for n in critic1["notes"]) or "- (no specifics provided)",
+                        suggestion=critic1["suggested_revision"] or "(no concrete suggestion provided)",
+                        question=q,
+                    )},
+                ]
+                yield f"data: {json.dumps({'type':'round_start','phase':'agent_revise','round':3})}\n\n"
+                rev_result: dict = {}
+                for t in _llm_stream(revision_messages, rev_result):
+                    yield f"data: {json.dumps({'type':'token','content':t,'phase':'agent_revise'})}\n\n"
+                revised = rev_result.get("full", "")
+                completion_tokens += rev_result.get("eval_count", 0)
+                revised_visible = _strip_thinking(revised)
+                pc2 = physical_check(revised_visible, user_rules=user_rules)
+                yield f"data: {json.dumps({'type':'physical_check','round':3, **pc2})}\n\n"
+                rounds.append({"role": "agent", "round": 3, "content": revised, "physical_check": pc2})
+
+                # ── Round 4: Critic re-reviews ─────────────────────────
+                yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':4})}\n\n"
+                critic2 = _call_critic(q, revised_visible, pc2["violations"], user_rule_summary)
+                yield f"data: {json.dumps({'type':'critic_review','round':4, **critic2})}\n\n"
+                rounds.append({"role": "critic", "round": 4, **critic2})
+
+                critic_resolved = critic2["verdict"] == "accept"
+                final_answer = revised
+                # latest physical check applies to the displayed answer
+                pc = pc2
+
+            yield f"data: {json.dumps({'type':'done', 'answer': final_answer, 'rounds': rounds, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'context_window': 8192, 'critic_resolved': critic_resolved, 'final_physical_check': pc})}\n\n"
 
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
@@ -624,6 +859,92 @@ async def reason_chat(
             yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ── Reasoning tab — feedback + user rules (Phase 4) ───────────────────────────
+
+@app.post("/api/reason/feedback")
+async def reason_feedback(
+    turn_id: str = Form(...),
+    polarity: int = Form(...),
+    question: str = Form(""),
+    answer: str = Form(""),
+    feedback_text: str = Form(""),
+):
+    """Record a thumbs event and (on thumbs-down with text) propose a rule.
+
+    Response shapes:
+      thumbs-up:
+        {"ok": true, "stats": {...}}
+      thumbs-down without text:
+        {"ok": true, "correction_id": N, "proposed_rule": null, "stats": {...}}
+      thumbs-down with text:
+        {"ok": true, "correction_id": N,
+         "proposed_rule": {"kind":"range"|"forbid_pattern", "name":..., "params":...}
+                       OR  {"kind":"none", "reason":...},
+         "stats": {...}}
+    """
+    from reasoning.feedback_store import save_event, save_correction, stats
+    from reasoning.rule_extractor import extract
+
+    if polarity not in (-1, 1):
+        return {"ok": False, "error": "polarity must be -1 or +1"}
+
+    save_event(turn_id=turn_id, polarity=polarity)
+
+    if polarity == 1:
+        return {"ok": True, "stats": stats()}
+
+    # thumbs-down — persist the correction payload (even if empty text)
+    correction_id = save_correction(
+        turn_id=turn_id,
+        question=question or "",
+        answer=answer or "",
+        feedback_text=feedback_text or "",
+    )
+
+    proposed = None
+    if feedback_text.strip():
+        proposed = extract(question=question, answer=answer, feedback_text=feedback_text)
+    return {
+        "ok": True,
+        "correction_id": correction_id,
+        "proposed_rule": proposed,
+        "stats": stats(),
+    }
+
+
+@app.post("/api/reason/rules/confirm")
+async def reason_rule_confirm(
+    name: str = Form(...),
+    kind: str = Form(...),
+    params: str = Form(...),                          # JSON-encoded
+    source_correction_id: int = Form(None),
+):
+    """Persist a confirmed (possibly user-edited) rule."""
+    from reasoning.feedback_store import save_user_rule, stats
+    try:
+        params_obj = json.loads(params)
+    except Exception as e:
+        return {"ok": False, "error": f"params JSON parse error: {e}"}
+    if kind not in ("range", "forbid_pattern"):
+        return {"ok": False, "error": f"unknown kind: {kind}"}
+    rule = save_user_rule(name=name, kind=kind, params=params_obj,
+                          source_correction_id=source_correction_id)
+    return {"ok": True, "rule": rule, "stats": stats()}
+
+
+@app.get("/api/reason/rules")
+async def reason_rules_list():
+    from reasoning.feedback_store import list_user_rules, stats
+    return {"rules": list_user_rules(), "stats": stats()}
+
+
+@app.delete("/api/reason/rules/{rule_db_id}")
+async def reason_rule_delete(rule_db_id: int):
+    from reasoning.feedback_store import delete_user_rule, stats
+    deleted = delete_user_rule(rule_db_id)
+    return {"ok": deleted, "stats": stats()}
 
 
 @app.post("/api/search")
