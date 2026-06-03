@@ -2038,6 +2038,9 @@ function RulesPanel({ onClose }) {
   const [rules, setRules] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState({});   // id -> true while a request is in flight
+  const [importMsg, setImportMsg] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef(null);
 
   const load = async () => {
     try {
@@ -2047,6 +2050,20 @@ function RulesPanel({ onClose }) {
     } catch (e) { setError(e.message); }
   };
   useEffect(() => { load(); }, []);
+
+  const onImportFile = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    setImporting(true); setImportMsg(null); setError('');
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const r = await fetch('/api/reason/rules/import', { method:'POST', body: fd });
+      const d = await r.json();
+      if (d.error) { setError(d.error); }
+      else { setImportMsg(d); await load(); }
+    } catch (err) { setError(err.message); }
+    finally { setImporting(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
 
   const setEnabled = async (rule, enabled) => {
     setBusy(b => ({...b, [rule.id]: true}));
@@ -2083,6 +2100,31 @@ function RulesPanel({ onClose }) {
           </div>
           <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
         </div>
+        <div style={{padding:'10px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={onImportFile} style={{display:'none'}}/>
+          <button disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}
+            style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:6,padding:'6px 12px',fontSize:13,cursor:'pointer'}}>
+            {importing ? 'Importing…' : '⬆ Import CSV / Excel'}
+          </button>
+          <a href="/api/reason/rules/template" download
+            style={{fontSize:12,color:'var(--text2)',textDecoration:'underline'}}>download template</a>
+        </div>
+        {importMsg && (
+          <div style={{padding:'8px 20px',fontSize:12,background:'rgba(46,125,50,.06)',borderBottom:'1px solid var(--border)'}}>
+            <div style={{color:'#2e7d32',fontWeight:600}}>Imported {importMsg.imported} rule{importMsg.imported===1?'':'s'}.</div>
+            {(importMsg.skipped || []).length > 0 && (
+              <div style={{marginTop:4,color:'var(--text2)'}}>
+                Skipped {importMsg.skipped.length}:
+                <ul style={{margin:'2px 0 0 16px',padding:0}}>
+                  {importMsg.skipped.slice(0,8).map((s,i) => (
+                    <li key={i}>row {s.row}{s.name?` (${s.name})`:''}: {s.reason}</li>
+                  ))}
+                  {importMsg.skipped.length > 8 && <li>…and {importMsg.skipped.length - 8} more</li>}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
         <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
           {error && <div style={{color:'#b02020',fontSize:13,marginBottom:8}}>{error}</div>}
           {rules === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
@@ -2098,8 +2140,9 @@ function RulesPanel({ onClose }) {
                 <div style={{flex:1}}>
                   <div style={{fontSize:13.5,fontWeight:600,color:'var(--text)'}}>{r.name}</div>
                   <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{ruleSummary(r)}</div>
-                  <div style={{fontSize:10,color:'var(--text3)',marginTop:4,textTransform:'uppercase',letterSpacing:.3}}>
-                    {r.kind === 'range' ? 'numeric range' : 'forbidden pattern'}
+                  <div style={{fontSize:10,color:'var(--text3)',marginTop:4,textTransform:'uppercase',letterSpacing:.3,display:'flex',gap:6,alignItems:'center'}}>
+                    <span>{r.kind === 'range' ? 'numeric range' : 'forbidden pattern'}</span>
+                    {r.origin === 'imported' && <span style={{padding:'1px 5px',borderRadius:3,background:'rgba(46,90,130,.12)',color:'#2b5a82',letterSpacing:0}}>imported</span>}
                   </div>
                 </div>
               </div>

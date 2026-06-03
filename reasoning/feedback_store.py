@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS user_rules (
     kind                 TEXT    NOT NULL,         -- 'range' | 'forbid_pattern'
     params               TEXT    NOT NULL,         -- JSON
     source_correction_id INTEGER,
+    origin               TEXT    NOT NULL DEFAULT 'feedback',  -- 'feedback' | 'imported'
     enabled              INTEGER NOT NULL DEFAULT 1,
     created_at           TEXT    NOT NULL,
     FOREIGN KEY(source_correction_id) REFERENCES corrections(id)
@@ -73,6 +74,13 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _migrate(con: sqlite3.Connection) -> None:
+    """Lightweight, idempotent migrations for DBs created before a column existed."""
+    cols = {r["name"] for r in con.execute("PRAGMA table_info(user_rules)")}
+    if "origin" not in cols:
+        con.execute("ALTER TABLE user_rules ADD COLUMN origin TEXT NOT NULL DEFAULT 'feedback'")
+
+
 @contextmanager
 def _conn() -> Iterator[sqlite3.Connection]:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -80,6 +88,7 @@ def _conn() -> Iterator[sqlite3.Connection]:
     con.row_factory = sqlite3.Row
     try:
         con.executescript(SCHEMA)
+        _migrate(con)
         yield con
         con.commit()
     finally:
@@ -130,19 +139,19 @@ def save_correction(turn_id: str, question: str, answer: str, feedback_text: str
 # ── User rules ────────────────────────────────────────────────────────────────
 
 def save_user_rule(name: str, kind: str, params: dict, source_correction_id: int | None,
-                   user_id: str = DEFAULT_USER) -> dict:
+                   user_id: str = DEFAULT_USER, origin: str = "feedback") -> dict:
     with _conn() as con:
         cur = con.execute(
             """INSERT INTO user_rules
-               (user_id, rule_id, name, kind, params, source_correction_id, enabled, created_at)
-               VALUES (?, '', ?, ?, ?, ?, 1, ?)""",
-            (user_id, name, kind, json.dumps(params), source_correction_id, _now()),
+               (user_id, rule_id, name, kind, params, source_correction_id, origin, enabled, created_at)
+               VALUES (?, '', ?, ?, ?, ?, ?, 1, ?)""",
+            (user_id, name, kind, json.dumps(params), source_correction_id, origin, _now()),
         )
         new_id = int(cur.lastrowid)
         rule_id = f"user_{kind}_{new_id}"
         con.execute("UPDATE user_rules SET rule_id = ? WHERE id = ?", (rule_id, new_id))
         return {"id": new_id, "rule_id": rule_id, "name": name, "kind": kind,
-                "params": params, "enabled": True}
+                "params": params, "origin": origin, "enabled": True}
 
 
 def list_user_rules(user_id: str = DEFAULT_USER, enabled_only: bool = True) -> list[dict]:
@@ -182,6 +191,7 @@ def _row_to_rule(r: sqlite3.Row) -> dict:
         "kind": r["kind"],
         "params": json.loads(r["params"]),
         "source_correction_id": r["source_correction_id"],
+        "origin": (r["origin"] if "origin" in r.keys() else "feedback"),
         "enabled": bool(r["enabled"]),
         "created_at": r["created_at"],
     }

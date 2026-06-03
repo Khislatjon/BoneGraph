@@ -350,6 +350,8 @@ the meeting. See **What's next**.
 | **A3 — Consistency bench** | 🟢 Built + validated (83% consistency, 100% correctness). Semi-automated; auto-judge ~83% reliable so stances are spot-checked. See [`reasoning/consistency_bench.md`](reasoning/consistency_bench.md). |
 | **A4 — KG shortcut → critic** | 🟢 Built. `reasoning/kg_context.py` anchors on concepts in the question and feeds the critic raw 1-hop edges from `ontology.db` (capped ~300 tokens) — never composed multi-hop chains. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
 | **B1 — Feedback-loop demo** | 🟢 Built + live-verified (`eval/feedback_demo.py`). Deterministic proof + live before/after trace of "second chat is better." Surfaced and fixed two bugs: critic now **forced to dispute on any user-rule violation** (deterministic override + prompt), and **unit-notation matching** is now tolerant (`g/cm^3`≡`g/cm³`≡`g/cm3`). See [`reasoning/feedback_demo.md`](reasoning/feedback_demo.md). |
+| **B2 — Rule management UI** | 🟢 Built. "⚙ Your rules" slide-over: list / enable-disable / delete user rules with plain-English summaries. Backend: `set_rule_enabled`, `GET /rules` returns all, `POST /rules/{id}/enabled`. |
+| **A5 — Bulk rule import** | 🟢 Built. CSV **and** XLSX (Gianluca's "pour an Excel file", 28 May). `reasoning/rule_import.py` parses → validates per row → dedupes → caps at 50 → tags `origin:"imported"`. `POST /api/reason/rules/import`, template at `GET /api/reason/rules/template`. Import button + skipped-row report in the rules panel. |
 
 ## What's next
 

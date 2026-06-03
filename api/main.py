@@ -51,7 +51,7 @@ from pathlib import Path
 
 import requests
 from fastapi import FastAPI, Form, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1114,6 +1114,75 @@ async def reason_rule_delete(rule_db_id: int):
     from reasoning.feedback_store import delete_user_rule, stats
     deleted = delete_user_rule(rule_db_id)
     return {"ok": deleted, "stats": stats()}
+
+
+@app.get("/api/reason/rules/template")
+async def reason_rules_template():
+    """Downloadable CSV template (header + examples) for bulk import."""
+    from reasoning.rule_import import TEMPLATE_CSV
+    return PlainTextResponse(TEMPLATE_CSV, headers={
+        "Content-Disposition": 'attachment; filename="bonemind_rules_template.csv"'
+    })
+
+
+@app.post("/api/reason/rules/import")
+async def reason_rules_import(file: UploadFile = File(...)):
+    """Bulk-import rules from a CSV or XLSX file (A5).
+
+    Validates every row, dedupes against the file and the existing store, and
+    enforces a practical cap so the violation badge stays meaningful. Bad rows
+    are reported, not silently dropped.
+
+    Response:
+      {"imported": N, "skipped": [{"row": i, "name": ..., "reason": ...}],
+       "total_now": M, "stats": {...}}
+    """
+    from reasoning.rule_import import parse_file, validate_row, rule_signature, MAX_IMPORT_RULES
+    from reasoning.feedback_store import list_user_rules, save_user_rule, stats
+
+    data = await file.read()
+    try:
+        rows = parse_file(file.filename or "", data)
+    except Exception as e:
+        return {"imported": 0, "skipped": [], "total_now": None, "error": str(e)}
+
+    existing = list_user_rules(enabled_only=False)
+    existing_sigs = set()
+    for r in existing:
+        try:
+            existing_sigs.add(rule_signature(r))
+        except Exception:
+            pass
+
+    current_count = len(existing)
+    imported = 0
+    skipped: list[dict] = []
+    seen_in_file: set = set()
+
+    for i, row in enumerate(rows, 1):
+        rule, err = validate_row(row)
+        if err:
+            skipped.append({"row": i, "name": str(row.get("name", "")), "reason": err})
+            continue
+        sig = rule_signature(rule)
+        if sig in existing_sigs or sig in seen_in_file:
+            skipped.append({"row": i, "name": rule["name"], "reason": "duplicate of an existing rule"})
+            continue
+        if current_count + imported >= MAX_IMPORT_RULES:
+            skipped.append({"row": i, "name": rule["name"],
+                            "reason": f"rule cap reached ({MAX_IMPORT_RULES}) — not imported"})
+            continue
+        save_user_rule(rule["name"], rule["kind"], rule["params"],
+                       source_correction_id=None, origin="imported")
+        seen_in_file.add(sig)
+        imported += 1
+
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "total_now": current_count + imported,
+        "stats": stats(),
+    }
 
 
 @app.post("/api/search")
