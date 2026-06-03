@@ -862,6 +862,7 @@ async def reason_chat(
     question: str = Form(...),
     history: str = Form("[]"),
     all_questions: str = Form("[]"),
+    mode: str = Form("deep"),
 ):
     """SSE stream — reasoning agent + critic loop with conditional revision.
 
@@ -897,6 +898,9 @@ async def reason_chat(
     prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
     user_rules = list_user_rules()
     user_rule_summary = _user_rules_summary(user_rules)
+    # B3 — "quick" mode skips the critic loop and the (critic-only) evidence
+    # fetch for fast answers; physical grounding + user rules still run.
+    quick = (mode or "deep").strip().lower() == "quick"
 
     def generate():
         q = question.strip()
@@ -928,12 +932,16 @@ async def reason_chat(
 
         # A1 + A4 — evidence for the critic (fetched once, reused across both
         # critic rounds). The reasoning agent never sees either channel.
-        literature = _fetch_literature(q)
-        from reasoning.kg_context import kg_facts as _kg_facts
-        try:
-            kg = _kg_facts(q)
-        except Exception:
-            kg = {"facts": [], "anchors": []}
+        # Skipped entirely in quick mode (it's only used by the critic).
+        if quick:
+            literature, kg = [], {"facts": [], "anchors": []}
+        else:
+            literature = _fetch_literature(q)
+            from reasoning.kg_context import kg_facts as _kg_facts
+            try:
+                kg = _kg_facts(q)
+            except Exception:
+                kg = {"facts": [], "anchors": []}
 
         try:
             if literature:
@@ -952,6 +960,11 @@ async def reason_chat(
             pc = physical_check(answer_visible, user_rules=user_rules)
             yield f"data: {json.dumps({'type':'physical_check','round':1, **pc})}\n\n"
             rounds.append({"role": "agent", "round": 1, "content": answer, "physical_check": pc})
+
+            # ── Quick mode: stop after grounding, skip the critic ──────
+            if quick:
+                yield f"data: {json.dumps({'type':'done', 'answer': answer, 'rounds': rounds, 'literature': [], 'kg': kg, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'context_window': 8192, 'critic_resolved': True, 'final_physical_check': pc, 'mode': 'quick'})}\n\n"
+                return
 
             # ── Round 2: Critic review ─────────────────────────────────
             yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':2})}\n\n"

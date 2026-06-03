@@ -14,6 +14,11 @@ meeting:
 3. **Reinforcement** — user feedback grows a personal rule layer that
    applies on every future request.
 
+> **For the full architecture** (pipeline diagram, components, rule tiers,
+> modes, API, data model, file map) see
+> [`reasoning/architecture.md`](reasoning/architecture.md). This document is
+> the phased build log and demo flow.
+
 > The previous reasoning tab (equation-graph reasoner, Proposer/Critic over
 > 12 Variables / 7 Relations, Surprises panel) has been retired. See
 > [`reasoning/equation_graph.md`](reasoning/equation_graph.md) for the
@@ -352,6 +357,7 @@ the meeting. See **What's next**.
 | **B1 — Feedback-loop demo** | 🟢 Built + live-verified (`eval/feedback_demo.py`). Deterministic proof + live before/after trace of "second chat is better." Surfaced and fixed two bugs: critic now **forced to dispute on any user-rule violation** (deterministic override + prompt), and **unit-notation matching** is now tolerant (`g/cm^3`≡`g/cm³`≡`g/cm3`). See [`reasoning/feedback_demo.md`](reasoning/feedback_demo.md). |
 | **B2 — Rule management UI** | 🟢 Built. "⚙ Your rules" slide-over: list / enable-disable / delete user rules with plain-English summaries. Backend: `set_rule_enabled`, `GET /rules` returns all, `POST /rules/{id}/enabled`. |
 | **A5 — Bulk rule import** | 🟢 Built. CSV **and** XLSX (Gianluca's "pour an Excel file", 28 May). `reasoning/rule_import.py` parses → validates per row → dedupes → caps at 50 → tags `origin:"imported"`. `POST /api/reason/rules/import`, template at `GET /api/reason/rules/template`. Import button + skipped-row report in the rules panel. |
+| **B3 — Quick / Deep toggle** | 🟢 Built. Segmented control in the chat bar. **Deep** (default): full agent + critic + evidence loop. **Quick**: agent + physical grounding only, skips the critic and the critic-only evidence fetch (~5–10s) — for live demos with many casual questions. `mode` form field on `/api/reason/chat`. |
 
 ## What's next
 

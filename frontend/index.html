@@ -1792,6 +1792,25 @@ function ReasonSection({view, presets, onRun, loading, result, error, elapsed,
   );
 }
 
+// Quick (agent + grounding only) vs Deep (full agent + critic + evidence loop).
+function ModeToggle({ mode, setMode, disabled }) {
+  const opt = (val, label, title) => (
+    <button title={title} disabled={disabled} onClick={() => setMode(val)}
+      style={{
+        background: mode === val ? 'var(--navy)' : 'transparent',
+        color: mode === val ? '#fff' : 'var(--text2)',
+        border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12.5,
+        cursor: disabled ? 'default' : 'pointer', fontFamily: 'var(--sans)',
+      }}>{label}</button>
+  );
+  return (
+    <div style={{display:'inline-flex',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:2,gap:2,flexShrink:0}}>
+      {opt('quick', 'Quick', 'Agent + physical grounding only — fast (~5–10s)')}
+      {opt('deep', 'Deep', 'Full pipeline: agent + critic + literature/graph evidence (~10–40s)')}
+    </div>
+  );
+}
+
 // ── REASON TAB ────────────────────────────────────────────────────────────────
 // Phase 2 — pure-LLM reasoning agent (no RAG). Turn shape:
 //   { id, query, answer, physical_check, critic_notes, user_feedback, timestamp }
@@ -1805,6 +1824,7 @@ function ReasonTab() {
   const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
   const [proposedFor, setProposedFor] = useState({}); // turn_id -> {proposal, correction_id}
   const [status, setStatus] = useState('');             // pipeline status pill while loading
+  const [mode, setMode]     = useState('deep');         // 'deep' (agent+critic) | 'quick' (agent only)
   const endRef     = useRef(null);
   const inputRef   = useRef(null);
   const chatAreaRef = useRef(null);
@@ -1859,6 +1879,7 @@ function ReasonTab() {
       fd.append('question', t);
       fd.append('history', JSON.stringify(history));
       fd.append('all_questions', JSON.stringify(allQuestions));
+      fd.append('mode', mode);
       const resp = await fetch('/api/reason/chat', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
@@ -1939,10 +1960,13 @@ function ReasonTab() {
   const empty = turns.length === 0 && !loading;
   return (
     <div className="ask" style={{position:'relative'}}>
-      <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneMind"
-        style={{position:'absolute',top:12,right:16,zIndex:40,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
-        <span style={{fontSize:18}}>⚙</span> Your rules
-      </button>
+      <div style={{position:'absolute',top:12,right:16,zIndex:40,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+        <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneMind"
+          style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:18}}>⚙</span> Your rules
+        </button>
+        <ModeToggle mode={mode} setMode={setMode} disabled={loading}/>
+      </div>
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)}/>}
       <div className="chat-area" ref={chatAreaRef} onScroll={handleChatScroll} onWheel={handleWheel} onTouchStart={handleTouchStart}>
         <div className="chat-inner">
@@ -1950,7 +1974,7 @@ function ReasonTab() {
             <div className="empty-state">
               <div className="empty-avatar"><BoneSVG size={100}/></div>
               <div className="empty-title">Reasoning</div>
-              <div className="empty-sub">Step-by-step reasoning grounded in bone mechanics, physical rules, and your feedback</div>
+              <div className="empty-sub">Grounded in bone mechanics, physical rules, and your feedback</div>
               <div className="chips">
                 {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
               </div>
