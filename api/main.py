@@ -588,20 +588,29 @@ You will receive:
   - the reasoning agent's answer (in Point / Basis format)
   - a list of physical-grounding rule violations (may be empty)
   - a short summary of the user's own learned rules (may be empty)
+  - retrieved literature passages from the bone-science corpus (may be empty), each tagged [L1], [L2], …
+  - knowledge-graph facts: individual curated relationships (may be empty), each one independent
 
 Reply with ONE JSON object on a single line. No prose. No markdown fences. Shape:
 
-{"verdict":"accept" | "dispute",
+{"verdict":"accept" | "dispute" | "conflicting_evidence",
  "notes":["short bullet 1","short bullet 2"],
- "suggested_revision":"<short instruction to the reasoning agent>"}
+ "suggested_revision":"<short instruction to the reasoning agent>",
+ "majority":"<position supported by most evidence, citing [L#]>",
+ "minority":"<the competing position, citing [L#]>"}
 
 Rules:
-- VERDICT must be "accept" or "dispute".
+- VERDICT must be "accept", "dispute", or "conflicting_evidence".
+- GROUND YOUR REVIEW IN THE LITERATURE. When a passage supports or contradicts the answer, cite it by tag in your notes, e.g. "Contradicts [L2]: cortical modulus is ~18 GPa".
+- Do NOT treat the literature as infallible: passages may be off-topic or only tangentially related. Use judgement; if no passage is relevant, review on correctness alone and say so.
+- KNOWLEDGE-GRAPH FACTS are individual curated relationships. Each line is ONE fact. Use them to check the answer's direction/sign (e.g. "porosity [decreases] mechanical strength"). Treat each edge independently — do NOT chain several edges into a multi-step causal argument, because chaining curated edges can imply relationships the graph never asserted.
 - ACCEPT if the answer is broadly correct and well-reasoned. A physical-grounding violation flagged on an edge case the agent already qualified is still acceptable — say so in notes.
-- DISPUTE only if there is a factual error, internal contradiction, missing key mechanism, or a genuine physical-grounding violation that the agent did not address.
-- NOTES: 1–3 short bullets, each ≤ 15 words. Be specific. No generic praise.
-- SUGGESTED_REVISION: present only when verdict is "dispute". One sentence telling the reasoning agent what to change. Do NOT rewrite the answer.
-- Do not dispute just to look thorough. If the answer is good, accept it.
+- DISPUTE only if there is a factual error, internal contradiction, missing key mechanism, a genuine physical-grounding violation that the agent did not address, or a claim the retrieved literature clearly contradicts.
+- CONFLICTING_EVIDENCE only when the retrieved literature genuinely disagrees — one body of passages supports the answer and another contradicts it, and the question has no single settled answer. You MUST fill both "majority" and "minority", and EACH must cite at least one [L#] tag. If you cannot cite both sides from the passages provided, do NOT use this verdict — use accept or dispute instead. Do not invent a conflict to hedge.
+- NOTES: 1–3 short bullets, each ≤ 15 words. Be specific. Cite [L#] where relevant. No generic praise.
+- SUGGESTED_REVISION: present for "dispute" (what to fix) and "conflicting_evidence" (how to present both positions). Omit for "accept". Do NOT rewrite the answer yourself.
+- "majority" / "minority": fill ONLY for "conflicting_evidence"; leave empty otherwise.
+- Do not dispute or flag conflict just to look thorough. If the answer is good, accept it.
 """
 
 
@@ -613,6 +622,22 @@ Critic notes:
 Suggested revision: {suggestion}
 
 Please revise your answer in the same Point / Basis format. Address the critic's points concretely. If you believe the critic is wrong about a specific point, you may keep your original claim — but explain why in that Point's *Basis* line.
+
+Original question: {question}
+"""
+
+
+CONFLICT_REVISION_PROMPT_TEMPLATE = """Your earlier answer was reviewed by a critic. Critic verdict: CONFLICTING EVIDENCE — the literature genuinely disagrees on this question.
+
+Majority position (bulk of evidence): {majority}
+Minority position (competing evidence): {minority}
+Critic notes:
+{notes}
+
+Please revise your answer in the same Point / Basis format. Do NOT pick one side as definitive. Instead:
+- Lead with the majority position as the most likely answer given the bulk of literature.
+- Then explicitly note the minority position as a competing view that some evidence supports.
+- Make clear the question is not fully settled.
 
 Original question: {question}
 """
@@ -649,16 +674,76 @@ def _llm_stream(messages, result_out: dict, temperature=0.3):
     result_out["eval_count"] = evc
 
 
-def _call_critic(question: str, agent_answer: str, violations: list, user_rule_summary: str) -> dict:
+# A1 — literature evidence for the critic.
+# The agent stays pure-LLM; only the critic sees retrieved passages so it can
+# dispute with citations. Budget is capped so the critic prompt stays bounded
+# (~1200 tokens ≈ ~4200 chars across all passages).
+LIT_CHAR_BUDGET = 4200
+LIT_TOP_K = 3
+
+
+def _fetch_literature(question: str) -> list[dict]:
+    """Top-K corpus passages for the critic. Deduped by title, snippet
+    trimmed so the whole block stays within LIT_CHAR_BUDGET. Returns
+    [{rank, title, year, snippet, score}]. Never raises."""
+    try:
+        results = retriever.query(question, top_k=LIT_TOP_K * 2)
+    except Exception:
+        return []
+    seen: set[str] = set()
+    out: list[dict] = []
+    budget = LIT_CHAR_BUDGET
+    per = max(400, LIT_CHAR_BUDGET // max(1, LIT_TOP_K))
+    for r in results:
+        title = (r.get("title") or "").strip()
+        key = title.lower()
+        if key and key in seen:
+            continue
+        seen.add(key)
+        snippet = (r.get("text") or "").strip().replace("\n", " ")
+        snippet = snippet[:per]
+        if budget - len(snippet) < 0:
+            break
+        budget -= len(snippet)
+        out.append({
+            "rank": len(out) + 1,
+            "title": title or "(untitled)",
+            "year": r.get("year"),
+            "snippet": snippet,
+            "score": r.get("score"),
+        })
+        if len(out) >= LIT_TOP_K:
+            break
+    return out
+
+
+def _format_literature(passages: list[dict]) -> str:
+    if not passages:
+        return "(no literature retrieved)"
+    lines = []
+    for p in passages:
+        yr = f" ({p['year']})" if p.get("year") else ""
+        lines.append(f"[L{p['rank']}] {p['title']}{yr}\n    {p['snippet']}")
+    return "\n".join(lines)
+
+
+def _call_critic(question: str, agent_answer: str, violations: list,
+                 user_rule_summary: str, literature: list[dict] | None = None,
+                 kg: dict | None = None) -> dict:
     """Single non-streaming call to the critic. Returns parsed dict with keys
     verdict, notes, suggested_revision. Falls back to verdict='accept' on
     parse failure so a flaky critic never blocks the user."""
+    from reasoning.kg_context import format_facts
     viol_str = "\n".join(f"- [{v['name']}] {v['detail']}" for v in violations) or "(none)"
+    lit_str = _format_literature(literature or [])
+    kg_str = format_facts(kg or {})
     user_msg = (
         f"QUESTION:\n{question}\n\n"
         f"AGENT ANSWER:\n{agent_answer}\n\n"
         f"PHYSICAL-GROUNDING VIOLATIONS:\n{viol_str}\n\n"
-        f"USER RULES IN EFFECT:\n{user_rule_summary or '(none)'}\n"
+        f"USER RULES IN EFFECT:\n{user_rule_summary or '(none)'}\n\n"
+        f"RETRIEVED LITERATURE:\n{lit_str}\n\n"
+        f"KNOWLEDGE-GRAPH FACTS (independent edges — do NOT chain them into a causal path):\n{kg_str}\n"
     )
     try:
         resp = requests.post(
@@ -678,20 +763,36 @@ def _call_critic(question: str, agent_answer: str, violations: list, user_rule_s
         resp.raise_for_status()
         raw = resp.json()["message"]["content"].strip()
     except Exception as e:
-        return {"verdict": "accept", "notes": [f"(critic unavailable: {e})"], "suggested_revision": ""}
+        return {"verdict": "accept", "notes": [f"(critic unavailable: {e})"],
+                "suggested_revision": "", "majority": "", "minority": ""}
 
     parsed = _safe_json(raw)
     if not parsed:
-        return {"verdict": "accept", "notes": ["(critic returned unparseable output)"], "suggested_revision": ""}
+        return {"verdict": "accept", "notes": ["(critic returned unparseable output)"],
+                "suggested_revision": "", "majority": "", "minority": ""}
     verdict = str(parsed.get("verdict", "accept")).strip().lower()
-    if verdict not in ("accept", "dispute"):
+    if verdict not in ("accept", "dispute", "conflicting_evidence"):
         verdict = "accept"
     notes = parsed.get("notes") or []
     if isinstance(notes, str):
         notes = [notes]
     notes = [str(n).strip() for n in notes if str(n).strip()][:3]
     suggestion = str(parsed.get("suggested_revision") or "").strip()
-    return {"verdict": verdict, "notes": notes, "suggested_revision": suggestion}
+    majority = str(parsed.get("majority") or "").strip()
+    minority = str(parsed.get("minority") or "").strip()
+
+    # Gate: conflicting_evidence is only valid if BOTH sides are present and
+    # EACH cites at least one [L#] passage. Otherwise the critic is hedging
+    # without grounds — downgrade to a normal review.
+    if verdict == "conflicting_evidence":
+        cite = lambda s: bool(re.search(r"\[L\d+\]", s))
+        if not (majority and minority and cite(majority) and cite(minority)):
+            verdict = "dispute" if suggestion else "accept"
+            notes = (notes + ["(conflict claim not substantiated by citations from both sides — downgraded)"])[:3]
+            majority = minority = ""
+
+    return {"verdict": verdict, "notes": notes, "suggested_revision": suggestion,
+            "majority": majority, "minority": minority}
 
 
 def _safe_json(raw: str):
@@ -751,6 +852,8 @@ async def reason_chat(
 
     SSE events:
       {"type": "round_start",    "phase": "agent"|"critic"|"agent_revise", "round": N}
+      {"type": "literature",     "passages": [{rank,title,year,snippet,score}]}  (A1; critic-only evidence)
+      {"type": "kg_context",     "facts": [{subject,relation,object,weight}], "anchors": [...]}  (A4; critic-only)
       {"type": "token",          "content": "...", "phase": "agent"|"agent_revise"}
       {"type": "physical_check", "round": N, "passed": bool, "violations": [...]}
       {"type": "critic_review",  "round": N, "verdict": "accept"|"dispute",
@@ -796,7 +899,20 @@ async def reason_chat(
 
         rounds: list[dict] = []
 
+        # A1 + A4 — evidence for the critic (fetched once, reused across both
+        # critic rounds). The reasoning agent never sees either channel.
+        literature = _fetch_literature(q)
+        from reasoning.kg_context import kg_facts as _kg_facts
         try:
+            kg = _kg_facts(q)
+        except Exception:
+            kg = {"facts": [], "anchors": []}
+
+        try:
+            if literature:
+                yield f"data: {json.dumps({'type':'literature','passages':literature})}\n\n"
+            if kg.get("facts"):
+                yield f"data: {json.dumps({'type':'kg_context', **kg})}\n\n"
             # ── Round 1: Reasoning agent ───────────────────────────────
             yield f"data: {json.dumps({'type':'round_start','phase':'agent','round':1})}\n\n"
             agent_result: dict = {}
@@ -812,7 +928,7 @@ async def reason_chat(
 
             # ── Round 2: Critic review ─────────────────────────────────
             yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':2})}\n\n"
-            critic1 = _call_critic(q, answer_visible, pc["violations"], user_rule_summary)
+            critic1 = _call_critic(q, answer_visible, pc["violations"], user_rule_summary, literature, kg)
             yield f"data: {json.dumps({'type':'critic_review','round':2, **critic1})}\n\n"
             rounds.append({"role": "critic", "round": 2, **critic1})
 
@@ -820,14 +936,27 @@ async def reason_chat(
             final_answer = answer
 
             # ── Optional Round 3: Agent revises ────────────────────────
-            if critic1["verdict"] == "dispute":
-                revision_messages = base_messages + [
-                    {"role": "assistant", "content": answer},
-                    {"role": "user", "content": REVISION_PROMPT_TEMPLATE.format(
-                        notes="\n".join(f"- {n}" for n in critic1["notes"]) or "- (no specifics provided)",
+            # Both "dispute" and "conflicting_evidence" trigger a revision, with
+            # different instructions: dispute → fix the error; conflicting →
+            # present majority + minority positions without picking a side.
+            if critic1["verdict"] in ("dispute", "conflicting_evidence"):
+                notes_block = "\n".join(f"- {n}" for n in critic1["notes"]) or "- (no specifics provided)"
+                if critic1["verdict"] == "conflicting_evidence":
+                    revision_user = CONFLICT_REVISION_PROMPT_TEMPLATE.format(
+                        majority=critic1.get("majority") or "(not specified)",
+                        minority=critic1.get("minority") or "(not specified)",
+                        notes=notes_block,
+                        question=q,
+                    )
+                else:
+                    revision_user = REVISION_PROMPT_TEMPLATE.format(
+                        notes=notes_block,
                         suggestion=critic1["suggested_revision"] or "(no concrete suggestion provided)",
                         question=q,
-                    )},
+                    )
+                revision_messages = base_messages + [
+                    {"role": "assistant", "content": answer},
+                    {"role": "user", "content": revision_user},
                 ]
                 yield f"data: {json.dumps({'type':'round_start','phase':'agent_revise','round':3})}\n\n"
                 rev_result: dict = {}
@@ -842,16 +971,18 @@ async def reason_chat(
 
                 # ── Round 4: Critic re-reviews ─────────────────────────
                 yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':4})}\n\n"
-                critic2 = _call_critic(q, revised_visible, pc2["violations"], user_rule_summary)
+                critic2 = _call_critic(q, revised_visible, pc2["violations"], user_rule_summary, literature, kg)
                 yield f"data: {json.dumps({'type':'critic_review','round':4, **critic2})}\n\n"
                 rounds.append({"role": "critic", "round": 4, **critic2})
 
-                critic_resolved = critic2["verdict"] == "accept"
+                # accept OR a correctly-presented conflict are both resolved
+                # terminal states; only a remaining "dispute" is unresolved.
+                critic_resolved = critic2["verdict"] in ("accept", "conflicting_evidence")
                 final_answer = revised
                 # latest physical check applies to the displayed answer
                 pc = pc2
 
-            yield f"data: {json.dumps({'type':'done', 'answer': final_answer, 'rounds': rounds, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'context_window': 8192, 'critic_resolved': critic_resolved, 'final_physical_check': pc})}\n\n"
+            yield f"data: {json.dumps({'type':'done', 'answer': final_answer, 'rounds': rounds, 'literature': literature, 'kg': kg, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'context_window': 8192, 'critic_resolved': critic_resolved, 'final_physical_check': pc})}\n\n"
 
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"

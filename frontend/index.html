@@ -1849,6 +1849,8 @@ function ReasonTab() {
     let physicalCheck = null;
     let outOfScope = false;
     let rounds = [];
+    let literature = [];
+    let kg = null;
     let phase = 'agent';           // 'agent' | 'critic' | 'agent_revise'
     let critic_resolved = true;
     setStatus('Reasoning…');
@@ -1884,14 +1886,18 @@ function ReasonTab() {
               answer += ev.content; setStreaming(answer);
             }
           }
+          else if (ev.type === 'literature') { literature = ev.passages || []; }
+          else if (ev.type === 'kg_context') { kg = {facts: ev.facts || [], anchors: ev.anchors || []}; }
           else if (ev.type === 'physical_check') { physicalCheck = ev; rounds.push({role:'physical_check', round: ev.round, ...ev}); }
-          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision}); }
+          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority}); }
           else if (ev.type === 'done')  {
             answer = ev.answer;
             outOfScope = !!ev.out_of_scope;
             critic_resolved = !!ev.critic_resolved;
             if (ev.final_physical_check) physicalCheck = ev.final_physical_check;
             if (Array.isArray(ev.rounds) && ev.rounds.length) rounds = ev.rounds;
+            if (Array.isArray(ev.literature)) literature = ev.literature;
+            if (ev.kg) kg = ev.kg;
             if (typeof ev.prompt_tokens === 'number') {
               setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192, estimated: true });
             }
@@ -1907,6 +1913,8 @@ function ReasonTab() {
       out_of_scope: outOfScope,
       physical_check: physicalCheck,
       rounds,
+      literature,
+      kg,
       critic_resolved,
       critic_notes: null,
       user_feedback: null,
@@ -2009,11 +2017,17 @@ function ReviewDialogue({ turn }) {
   const [open, setOpen] = useState(false);
   const rounds = (turn.rounds || []).filter(r => r.role === 'critic' || r.role === 'agent');
   const criticRounds = rounds.filter(r => r.role === 'critic');
+  const literature = turn.literature || [];
+  const kgFacts = (turn.kg && turn.kg.facts) || [];
   if (!criticRounds.length) return null;
   const finalVerdict = criticRounds[criticRounds.length - 1].verdict;
-  const color = finalVerdict === 'accept' ? '#2e7d32' : '#b02020';
+  const color = finalVerdict === 'accept' ? '#2e7d32'
+              : finalVerdict === 'conflicting_evidence' ? '#8a5010'
+              : '#b02020';
   const label = finalVerdict === 'accept'
     ? (criticRounds.length === 1 ? 'Critic: accepted on first review' : 'Critic: accepted after revision')
+    : finalVerdict === 'conflicting_evidence'
+    ? 'Critic: literature conflicts — both positions shown'
     : 'Critic: unresolved after revision';
   return (
     <div style={{marginTop:10,fontSize:12}}>
@@ -2028,20 +2042,57 @@ function ReviewDialogue({ turn }) {
           {criticRounds.map((r, i) => (
             <div key={i}>
               <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
-                Round {r.round} · Critic ({r.verdict})
+                Round {r.round} · Critic ({r.verdict === 'conflicting_evidence' ? 'conflicting evidence' : r.verdict})
               </div>
               {(r.notes || []).length > 0 && (
                 <ul style={{margin:'2px 0 4px 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
                   {r.notes.map((n,j) => <li key={j}>{n}</li>)}
                 </ul>
               )}
+              {r.majority && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>
+                  <strong style={{color:'#2e7d32'}}>Majority:</strong> {r.majority}
+                </div>
+              )}
+              {r.minority && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>
+                  <strong style={{color:'#8a5010'}}>Minority:</strong> {r.minority}
+                </div>
+              )}
               {r.suggested_revision && (
-                <div style={{fontSize:12,color:'var(--text3)',fontStyle:'italic'}}>
+                <div style={{fontSize:12,color:'var(--text3)',fontStyle:'italic',marginTop:2}}>
                   Suggestion: {r.suggested_revision}
                 </div>
               )}
             </div>
           ))}
+          {literature.length > 0 && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Evidence the critic reviewed
+              </div>
+              <ul style={{margin:'2px 0 0 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                {literature.map((p,j) => (
+                  <li key={j}>
+                    <strong>[L{p.rank}]</strong> {p.title}{p.year ? ` (${p.year})` : ''}
+                    {typeof p.score === 'number' && <span style={{color:'var(--text3)'}}> · {p.score.toFixed(3)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {kgFacts.length > 0 && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Knowledge-graph facts the critic saw
+              </div>
+              <ul style={{margin:'2px 0 0 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                {kgFacts.map((f,j) => (
+                  <li key={j}>{f.subject} <span style={{color:'var(--amber)'}}>[{f.relation}]</span> {f.object}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

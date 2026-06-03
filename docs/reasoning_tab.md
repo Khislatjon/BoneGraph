@@ -335,6 +335,15 @@ the meeting. See **What's next**.
 
 ---
 
+## Post-28-May additions
+
+| Item | Status |
+|------|--------|
+| **A1 — Literature → critic** | 🟢 Built. The critic (not the agent) sees top-3 corpus passages, capped ~1200 tokens, and cites them as `[L#]`. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
+| **A2 — Conflict-aware critic** | 🟢 Built. Gated `conflicting_evidence` verdict (must cite both a majority and a minority passage); on it the agent presents both positions instead of picking a side. |
+| **A3 — Consistency bench** | 🟢 Built + validated (83% consistency, 100% correctness). Semi-automated; auto-judge ~83% reliable so stances are spot-checked. See [`reasoning/consistency_bench.md`](reasoning/consistency_bench.md). |
+| **A4 — KG shortcut → critic** | 🟢 Built. `reasoning/kg_context.py` anchors on concepts in the question and feeds the critic raw 1-hop edges from `ontology.db` (capped ~300 tokens) — never composed multi-hop chains. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
+
 ## What's next
 
 | Item | Why |
