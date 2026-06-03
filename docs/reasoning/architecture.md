@@ -44,34 +44,34 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
                           └────────┬────────┘
                                    ▼
                    ┌───────────────────────────────┐
-                   │ MODE?                          │
-                   └───────┬───────────────┬────────┘
+                   │ MODE?                         │
+                   └───────┬───────────────┬───────┘
                        quick│           deep│
                            │               │
                            │        ┌──────────────────────────────┐
-                           │        │ Fetch critic evidence:        │
-                           │        │  • literature (top-3, RAG)    │  A1
-                           │        │  • KG 1-hop edges (ontology)  │  A4
+                           │        │ Fetch critic evidence:       │
+                           │        │  • literature (top-3, RAG)   │  A1
+                           │        │  • KG 1-hop edges (ontology) │  A4
                            │        └──────────────┬───────────────┘
                            │                       │
                            ▼                       ▼
                    ┌──────────────────────────────────────────┐
-                   │ ROUND 1 · Reasoning agent (streamed)       │  pure LLM
-                   │ huatuogpt-bone · Point/Basis format        │
-                   └────────────────────┬───────────────────────┘
+                   │ ROUND 1 · Reasoning agent (streamed)     │  pure LLM
+                   │ huatuogpt-bone · Point/Basis format      │
+                   └────────────────────┬─────────────────────┘
                                         ▼
                    ┌──────────────────────────────────────────┐
-                   │ Strip thinking → PHYSICAL GROUNDING        │  deterministic
-                   │  built-in (8) + user (feedback+imported)   │
-                   └────────────────────┬───────────────────────┘
+                   │ Strip thinking → PHYSICAL GROUNDING      │  deterministic
+                   │  built-in (8) + user (feedback+imported) │
+                   └────────────────────┬─────────────────────┘
                                         │
                         quick ──────────┤────────── deep
                           │             │             │
                           ▼             │             ▼
                         DONE            │   ┌──────────────────────────────┐
-                  (answer + badge       │   │ ROUND 2 · Critic (JSON)       │
-                   + feedback bar)      │   │ sees: answer, violations,     │
-                                        │   │ user rules, literature, KG    │
+                  (answer + badge       │   │ ROUND 2 · Critic (JSON)      │
+                   + feedback bar)      │   │ sees: answer, violations,    │
+                                        │   │ user rules, literature, KG   │
                                         │   └──────────────┬───────────────┘
                                         │                  ▼
                                         │      ┌────────────────────────┐
@@ -81,32 +81,32 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
                                         │      └───────────┬────────────┘
                                         │                  │
                           ┌─────────────┼──────────────────┼─────────────────┐
-                       accept      conflicting_evidence   dispute             │
-                          │             │                  │                  │
-                          ▼             ▼                  ▼                  │
+                       accept      conflicting_evidence   dispute            │
+                          │             │                  │                 │
+                          ▼             ▼                  ▼                 │
                         DONE   ┌──────────────────────────────────────┐      │
-                               │ ROUND 3 · Agent revises (streamed)    │      │
-                               │  dispute → fix the error              │      │
-                               │  conflict → present majority+minority │      │
-                               └──────────────────┬─────────────────────┘     │
-                                                  ▼                            │
-                               Strip → PHYSICAL GROUNDING (round 3)            │
-                                                  ▼                            │
-                               ┌──────────────────────────────────────┐       │
-                               │ ROUND 4 · Critic re-review            │       │
-                               │ + _enforce_user_rules()               │       │
-                               └──────────────────┬─────────────────────┘      │
-                                                  ▼                            │
-                                  accept / conflicting → resolved              │
-                                  dispute → "unresolved" badge                 │
-                                                  ▼                            │
-                                                DONE ◄────────────────────────┘
+                               │ ROUND 3 · Agent revises (streamed)   │      │
+                               │  dispute → fix the error             │      │
+                               │  conflict → present majority+minority│      │
+                               └──────────────────┬───────────────────┘      │
+                                                  ▼                          │
+                               Strip → PHYSICAL GROUNDING (round 3)          │
+                                                  ▼                          │
+                               ┌──────────────────────────────────────┐      │
+                               │ ROUND 4 · Critic re-review           │      │
+                               │ + _enforce_user_rules()              │      │
+                               └──────────────────┬───────────────────┘      │
+                                                  ▼                          │
+                                  accept / conflicting → resolved            │
+                                  dispute → "unresolved" badge               │
+                                                  ▼                          │
+                                                DONE ◄───────────────────────┘
                                                   │
                                                   ▼
                           ┌──────────────────────────────────────────┐
-                          │ UI: answer · grounding badge · critic      │
-                          │ dialogue (evidence + verdicts) · 👍/👎      │
-                          │ · proposed-rule card on 👎                  │
+                          │ UI: answer · grounding badge · critic    │
+                          │ dialogue (evidence + verdicts) · 👍/👎  │
+                          │ · proposed-rule card on 👎               │
                           └──────────────────────────────────────────┘
 ```
 
