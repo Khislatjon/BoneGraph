@@ -1934,16 +1934,23 @@ function ReasonTab() {
     'Why does trabecular bone fail before cortical in osteoporosis?',
   ];
 
+  const [rulesOpen, setRulesOpen] = useState(false);
+
   const empty = turns.length === 0 && !loading;
   return (
-    <div className="ask">
+    <div className="ask" style={{position:'relative'}}>
+      <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneMind"
+        style={{position:'absolute',top:12,right:16,zIndex:40,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{fontSize:18}}>⚙</span> Your rules
+      </button>
+      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)}/>}
       <div className="chat-area" ref={chatAreaRef} onScroll={handleChatScroll} onWheel={handleWheel} onTouchStart={handleTouchStart}>
         <div className="chat-inner">
           {empty ? (
             <div className="empty-state">
               <div className="empty-avatar"><BoneSVG size={100}/></div>
               <div className="empty-title">Reasoning</div>
-              <div className="empty-sub">Hypothesis generation grounded in bone mechanics</div>
+              <div className="empty-sub">Step-by-step reasoning grounded in bone mechanics, physical rules, and your feedback</div>
               <div className="chips">
                 {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
               </div>
@@ -2007,6 +2014,107 @@ function ReasonTab() {
               </svg>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ruleSummary(r) {
+  const p = r.params || {};
+  if (r.kind === 'range') {
+    const ctx = (p.context_terms || []).join(', ');
+    return `${p.lo}–${p.hi} ${p.unit || ''}${ctx ? ` · context: ${ctx}` : ''}`;
+  }
+  if (r.kind === 'forbid_pattern') {
+    const ctx = (p.context_terms || []).join(', ');
+    const forb = (p.forbidden_terms || []).join(', ');
+    return `avoid “${forb}”${ctx ? ` near ${ctx}` : ''}`;
+  }
+  return JSON.stringify(p);
+}
+
+function RulesPanel({ onClose }) {
+  const [rules, setRules] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState({});   // id -> true while a request is in flight
+
+  const load = async () => {
+    try {
+      const r = await fetch('/api/reason/rules');
+      const d = await r.json();
+      setRules(d.rules || []);
+    } catch (e) { setError(e.message); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const setEnabled = async (rule, enabled) => {
+    setBusy(b => ({...b, [rule.id]: true}));
+    try {
+      const fd = new FormData(); fd.append('enabled', enabled ? 'true' : 'false');
+      await fetch(`/api/reason/rules/${rule.id}/enabled`, { method:'POST', body: fd });
+      setRules(rs => rs.map(x => x.id === rule.id ? {...x, enabled} : x));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [rule.id]: false})); }
+  };
+
+  const del = async (rule) => {
+    setBusy(b => ({...b, [rule.id]: true}));
+    try {
+      await fetch(`/api/reason/rules/${rule.id}`, { method:'DELETE' });
+      setRules(rs => rs.filter(x => x.id !== rule.id));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [rule.id]: false})); }
+  };
+
+  const activeCount = (rules || []).filter(r => r.enabled).length;
+
+  return (
+    <div onClick={onClose}
+      style={{position:'absolute',inset:0,zIndex:60,background:'rgba(0,0,0,.18)',display:'flex',justifyContent:'flex-end'}}>
+      <div onClick={e => e.stopPropagation()}
+        style={{width:'min(460px,92%)',height:'100%',background:'var(--surface)',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',boxShadow:'-4px 0 24px rgba(0,0,0,.08)'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Your rules</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>
+              Corrections you've taught BoneMind {rules ? `· ${activeCount} active of ${rules.length}` : ''}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
+          {error && <div style={{color:'#b02020',fontSize:13,marginBottom:8}}>{error}</div>}
+          {rules === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
+          {rules && rules.length === 0 && (
+            <div style={{color:'var(--text3)',fontSize:13,lineHeight:1.6,marginTop:8}}>
+              No rules yet. When you 👎 an answer and describe what's wrong, BoneMind proposes a rule;
+              once you confirm it, it appears here and applies to every future answer.
+            </div>
+          )}
+          {rules && rules.map(r => (
+            <div key={r.id} style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:10,opacity:r.enabled?1:.55,background:'var(--surface2)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13.5,fontWeight:600,color:'var(--text)'}}>{r.name}</div>
+                  <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{ruleSummary(r)}</div>
+                  <div style={{fontSize:10,color:'var(--text3)',marginTop:4,textTransform:'uppercase',letterSpacing:.3}}>
+                    {r.kind === 'range' ? 'numeric range' : 'forbidden pattern'}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button disabled={busy[r.id]} onClick={() => setEnabled(r, !r.enabled)}
+                  style={{background:r.enabled?'transparent':'var(--navy)',color:r.enabled?'var(--text2)':'#fff',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  {r.enabled ? 'Disable' : 'Enable'}
+                </button>
+                <button disabled={busy[r.id]} onClick={() => del(r)}
+                  style={{background:'transparent',color:'#b02020',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

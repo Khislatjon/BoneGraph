@@ -163,6 +163,17 @@ def delete_user_rule(rule_db_id: int, user_id: str = DEFAULT_USER) -> bool:
         return cur.rowcount > 0
 
 
+def set_rule_enabled(rule_db_id: int, enabled: bool, user_id: str = DEFAULT_USER) -> bool:
+    """Enable/disable a rule without deleting it. Disabled rules are kept in the
+    store but excluded from the grounding check (list_user_rules(enabled_only=True))."""
+    with _conn() as con:
+        cur = con.execute(
+            "UPDATE user_rules SET enabled = ? WHERE id = ? AND user_id = ?",
+            (1 if enabled else 0, rule_db_id, user_id),
+        )
+        return cur.rowcount > 0
+
+
 def _row_to_rule(r: sqlite3.Row) -> dict:
     return {
         "id": r["id"],

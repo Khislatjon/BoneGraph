@@ -1096,8 +1096,17 @@ async def reason_rule_confirm(
 
 @app.get("/api/reason/rules")
 async def reason_rules_list():
+    # The management view needs ALL rules (incl. disabled). The grounding check
+    # itself uses list_user_rules(enabled_only=True) — unchanged.
     from reasoning.feedback_store import list_user_rules, stats
-    return {"rules": list_user_rules(), "stats": stats()}
+    return {"rules": list_user_rules(enabled_only=False), "stats": stats()}
+
+
+@app.post("/api/reason/rules/{rule_db_id}/enabled")
+async def reason_rule_set_enabled(rule_db_id: int, enabled: bool = Form(...)):
+    from reasoning.feedback_store import set_rule_enabled, stats
+    ok = set_rule_enabled(rule_db_id, enabled)
+    return {"ok": ok, "stats": stats()}
 
 
 @app.delete("/api/reason/rules/{rule_db_id}")
