@@ -177,10 +177,10 @@ print(f'Nodes: {nodes}  Edges: {edges}')
 
 ```bash
 # Textbooks only (highest quality, ~1,983 chunks, ~7 hours CPU-only)
-.venv/bin/python -m reasoning.extractor --source textbooks
+.venv/bin/python -m reasoning.legacy.extractor --source textbooks
 
 # All chunks including papers (long-running, use caffeinate / nohup on macOS)
-caffeinate -i nohup .venv/bin/python -m reasoning.extractor > logs/extractor.log 2>&1 &
+caffeinate -i nohup .venv/bin/python -m reasoning.legacy.extractor > logs/extractor.log 2>&1 &
 
 # Tail progress
 tail -f logs/extractor.log
@@ -205,26 +205,19 @@ python serve.py   # React UI at http://localhost:8000 — Reason tab in sidebar
 ```
 
 The Reason tab supports:
-- **Natural language hypothesis queries** — anchors to graph nodes, traverses multi-hop causal chains
-- **Physics validation** — 71 directional rules + numerical checks (Currey's law, Frost mechanostat, Paris crack growth, beam bending, stress concentration)
+- **Physics-driven hypothesis generation** — each applicable physical law (Currey's law, Frost mechanostat, Paris crack growth, beam bending) is evaluated over a perturbation grid, producing quantitative ΔY/Y predictions
+- **Three-round adversarial critic** — directional consistency, magnitude in physical range, power-law domain validity
 - **Novelty classification** — Tier 1 keyword search + Tier 2 SPECTER2 semantic similarity → GROUNDED / SPECULATIVE / NOVEL
-- **Research gap detection** — betweenness centrality analysis ranks under-studied bridge concepts
 
 Example queries:
-- `"aging fracture risk"`
-- `"cortical porosity elastic modulus"`
-- `"collagen crosslink toughness"`
-- `"osteocyte lacuna fatigue crack"`
-- `"bone mineral density osteoporosis"`
+- `"cortical porosity and elastic modulus"`
+- `"mechanical loading and bone remodeling"`
+- `"fatigue crack growth"`
+- `"cortical thickness and bending stiffness"`
 
-### Run the LRM benchmark
+### Legacy LRM benchmark
 
-```bash
-python eval/run_lrm_eval.py              # default max_results=10
-python eval/run_lrm_eval.py --max-results 5
-```
-
-Three components — physics accuracy, chain coverage, novelty calibration. Results saved to `eval/lrm_results.json`. See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for full methodology and pass thresholds.
+The original LRM graph-walk reasoner and its physics-grid successor have been removed from the codebase. The current reasoner is documented in [docs/reasoning/equation_graph.md](docs/reasoning/equation_graph.md); a retrospective on the retired physics-grid pipeline lives in [docs/reasoning/physics_grid.md](docs/reasoning/physics_grid.md). See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for the historical evaluation methodology.
 
 ---
 

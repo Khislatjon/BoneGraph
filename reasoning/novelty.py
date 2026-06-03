@@ -1,13 +1,12 @@
 """
 reasoning/novelty.py
 ====================
-Step 4.5 — Corpus-grounded novelty classification for BoneMind hypotheses.
+Corpus-grounded novelty classification for BoneMind hypotheses.
 
 Overview
 --------
-Replaces the simple heuristic novelty label in lrm.py with a proper
-corpus-grounded score.  A hypothesis is NOVEL only if the literature
-(248,629 indexed chunks) does not already contain a close match.
+A hypothesis is labelled NOVEL only when the literature (248,629
+indexed chunks) does not already contain a close match.
 
 Two-tier approach
 -----------------
@@ -40,20 +39,15 @@ Corpus disclaimer
 The classifier is honest about its limitations: all corpus chunks come
 from open-access papers.  A "NOVEL" label means the hypothesis was not
 found in THIS corpus — not that it has never been published.
-The UI (Step 4.6) surfaces this with an explicit disclaimer banner.
+The UI surfaces this with an explicit disclaimer banner.
 
 Usage::
 
     from reasoning.novelty import NoveltyClassifier
-    from reasoning.lrm import LRM
 
-    lrm        = LRM()
     classifier = NoveltyClassifier()
-
-    results = lrm.query("How does aging affect fracture risk?")
-    for h in results:
-        nr = classifier.classify(h)
-        print(nr)
+    nr = classifier.classify_text("cortical porosity increases fracture risk")
+    print(nr.label, nr.max_similarity, nr.show_disclaimer)
 """
 
 from __future__ import annotations
@@ -64,14 +58,11 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 
 from config.settings import CHUNKS_DB_PATH
-
-if TYPE_CHECKING:
-    from reasoning.lrm import HypothesisResult
 
 logger = logging.getLogger(__name__)
 
@@ -207,14 +198,14 @@ class NoveltyClassifier:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def classify(self, hypothesis: "HypothesisResult") -> NoveltyResult:
+    def classify(self, hypothesis: Any) -> NoveltyResult:
         """
         Classify the novelty of a hypothesis against the corpus.
 
         Parameters
         ----------
-        hypothesis : HypothesisResult
-            Output from LRM.query().
+        hypothesis : physics hypothesis
+            Output from LRM.query_physics().
 
         Returns
         -------
@@ -249,7 +240,7 @@ class NoveltyClassifier:
         Classify novelty of a free-form text string.
 
         Useful for checking a hypothesis written as plain text rather
-        than a HypothesisResult.
+        than a physics hypothesis.
 
         Parameters
         ----------
@@ -277,7 +268,7 @@ class NoveltyClassifier:
 
     # ── Term extraction ───────────────────────────────────────────────────────
 
-    def _extract_terms(self, hypothesis: "HypothesisResult") -> list[str]:
+    def _extract_terms(self, hypothesis: Any) -> list[str]:
         """
         Extract meaningful search terms from a hypothesis.
 
@@ -621,7 +612,7 @@ class NoveltyClassifier:
     # ── Batch API ─────────────────────────────────────────────────────────────
 
     def classify_batch(
-        self, hypotheses: "list[HypothesisResult]"
+        self, hypotheses: list[Any]
     ) -> "list[NoveltyResult]":
         """
         Classify a list of hypotheses.
@@ -632,7 +623,7 @@ class NoveltyClassifier:
 
         Parameters
         ----------
-        hypotheses : list[HypothesisResult]
+        hypotheses : list of physics hypotheses
 
         Returns
         -------

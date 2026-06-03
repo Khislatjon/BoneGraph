@@ -7,9 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/bonemind-icon.svg" type="image/svg+xml">
 <script src="/static/react.dev.js"></script>
 <script src="/static/react-dom.dev.js"></script>
 <script src="/static/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -139,6 +142,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .reason-hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:24px 32px 20px;position:sticky;top:0;z-index:50;display:flex;flex-direction:column;align-items:center}
 .reason-desc{font-size:14px;color:var(--text2);line-height:1.65;max-width:760px;width:100%;margin-bottom:14px;text-align:center}
 .reason-bar{display:flex;align-items:center;max-width:760px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 12px;gap:10px}
+.reason-view-toggle{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;margin-bottom:14px;gap:2px}
+.reason-view-toggle button{background:transparent;border:none;padding:6px 16px;font-size:13px;color:var(--text2);cursor:pointer;font-family:var(--sans);border-radius:6px;transition:background .15s,color .15s}
+.reason-view-toggle button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.reason-view-toggle button:hover:not(.active){color:var(--text)}
 .reason-bar:focus-within{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
 .reason-input{flex:1;height:46px;background:none;border:none;outline:none;font-family:var(--sans);font-size:14.5px;color:var(--text)}
 .reason-input::placeholder{color:var(--text3)}
@@ -160,19 +167,214 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .chain-expl{font-size:12px;color:var(--text3)}
 .chain-summary{font-size:13px;color:var(--text2);line-height:1.55;border-top:1px solid var(--border);padding-top:12px}
 .chain-disclaimer{display:flex;gap:8px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5010;line-height:1.55}
+/* physics-driven hypothesis card additions */
+.chain-law{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--text3)}
+.chain-law-name{font-weight:600;color:var(--text2)}
+.chain-law-form{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.chain-scenario{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.pred-box{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2)}
+.pred-half{flex:1;min-width:200px;padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.pred-half + .pred-half{border-left:1px solid var(--border)}
+.pred-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.pred-val{font-family:var(--mono);font-size:13.5px;color:var(--text)}
+.pred-val.amber{color:var(--amber);font-weight:600}
+.critic-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+.critic-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-weight:600;font-size:11.5px;letter-spacing:.04em}
+.critic-pill.ok{background:#e8f4ec;color:#1a6b3b;border:1px solid #b7dcc1}
+.critic-pill.fail{background:#fdecec;color:#9a1f1f;border:1px solid #f1baba}
+.critic-fail-detail{font-size:12px;color:#9a1f1f;line-height:1.5}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:5px;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
 .badge-legend{display:flex;gap:32px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border)}
 .legend-grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .legend-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
-.gaps-section{margin-top:40px;max-width:900px}
-.gaps-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px}
-.gaps-desc{font-size:13px;color:var(--text3);margin-bottom:12px}
-.gaps-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
-.gaps-table th{padding:10px 14px;text-align:left;background:var(--surface2);color:var(--text3);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-.gaps-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
-.gaps-table tr:last-child td{border-bottom:none}
-.gap-badge{background:#f3edfb;color:#6b3fb0;border-radius:6px;padding:2px 8px;font-family:var(--mono);font-size:12px}
 .error-note{font-size:13.5px;color:#b01c1c;padding:12px 0}
+
+/* equation-graph reasoner */
+.eqn-presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.eqn-preset{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;text-align:left;font-family:var(--sans);max-width:340px;line-height:1.4}
+.eqn-preset:hover{border-color:var(--amber);color:var(--text)}
+.eqn-preset:disabled{opacity:.5;cursor:not-allowed}
+.eqn-preset-label{font-weight:600;color:var(--text);display:block;margin-bottom:3px}
+.eqn-preset-desc{font-size:12px;color:var(--text3)}
+.eqn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;gap:16px;max-width:920px}
+.eqn-card-hdr{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.eqn-card-title{font-size:14px;color:var(--text2);font-weight:600}
+.eqn-meta{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.eqn-chain-row{display:flex;align-items:center;flex-wrap:wrap;gap:0;row-gap:10px;padding:4px 0}
+.eqn-var-pill{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--text)}
+.eqn-var-pill .eqn-var-name{font-weight:400;color:var(--text3);font-size:11.5px;margin-left:4px}
+.eqn-given-pill{background:#eaf5ec;border-color:#bcdcc4}
+.eqn-target-pill{background:#fef5e4;border-color:var(--amber-border)}
+.eqn-step{border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--surface2)}
+.eqn-step-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.eqn-step-name{font-weight:600;font-size:13px;color:var(--text)}
+.eqn-step-citation{font-size:11.5px;color:var(--text3);font-style:italic}
+.eqn-step-eq{font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;overflow-x:auto;line-height:1.4}
+.eqn-step-eq .katex{font-size:1.05em}
+.eqn-tex{display:inline-block}
+.eqn-step-io{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
+.eqn-step-io .eqn-io-arrow{color:var(--amber)}
+.eqn-step-out{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
+.eqn-step-band{font-family:var(--mono);font-size:11.5px;color:var(--text3);margin-left:6px}
+.eqn-final{margin-top:6px;padding:16px 18px;background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+.eqn-final-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.eqn-final-val{font-family:var(--mono);font-size:22px;font-weight:600;color:#5a3a06}
+.eqn-final-band{font-family:var(--mono);font-size:12.5px;color:#7a5010}
+.eqn-citations{display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+.eqn-citation-row{display:flex;gap:8px}
+.eqn-citation-row::before{content:"›";color:var(--amber);font-weight:600}
+.eqn-error{color:#b01c1c;font-size:13px;padding:12px 14px;background:#fdecec;border:1px solid #f1baba;border-radius:8px}
+
+/* active exploration (Surprises panel) */
+.eqn-surprises{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.eqn-surprises-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.eqn-surprises-title{font-size:14px;font-weight:600;color:var(--text)}
+.eqn-surprises-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5}
+.eqn-surprises-actions{display:flex;align-items:center;gap:8px}
+.eqn-surprises-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans)}
+.eqn-surprises-btn:hover{border-color:var(--amber);color:var(--text)}
+.eqn-surprises-btn:disabled{opacity:.5;cursor:not-allowed}
+.eqn-surprise-list{display:flex;flex-direction:column;gap:10px}
+.eqn-surprise-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.eqn-surprise-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.eqn-surprise-rank{font-size:11.5px;color:var(--text3);font-family:var(--mono);min-width:24px}
+.eqn-surprise-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.eqn-surprise-score{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border);border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em}
+.eqn-surprise-summary{font-size:12.5px;color:var(--text2);line-height:1.55}
+.eqn-surprise-row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.eqn-surprise-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.eqn-surprise-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.eqn-surprise-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.eqn-surprise-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.eqn-surprise-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--text3);font-family:var(--mono);padding-top:4px;border-top:1px dashed var(--border)}
+.eqn-surprise-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.eqn-surprise-cite{font-size:11px;color:var(--text3);font-style:italic}
+.eqn-surprise-corpus-q{font-size:11px;color:var(--text3);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
+
+/* agents panel */
+.eqn-agents{display:flex;flex-direction:column;gap:14px;max-width:920px;width:100%;margin-top:8px}
+.eqn-agents-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.eqn-agents-title{font-size:14px;font-weight:600;color:var(--text)}
+.eqn-agents-blurb{font-size:12px;color:var(--text3);max-width:620px;line-height:1.5;margin-top:3px}
+.eqn-agents-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--text2);cursor:pointer;font-family:var(--sans);white-space:nowrap}
+.eqn-agents-btn:hover{border-color:#6c7fd8;color:var(--text)}
+.eqn-agents-btn:disabled{opacity:.5;cursor:not-allowed}
+.eqn-agent-list{display:flex;flex-direction:column;gap:12px}
+.eqn-agent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.eqn-agent-card.verdict-interesting{border-left:3px solid #4a7c59}
+.eqn-agent-card.verdict-trivial{border-left:3px solid var(--text3)}
+.eqn-agent-card.verdict-out-of-domain{border-left:3px solid #c0392b}
+.eqn-agent-card.verdict-needs-more-data{border-left:3px solid var(--amber)}
+.eqn-agent-row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.eqn-agent-title{font-size:13.5px;font-weight:600;color:var(--text);flex:1}
+.eqn-agent-verdict{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.eqn-agent-verdict.interesting{background:#eaf5ee;color:#1a7a4e;border:1px solid #a8d8b8}
+.eqn-agent-verdict.trivial{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.eqn-agent-verdict.out-of-domain{background:#fdeaea;color:#b01c1c;border:1px solid #f0a8a8}
+.eqn-agent-verdict.needs-more-data{background:#fef5e4;color:#7a5010;border:1px solid var(--amber-border)}
+.eqn-agent-rationale{font-size:12.5px;color:var(--text2);line-height:1.55}
+.eqn-agent-reason{font-size:12px;color:var(--text3);font-style:italic;line-height:1.5}
+.eqn-agent-pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.eqn-agent-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border);background:var(--surface2);color:var(--text2)}
+.eqn-agent-pill.dir-up{color:#1a6b3b;background:#e8f4ec;border-color:#b7dcc1}
+.eqn-agent-pill.dir-down{color:#9a1f1f;background:#fdecec;border-color:#f1baba}
+.eqn-agent-pill.dir-mixed{color:var(--amber);background:#fef5e4;border-color:var(--amber-border)}
+.eqn-agent-sweep{font-size:11.5px;color:var(--text2);font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;overflow-x:auto;white-space:nowrap}
+.eqn-agent-corpus{font-size:11px;color:var(--text3);font-style:italic;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px}
+.eqn-agent-error{font-size:12px;color:#b01c1c;background:#fdeaea;border:1px solid #f0a8a8;border-radius:6px;padding:8px 12px}
+
+/* preset groups */
+.eqn-preset-groups{display:flex;flex-direction:column;gap:18px;width:100%;align-items:stretch;max-width:920px}
+.eqn-preset-group{display:flex;flex-direction:column;gap:8px}
+.eqn-preset-group-hdr{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:left;padding-left:4px}
+.eqn-mode-tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.eqn-mode-forward{background:#eaf5ec;color:#2e6b3a;border:1px solid #bcdcc4}
+.eqn-mode-abductive{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.eqn-mode-counterfactual{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
+/* Abductive — ranked posterior bars */
+.eqn-abd-hdr{display:flex;flex-wrap:wrap;gap:18px;font-size:12.5px;color:var(--text2)}
+.eqn-abd-hdr b{color:var(--text);font-family:var(--mono)}
+.eqn-posterior-row{display:grid;grid-template-columns:140px 1fr 90px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.eqn-posterior-row:first-of-type{border-top:none}
+.eqn-posterior-name{font-size:13px;color:var(--text);font-weight:600;display:flex;flex-direction:column;gap:2px}
+.eqn-posterior-name .eqn-pn-sub{font-size:11px;color:var(--text3);font-weight:400}
+.eqn-posterior-bar{position:relative;height:34px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.eqn-posterior-prior{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#eee2c8 0 4px,#f6ecd6 4px 8px);opacity:.7}
+.eqn-posterior-post{position:absolute;top:4px;bottom:4px;background:var(--amber);border-radius:4px;border:1px solid #d18b1f}
+.eqn-posterior-mean{position:absolute;top:-2px;bottom:-2px;width:2px;background:#5a3a06}
+.eqn-posterior-ticks{position:absolute;bottom:-16px;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:var(--mono)}
+.eqn-posterior-stats{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:12px;color:var(--text)}
+.eqn-posterior-stats .eqn-shift{font-size:10.5px;color:var(--amber);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+/* Covariate panel */
+.eqn-cov-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:920px;width:100%}
+.eqn-cov-hdr{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.eqn-cov-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.eqn-cov-summary{font-family:var(--mono);font-size:12px;color:var(--text2)}
+.eqn-cov-summary b{color:var(--text)}
+.eqn-cov-row{display:grid;grid-template-columns:120px auto;gap:14px;align-items:center}
+.eqn-cov-lbl{font-size:12.5px;color:var(--text2);font-weight:500}
+.eqn-cov-age{display:inline-flex;align-items:center;gap:12px}
+.eqn-cov-age .range-slider{width:200px}
+.eqn-cov-age-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;min-width:46px;text-align:left}
+.eqn-cov-sex{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface2);width:max-content}
+.eqn-cov-sex button{background:transparent;border:none;padding:5px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--sans);font-weight:500}
+.eqn-cov-sex button.active{background:var(--amber);color:#fff}
+.eqn-cov-site{appearance:none;-webkit-appearance:none;background:var(--amber);border:1px solid var(--amber);border-radius:6px;padding:5px 28px 5px 10px;font-family:var(--sans);font-size:12.5px;color:#fff;font-weight:500;min-width:220px;max-width:260px;width:max-content;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;background-size:11px}
+.eqn-cov-site option{color:var(--text);background:var(--surface)}
+.eqn-cov-diseases{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
+.eqn-cov-disease{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);cursor:pointer;user-select:none}
+.eqn-cov-disease.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.eqn-cov-disease.active input{accent-color:#fff}
+.eqn-cov-disease input{accent-color:var(--amber)}
+.eqn-cov-reset{font-size:11.5px;color:var(--text3);background:transparent;border:none;text-decoration:underline;cursor:pointer;font-family:var(--sans)}
+.eqn-cov-reset:hover{color:var(--amber)}
+
+/* Free-text query bar */
+
+/* Routing banner */
+.eqn-routing{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.eqn-routing-hdr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.eqn-routing-hdr b{color:var(--text);font-family:var(--mono)}
+.eqn-routing-rationale{font-size:12.5px;color:var(--text2);font-style:italic;line-height:1.45}
+.eqn-routing-matches{display:flex;flex-wrap:wrap;gap:6px}
+.eqn-routing-match{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3px 10px;font-family:var(--mono)}
+.eqn-routing-match b{color:var(--text)}
+.eqn-routing-score{color:var(--text3);font-size:10.5px}
+.eqn-routing-source{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:1px 6px;border-radius:3px}
+.eqn-routing-source.llm{background:#e7eefb;color:#28528d;border:1px solid #c3d4ef}
+.eqn-routing-source.fallback{background:#fbeae7;color:#8d3e28;border:1px solid #efc7c3}
+
+/* Applied-shifts banner */
+.eqn-shifts-banner{background:#fef5e4;border:1px solid var(--amber-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.eqn-shifts-hdr{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a5010}
+.eqn-shifts-list{display:flex;flex-direction:column;gap:4px}
+.eqn-shift-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:12px;color:#5a3a06}
+.eqn-shift-key{font-family:var(--mono);font-weight:600;color:#7a5010;white-space:nowrap}
+.eqn-shift-desc{color:#5a3a06}
+.eqn-shift-cite{font-size:11px;color:#7a5010;font-style:italic}
+.eqn-shift-vals{font-family:var(--mono);font-size:11.5px;color:#7a5010;white-space:nowrap}
+
+/* Counterfactual — baseline / intervened / delta cards */
+.eqn-cf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.eqn-cf-col{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.eqn-cf-col.delta{background:#fef5e4;border-color:var(--amber-border)}
+.eqn-cf-lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.eqn-cf-col.delta .eqn-cf-lbl{color:#7a5010}
+.eqn-cf-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.eqn-cf-col.delta .eqn-cf-val{color:#5a3a06}
+.eqn-cf-val.up{color:#2e6b3a}
+.eqn-cf-val.down{color:#8d3e28}
+.eqn-cf-band{font-family:var(--mono);font-size:11.5px;color:var(--text3)}
+.eqn-cf-col.delta .eqn-cf-band{color:#7a5010}
+.eqn-cf-rel{font-family:var(--mono);font-size:12px;color:#5a3a06;font-weight:600}
+.eqn-cf-intervention{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12.5px;color:var(--text2)}
+.eqn-cf-intervention b{color:var(--text)}
+@media (max-width:760px){
+  .eqn-cf-grid{grid-template-columns:1fr}
+  .eqn-posterior-row{grid-template-columns:1fr}
+}
 
 /* Analyse tab */
 .analyse-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
@@ -210,11 +412,13 @@ function BoneSVG({ size = 28 }) {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
       <rect width="100" height="100" rx="18" fill="#0f1724"/>
-      <text x="18" y="74" fontFamily="Georgia, serif" fontSize="72" fontWeight="700" fill="#f3e8c8" letterSpacing="-2">B</text>
-      <g transform="translate(74,24)">
-        <path d="M0,-16 L3.2,-3.2 L16,0 L3.2,3.2 L0,16 L-3.2,3.2 L-16,0 L-3.2,-3.2 Z" fill="#b07820"/>
-        <path d="M0,-9 L1.8,-1.8 L9,0 L1.8,1.8 L0,9 L-1.8,1.8 L-9,0 L-1.8,-1.8 Z" fill="#f3e8c8"/>
-      </g>
+      <rect x="28" y="16" width="14" height="68" fill="#f3e8c8"/>
+      <circle cx="28" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="16" r="8" fill="#f3e8c8"/>
+      <circle cx="28" cy="84" r="8" fill="#f3e8c8"/>
+      <circle cx="42" cy="84" r="8" fill="#f3e8c8"/>
+      <path d="M42 24 Q77 24 77 41 Q77 50 44 50" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M42 50 Q77 50 77 67 Q77 76 44 76" fill="none" stroke="#f3e8c8" strokeWidth="7" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -262,13 +466,31 @@ function stripThinking(text) {
 }
 
 // ── Inline citations renderer ─────────────────────────────────────────────────
+// Renders **bold**, *italic*, citation markers [N] and markdown links inline.
+function renderInline(text, keyPrefix) {
+  const inlineRe = /(\*\*([^*\n]+)\*\*|\*([^*\n]+)\*)/g;
+  const out = [];
+  let last = 0;
+  let m;
+  let i = 0;
+  while ((m = inlineRe.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[2] !== undefined) out.push(<strong key={`${keyPrefix}-b${i}`}>{m[2]}</strong>);
+    else if (m[3] !== undefined) out.push(<em key={`${keyPrefix}-i${i}`}>{m[3]}</em>);
+    last = m.index + m[0].length;
+    i++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 function parseCit(text) {
   const lines = text.split('\n');
   const result = [];
   lines.forEach((line, li) => {
     const headingMatch = line.match(/^##\s+(.+)$/);
     if (headingMatch) {
-      result.push(<div key={`h${li}`} className="resp-heading">{headingMatch[1]}</div>);
+      result.push(<div key={`h${li}`} className="resp-heading">{renderInline(headingMatch[1], `h${li}`)}</div>);
       return;
     }
     const parts = line.split(/(\[\d+\]|\[[^\]]+\]\(https?:\/\/[^)]+\))/g);
@@ -277,7 +499,7 @@ function parseCit(text) {
       const linkM = p.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
       if (citM) result.push(<sup key={`${li}-${i}`} className="cite">[{citM[1]}]</sup>);
       else if (linkM) result.push(<a key={`${li}-${i}`} href={linkM[2]} target="_blank" rel="noopener noreferrer" className="ref-link">{linkM[1]}</a>);
-      else result.push(p);
+      else result.push(<React.Fragment key={`${li}-${i}`}>{renderInline(p, `${li}-${i}`)}</React.Fragment>);
     });
     if (li < lines.length - 1) result.push('\n');
   });
@@ -698,157 +920,1763 @@ function SearchTab({ totalChunks }) {
 }
 
 // ── REASON TAB ────────────────────────────────────────────────────────────────
-function GapsSection() {
-  const [gaps, setGaps]       = useState(null);
-  const [loading, setLoading] = useState(false);
-  const load = async () => {
-    setLoading(true);
-    try { const r = await fetch('/api/gaps?top_n=10'); const d = await r.json(); setGaps(d.gaps||[]); }
-    catch { setGaps([]); }
-    setLoading(false);
+// Format a number for result display.  Uses scientific notation
+// for very small or very large magnitudes; plain decimals otherwise.
+function fmt(x, sig=3) {
+  if (x === null || x === undefined || Number.isNaN(x)) return '—';
+  const ax = Math.abs(x);
+  if (ax !== 0 && (ax < 1e-3 || ax >= 1e4)) return x.toExponential(2);
+  return Number(x.toPrecision(sig)).toString();
+}
+
+// Render a Variable's Unicode form (display_symbol) with a graceful
+// fallback to the ASCII symbol if the payload predates Phase-5b.
+function dsym(v) {
+  return (v && (v.display_symbol || v.symbol)) || '';
+}
+
+// KaTeX-rendered math.  Renders `tex` into a span using window.katex
+// once it has loaded.  If katex is not (yet) available, we fall back
+// to the raw LaTeX so the user still sees something — but we re-try
+// briefly so first-paint does not lose the equation.
+function TeX({tex, displayMode=false}) {
+  const ref = useRef(null);
+  useEffect(() => {
+    let cancelled = false;
+    const render = () => {
+      if (cancelled) return false;
+      const node = ref.current;
+      if (!node) return false;
+      if (typeof window.katex === 'undefined') return false;
+      try {
+        window.katex.render(tex || '', node, {
+          throwOnError: false,
+          displayMode,
+          output: 'html',
+        });
+      } catch (e) {
+        node.textContent = tex || '';
+      }
+      return true;
+    };
+    if (!render()) {
+      // KaTeX still loading — poll every 80 ms for up to 2 s.
+      const start = Date.now();
+      const id = setInterval(() => {
+        if (render() || Date.now() - start > 2000) clearInterval(id);
+      }, 80);
+      return () => { cancelled = true; clearInterval(id); };
+    }
+  }, [tex, displayMode]);
+  // Initial render: show plain text until katex paints.
+  return <span ref={ref} className="eqn-tex">{tex}</span>;
+}
+
+const REASON_PRESETS = [
+  // Forward
+  {
+    id: 'fwd_porosity_to_modulus', mode: 'forward',
+    label: 'Porosity → elastic modulus',
+    desc: 'φ = 0.10 → ρ → E.  Density bridge + Currey 1988.',
+  },
+  {
+    id: 'fwd_porosity_to_crack_growth', mode: 'forward',
+    label: 'Porosity → crack growth (ΔK = 1.0 MPa·√m)',
+    desc: 'φ = 0.10, ΔK = 1.0 → ρ → da/dN.  Density bridge + Vashishth 2003 / Paris 1963.',
+  },
+  {
+    id: 'fwd_geometry_to_remodeling', mode: 'forward',
+    label: 'Loading + geometry → BMD adaptation rate',
+    desc: 'φ, R, t, M → I, σ, ε → dBMD/dt.  Six-step chain through bending, Hooke, Frost.',
+  },
+  // Abductive
+  {
+    id: 'abd_low_modulus', mode: 'abductive',
+    label: 'Patient with low elastic modulus (E = 12 GPa)',
+    desc: 'Invert Currey + density bridge to recover the most likely porosity.',
+  },
+  {
+    id: 'abd_high_crack_growth', mode: 'abductive',
+    label: 'Elevated fatigue crack growth (da/dN = 5×10⁻⁹ m/cycle)',
+    desc: 'Invert Vashishth–Paris at ΔK = 1.0 to recover porosity.',
+  },
+  {
+    id: 'abd_moderate_remodeling', mode: 'abductive',
+    label: 'Mid-zone adaptation response (dBMD/dt = +1.0 %/yr)',
+    desc: 'Recover the joint (cortical thickness, bending moment) most consistent with the response.',
+  },
+  // Counterfactual
+  {
+    id: 'cf_drop_porosity', mode: 'counterfactual',
+    label: 'do(porosity = 0.05) on elastic modulus',
+    desc: 'How much does E change if porosity drops from 30 % to 5 %?',
+  },
+  {
+    id: 'cf_thinner_cortex', mode: 'counterfactual',
+    label: 'do(cortical thickness = 2.5 mm) on remodeling rate',
+    desc: 'Osteoporotic thinning from 5.5 mm to 2.5 mm — does the Frost response intensify?',
+  },
+  {
+    id: 'cf_double_load', mode: 'counterfactual',
+    label: 'do(ΔK ×2) on fatigue crack growth',
+    desc: 'Doubling the cyclic stress-intensity range — how much does da/dN climb via the Paris exponent?',
+  },
+  // Phase 3 — covariate-aware
+  {
+    id: 'cov_old_vertebra_modulus', mode: 'forward',
+    label: 'Phase 3 · Same φ, two patients: E in a 75 F vertebra',
+    desc: 'Same porosity, but covariate shifts (site, age, sex) drop E ≈ 3× — covariate-conditioned priors at work.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_abductive_clinical_flip', mode: 'abductive',
+    label: 'Phase 3 · E = 12 GPa → φ in young femur vs 75 F vertebra',
+    desc: 'Same observation, opposite porosity inference — clinical reading flips with patient context.',
+    syncCovariates: {age: 75, sex: 'F', site: 'vertebra', disease: ['osteoporosis']},
+  },
+  {
+    id: 'cov_glucocorticoid_remodeling', mode: 'counterfactual',
+    label: 'Phase 3 · do(thinning) on remodeling — under steroids',
+    desc: 'Same intervention, but glucocorticoid therapy suppresses the anabolic response to ≈20 %.',
+    syncCovariates: {age: 65, sex: 'F', disease: ['glucocorticoid']},
+  },
+];
+
+const MODE_META = {
+  forward:        {tag: 'Forward',        cls: 'eqn-mode-forward',
+                   hdr: 'Forward inference',
+                   blurb: 'Given upstream variables, predict the target with a Monte-Carlo uncertainty band.'},
+  abductive:      {tag: 'Abductive',      cls: 'eqn-mode-abductive',
+                   hdr: 'Abductive inference',
+                   blurb: 'Given an observed value, infer the upstream variables most likely to explain it.'},
+  counterfactual: {tag: 'Counterfactual', cls: 'eqn-mode-counterfactual',
+                   hdr: 'Counterfactual inference',
+                   blurb: 'Compare the target distribution under a do(...) intervention against the baseline state.'},
+};
+
+const DEFAULT_COVARIATES = {age: 30, sex: 'M', site: 'femur_cortical', disease: []};
+
+// Phase 5 Surprises panel — hidden for now. Flip to `true` to re-enable
+// the always-on exploration panel + the LLM-routed "explore" mode UI.
+const SURPRISES_ENABLED = false;
+
+// Phase 7/8 Agents panel — Proposer + Critic loop over the equation graph.
+const AGENTS_ENABLED = true;
+
+// Per-mode preset buttons (forward / abductive / counterfactual demos).
+// Hidden for now — flip to `true` to expose the canonical-form examples.
+const PRESETS_ENABLED = false;
+
+const SITES = [
+  {value: 'femur_cortical', label: 'Femur — cortical midshaft'},
+  {value: 'tibia_cortical', label: 'Tibia — cortical midshaft'},
+  {value: 'radius',         label: 'Distal radius'},
+  {value: 'vertebra',       label: 'Lumbar vertebra (trabecular)'},
+];
+
+const DISEASES = [
+  {value: 'osteoporosis',            label: 'Osteoporosis'},
+  {value: 'glucocorticoid',          label: 'Glucocorticoids'},
+  {value: 'osteogenesis_imperfecta', label: 'OI'},
+];
+
+function isDefaultCovariates(c) {
+  if (!c) return true;
+  if (c.age !== DEFAULT_COVARIATES.age) return false;
+  if (c.sex !== DEFAULT_COVARIATES.sex) return false;
+  if (c.site !== DEFAULT_COVARIATES.site) return false;
+  const dis = c.disease || [];
+  return dis.length === 0;
+}
+
+function covSummary(c) {
+  if (!c) return 'default — 30-year-old male femur, no disease';
+  const site = SITES.find(s => s.value === c.site)?.label || c.site;
+  const dis = (c.disease || []).map(d => DISEASES.find(x => x.value === d)?.label || d);
+  return `${c.age}-yr ${c.sex === 'F' ? 'female' : 'male'} · ${site}` + (dis.length ? ` · ${dis.join(', ')}` : '');
+}
+
+function CovariatePanel({covariates, onChange}) {
+  const c = covariates || DEFAULT_COVARIATES;
+  const update = (patch) => onChange({...c, ...patch});
+  const toggleDisease = (value) => {
+    const cur = new Set(c.disease || []);
+    if (cur.has(value)) cur.delete(value); else cur.add(value);
+    update({disease: Array.from(cur)});
   };
   return (
-    <div className="gaps-section">
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
-        <div className="gaps-title">🕳️ Research Gap Detection</div>
-        <button className="search-btn" style={{height:32,padding:'0 14px',fontSize:12.5}} onClick={load} disabled={loading}>
-          {loading ? <Spinner/> : 'Find Gaps'}
-        </button>
+    <div className="eqn-cov-panel">
+      <div className="eqn-cov-hdr">
+        <span className="eqn-cov-title">Patient covariates</span>
+        <span className="eqn-cov-summary">{covSummary(c)}</span>
+        {!isDefaultCovariates(c) && (
+          <button className="eqn-cov-reset" onClick={() => onChange({...DEFAULT_COVARIATES})}>reset</button>
+        )}
       </div>
-      <div className="gaps-desc">Concepts with high betweenness centrality and few edges — candidates for under-studied areas.</div>
-      {gaps && gaps.length > 0 && (
-        <table className="gaps-table">
-          <thead><tr><th>#</th><th>Concept</th><th>Type</th><th>Betweenness</th><th>Edges</th><th>Gap score</th></tr></thead>
-          <tbody>
-            {gaps.map(g => (
-              <tr key={g.rank}>
-                <td style={{color:'var(--text3)'}}>{g.rank}</td>
-                <td style={{fontWeight:600,color:'var(--text)'}}>{g.label}</td>
-                <td style={{color:'var(--text3)'}}>{g.node_type}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:12}}>{g.betweenness.toFixed(4)}</td>
-                <td>{g.n_edges}</td>
-                <td><span className="gap-badge">{g.gap_score.toFixed(4)}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Age</div>
+        <div className="eqn-cov-age">
+          <input type="range" min="18" max="95" step="1" value={c.age}
+            className="range-slider eqn-cov-age-slider"
+            style={(() => {
+              const pct = ((c.age - 18) / (95 - 18)) * 100;
+              return {background: `linear-gradient(to right, var(--amber) 0%, var(--amber) ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`};
+            })()}
+            onChange={e => update({age: Number(e.target.value)})}/>
+          <span className="eqn-cov-age-val">{c.age} yr</span>
+        </div>
+      </div>
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Sex</div>
+        <div className="eqn-cov-sex">
+          <button className={c.sex === 'M' ? 'active' : ''} onClick={() => update({sex: 'M'})}>Male</button>
+          <button className={c.sex === 'F' ? 'active' : ''} onClick={() => update({sex: 'F'})}>Female</button>
+        </div>
+      </div>
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Site</div>
+        <select className="eqn-cov-site" value={c.site} onChange={e => update({site: e.target.value})}>
+          {SITES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </div>
+      <div className="eqn-cov-row">
+        <div className="eqn-cov-lbl">Disease</div>
+        <div className="eqn-cov-diseases">
+          {DISEASES.map(d => {
+            const on = (c.disease || []).includes(d.value);
+            return (
+              <label key={d.value} className={`eqn-cov-disease ${on ? 'active' : ''}`}>
+                <input type="checkbox" checked={on} onChange={() => toggleDisease(d.value)}/>
+                {d.label}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoutingBanner({routing}) {
+  if (!routing) return null;
+  return (
+    <div className="eqn-routing">
+      <div className="eqn-routing-hdr">
+        <span className={`eqn-routing-source ${routing.source}`}>{routing.source}</span>
+        <span>routed as <b>{routing.mode}</b> → target <b>{routing.target}</b></span>
+        {routing.target_score > 0 && (
+          <span className="eqn-routing-score">(target match {(routing.target_score * 100).toFixed(0)}%)</span>
+        )}
+        {routing.confidence > 0 && (
+          <span className="eqn-routing-score">· confidence {(routing.confidence * 100).toFixed(0)}%</span>
+        )}
+      </div>
+      {routing.rationale && (
+        <div className="eqn-routing-rationale">{routing.rationale}</div>
+      )}
+      {routing.matched_variables && routing.matched_variables.length > 0 && (
+        <div className="eqn-routing-matches">
+          {routing.matched_variables.map((m, i) => (
+            <span key={i} className="eqn-routing-match">
+              <b>{dsym(m)}</b> · {m.name}
+              {m.unit && <span style={{color:'var(--text3)'}}> · {m.unit}</span>}
+              <span className="eqn-routing-score">{(m.score * 100).toFixed(0)}%</span>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
+function ShiftsBanner({shifts, covariates}) {
+  if (!shifts || shifts.length === 0) return null;
+  // Group consecutive shifts on the same parameter so the cascade
+  // (e.g. Currey a: 7 → 3.85 → 2.12 → 2.01) reads as one trace.
+  return (
+    <div className="eqn-shifts-banner">
+      <div className="eqn-shifts-hdr">
+        Covariate-driven parameter shifts · {covSummary(covariates)}
+      </div>
+      <div className="eqn-shifts-list">
+        {shifts.map((s, i) => (
+          <div key={i} className="eqn-shift-row">
+            <span className="eqn-shift-key">{s.relation}·{s.parameter}</span>
+            <span className="eqn-shift-desc">
+              {s.description}
+              {' '}<span className="eqn-shift-cite">— {s.citation}</span>
+            </span>
+            <span className="eqn-shift-vals">{fmt(s.before_mean)} → {fmt(s.after_mean)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Map a value in [lo, hi] to a percentage along a bar.
+function pct(x, lo, hi) {
+  if (hi <= lo) return 0;
+  const p = ((x - lo) / (hi - lo)) * 100;
+  return Math.max(0, Math.min(100, p));
+}
+
+function ChainRow({result}) {
+  return (
+    <div className="eqn-chain-row">
+      {result.chain_vars.map((v, i) => {
+        const isGiven    = result.given_info && result.given_info[v.symbol];
+        const isInterv   = result.intervention_info && result.intervention_info[v.symbol];
+        const isTarget   = v.symbol === result.target;
+        const isInferred = result.inferred && result.inferred.some(p => p.variable.symbol === v.symbol);
+        const cls = 'eqn-var-pill'
+          + (isGiven    ? ' eqn-given-pill'  : '')
+          + (isTarget   ? ' eqn-target-pill' : '')
+          + (isInterv   ? ' eqn-target-pill' : '')
+          + (isInferred ? ' eqn-target-pill' : '');
+        return (
+          <Fragment key={i}>
+            <span className={cls}>
+              {dsym(v)}
+              <span className="eqn-var-name">{v.name}{v.unit ? ` · ${v.unit}` : ''}</span>
+            </span>
+            {i < result.chain_vars.length - 1 && <ChainArrow/>}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function ForwardCard({result, elapsed}) {
+  return (
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
+          Forward inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="eqn-meta">
+          {result.steps.length} step{result.steps.length === 1 ? '' : 's'} · n = {result.result.n_samples.toLocaleString()} samples · {elapsed}s
+        </div>
+      </div>
+
+      <RoutingBanner routing={result.routing}/>
+
+      <ChainRow result={result}/>
+
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      {result.steps.map((s, i) => (
+        <div key={i} className="eqn-step">
+          <div className="eqn-step-hdr">
+            <div className="eqn-step-name">{i + 1}. {s.relation_name}</div>
+            <div className="eqn-step-citation">{s.citation}</div>
+          </div>
+          {s.description && <div style={{fontSize:12,color:'var(--text3)'}}>{s.description}</div>}
+          {s.latex && <div className="eqn-step-eq"><TeX tex={s.latex}/></div>}
+          <div className="eqn-step-io">
+            {Object.entries(s.inputs).map(([k, v]) => (
+              <span key={k} style={{fontFamily:'var(--mono)',fontSize:12}}>{(result.display_map && result.display_map[k]) || k} = {fmt(v)}</span>
+            ))}
+            <span className="eqn-io-arrow">→</span>
+            <span className="eqn-step-out">{(result.display_map && result.display_map[s.output_var]) || s.output_var} ≈ {fmt(s.output_mean)} {s.output_unit}</span>
+            <span className="eqn-step-band">[P5 {fmt(s.output_p5)} · P95 {fmt(s.output_p95)}]</span>
+          </div>
+        </div>
+      ))}
+
+      <div className="eqn-final">
+        <div className="eqn-final-lbl">Predicted {result.target_info.name}</div>
+        <div className="eqn-final-val">{fmt(result.result.mean)} {result.result.unit}</div>
+        <div className="eqn-final-band">
+          90% band: [{fmt(result.result.p5)}, {fmt(result.result.p95)}] {result.result.unit}
+          {' · '}spread {fmt(result.result.relative_uncertainty * 100, 2)}% of mean
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AbductiveCard({result, elapsed}) {
+  return (
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
+          Abductive inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="eqn-meta">
+          ESS = {Math.round(result.result.effective_sample_size).toLocaleString()} / {result.result.n_samples.toLocaleString()} · {elapsed}s
+        </div>
+      </div>
+
+      <RoutingBanner routing={result.routing}/>
+
+      <ChainRow result={result}/>
+
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      <div className="eqn-abd-hdr">
+        <span>Observed <b>{dsym(result.target_info)}</b> = <b>{fmt(result.observed)} {result.target_info.unit}</b> ± {fmt(result.observed_std)}</span>
+        {Object.entries(result.given || {}).length > 0 && (
+          <span>Held fixed: {Object.entries(result.given).map(([k, v], i) =>
+            <span key={k} style={{marginRight:8}}>{k} = <b>{fmt(v)}</b></span>
+          )}</span>
+        )}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:0}}>
+        {result.inferred.map((p, i) => {
+          const lo = Math.min(p.prior_p5, p.posterior_p5);
+          const hi = Math.max(p.prior_p95, p.posterior_p95);
+          const priorL = pct(p.prior_p5, lo, hi);
+          const priorW = pct(p.prior_p95, lo, hi) - priorL;
+          const postL  = pct(p.posterior_p5, lo, hi);
+          const postW  = pct(p.posterior_p95, lo, hi) - postL;
+          const meanX  = pct(p.posterior_mean, lo, hi);
+          const shiftPct = (p.shift_score * 100).toFixed(0);
+          return (
+            <div key={i} className="eqn-posterior-row">
+              <div className="eqn-posterior-name">
+                {dsym(p.variable)}
+                <span className="eqn-pn-sub">{p.variable.name}{p.variable.unit ? ` · ${p.variable.unit}` : ''}</span>
+              </div>
+              <div>
+                <div className="eqn-posterior-bar">
+                  <div className="eqn-posterior-prior" style={{left:`${priorL}%`,width:`${priorW}%`}}/>
+                  <div className="eqn-posterior-post"  style={{left:`${postL}%`,width:`${postW}%`}}/>
+                  <div className="eqn-posterior-mean"  style={{left:`${meanX}%`}}/>
+                </div>
+                <div className="eqn-posterior-ticks">
+                  <span>{fmt(lo)}</span>
+                  <span>{fmt(hi)}</span>
+                </div>
+              </div>
+              <div className="eqn-posterior-stats">
+                <span>{fmt(p.posterior_mean)}</span>
+                <span style={{color:'var(--text3)'}}>[{fmt(p.posterior_p5)}, {fmt(p.posterior_p95)}]</span>
+                <span className="eqn-shift">shift {shiftPct}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:8,borderTop:'1px solid var(--border)'}}>
+        Bars: striped tan = prior 90 % range, solid amber = posterior 90 % band, dark tick = posterior mean.
+        Shift score = how much the observation tightened the prior (100 % means the band collapsed to a point).
+      </div>
+    </div>
+  );
+}
+
+function CounterfactualCard({result, elapsed}) {
+  const r = result.result;
+  const deltaDir = r.delta_mean >= 0 ? 'up' : 'down';
+  const deltaSign = r.delta_mean >= 0 ? '+' : '';
+  const relSign = r.relative_delta >= 0 ? '+' : '';
+  // Suppress the percent when baseline is close to zero relative to Δ
+  // (sign-flip cases like resorption → formation), or when the ratio
+  // explodes — the absolute Δ is the meaningful quantity there.
+  const relIsMeaningful =
+    Number.isFinite(r.relative_delta) &&
+    Math.abs(r.baseline_mean) > 0.2 * Math.abs(r.delta_mean) &&
+    Math.abs(r.relative_delta) < 50;
+  return (
+    <div className="eqn-card">
+      <div className="eqn-card-hdr">
+        <div className="eqn-card-title">
+          Counterfactual inference: {result.target_info.name}
+          {' '}<span style={{color:'var(--text3)',fontWeight:400}}>({dsym(result.target_info)})</span>
+        </div>
+        <div className="eqn-meta">
+          n = {r.n_samples.toLocaleString()} paired samples · {elapsed}s
+        </div>
+      </div>
+
+      <RoutingBanner routing={result.routing}/>
+
+      <ChainRow result={result}/>
+
+      <ShiftsBanner shifts={result.applied_shifts} covariates={result.covariates}/>
+
+      <div className="eqn-cf-intervention">
+        do(
+        {Object.entries(result.intervention).map(([k, v], i) => (
+          <span key={k}>{i > 0 && ', '}<b>{k}</b> = {fmt(v)}{result.intervention_info[k]?.unit ? ` ${result.intervention_info[k].unit}` : ''}</span>
+        ))}
+        )
+        {Object.keys(result.given).length > 0 && (
+          <span style={{color:'var(--text3)'}}>
+            holding {Object.entries(result.given).filter(([k]) => !(k in result.intervention)).map(([k, v], i, arr) => (
+              <span key={k}>{i > 0 && ', '}<b>{k}</b> = {fmt(v)}{result.given_info[k]?.unit ? ` ${result.given_info[k].unit}` : ''}</span>
+            ))}
+          </span>
+        )}
+      </div>
+
+      <div className="eqn-cf-grid">
+        <div className="eqn-cf-col">
+          <div className="eqn-cf-lbl">Baseline</div>
+          <div className="eqn-cf-val">{fmt(r.baseline_mean)} {r.unit}</div>
+          <div className="eqn-cf-band">[{fmt(r.baseline_p5)}, {fmt(r.baseline_p95)}]</div>
+        </div>
+        <div className="eqn-cf-col">
+          <div className="eqn-cf-lbl">Intervened</div>
+          <div className="eqn-cf-val">{fmt(r.intervened_mean)} {r.unit}</div>
+          <div className="eqn-cf-band">[{fmt(r.intervened_p5)}, {fmt(r.intervened_p95)}]</div>
+        </div>
+        <div className="eqn-cf-col delta">
+          <div className="eqn-cf-lbl">Δ target</div>
+          <div className={`eqn-cf-val ${deltaDir}`}>
+            {deltaSign}{fmt(r.delta_mean)} {r.unit}
+          </div>
+          <div className="eqn-cf-band">
+            [{fmt(r.delta_p5)}, {fmt(r.delta_p95)}]
+          </div>
+          {relIsMeaningful
+            ? <div className="eqn-cf-rel">{relSign}{fmt(r.relative_delta * 100, 3)}% vs baseline</div>
+            : <div className="eqn-cf-rel" style={{color:'#7a5010',opacity:.85}}>baseline crosses zero · absolute Δ shown</div>}
+        </div>
+      </div>
+
+      <div style={{fontSize:11.5,color:'var(--text3)',paddingTop:6,borderTop:'1px solid var(--border)'}}>
+        Paired sampling: the same parameter draws are used for both baseline and intervened passes, so Δ
+        reflects only the intervention — not parameter noise.
+      </div>
+    </div>
+  );
+}
+
+const ASK_EXAMPLES = [
+  'bone stiffness under cyclic load',
+  'how does porosity affect modulus in a 70-year-old female?',
+  'why is this patient’s E only 12 GPa?',
+  'what if porosity dropped to 5%?',
+];
+
+// ── Active exploration / Surprises panel ─────────────────────────────────
+function SurprisesPanel({candidates, loading, error, onRefresh, fromAsk}) {
+  return (
+    <div className="eqn-surprises">
+      <div className="eqn-surprises-hdr">
+        <div>
+          <div className="eqn-surprises-title">
+            {fromAsk ? 'Exploration matched your query' : 'Surprises — active exploration'}
+          </div>
+          <div className="eqn-surprises-blurb">
+            Walks the equation graph without a query, runs forward inference at each sweep point,
+            and ranks candidates by <em>magnitude × physics-confidence × corpus-attestation</em>.
+            High-ranked items are where physics says something concrete and the literature
+            is actively discussing the same topic.
+          </div>
+        </div>
+        <div className="eqn-surprises-actions">
+          <button className="eqn-surprises-btn" onClick={onRefresh} disabled={loading}>
+            {loading ? <Spinner/> : (candidates ? 'Re-run' : 'Run')}
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:8}}>
+          <Dots/><span>Sweeping the graph and asking the corpus…</span>
+        </div>
+      )}
+      {error && <div className="eqn-error">{error}</div>}
+
+      {candidates && candidates.length > 0 && (
+        <div className="eqn-surprise-list">
+          {candidates.map((c, i) => {
+            const dirClass = c.direction === 'increases' ? 'dir-up'
+                           : c.direction === 'decreases' ? 'dir-down'
+                           : 'dir-mixed';
+            const arrow = c.direction === 'increases' ? '↑'
+                        : c.direction === 'decreases' ? '↓'
+                        : '↺';
+            const rel = c.relative_change === null || c.relative_change === undefined
+                        ? '—'
+                        : `${(c.relative_change * 100).toFixed(0)}%`;
+            return (
+              <div key={i} className="eqn-surprise-card">
+                <div className="eqn-surprise-row1">
+                  <span className="eqn-surprise-rank">#{i + 1}</span>
+                  <div className="eqn-surprise-title">{c.title}</div>
+                  <span className="eqn-surprise-score">surprise {c.surprise_score.toFixed(3)}</span>
+                </div>
+
+                <div className="eqn-surprise-summary">{c.summary}</div>
+
+                <div className="eqn-surprise-row2">
+                  <span className={`eqn-surprise-pill ${dirClass}`}>{arrow} {c.direction} ({rel})</span>
+                  <span className="eqn-surprise-pill">phys conf {c.physics_confidence.toFixed(2)}</span>
+                  <span className="eqn-surprise-pill">mag {c.magnitude.toFixed(2)}</span>
+                  <Badge label={c.corpus.label} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[c.corpus.label]}/>
+                </div>
+
+                <div className="eqn-surprise-sweep">
+                  {dsym(c.sweep_var_info)}: {c.sweep_points.map(p => fmt(p.value)).join(' → ')}
+                  {'  ⇒  '}
+                  {dsym(c.target_info)}: {c.sweep_points.map(p => fmt(p.mean)).join(' → ')}
+                  {c.target_info.unit ? ` ${c.target_info.unit}` : ''}
+                </div>
+
+                {c.error && <div className="eqn-error">{c.error}</div>}
+
+                <div className="eqn-surprise-corpus-q">corpus query: {c.corpus.query}</div>
+
+                <div className="eqn-surprise-meta">
+                  <span>chain: {c.chain_vars.map(v => dsym(v)).join(' → ')}</span>
+                  {Object.keys(c.held).length > 0 && (
+                    <span>held: {Object.entries(c.held).map(([k, v]) => `${k}=${fmt(v)}`).join(', ')}</span>
+                  )}
+                  <span>cite: {c.citations.join(' · ')}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Agents panel — Proposer + Critic loop ────────────────────────────────
+const VERDICT_LABELS = {
+  'interesting':    'Interesting',
+  'trivial':        'Trivial',
+  'out-of-domain':  'Out of domain',
+  'needs-more-data':'Needs more data',
+};
+
+function AgentsPanel({agents, loading, error, onRun, boneType, onBoneTypeChange}) {
+  return (
+    <div className="eqn-agents">
+      <div className="eqn-agents-hdr">
+        <div>
+          <div className="eqn-agents-title">
+            Agents — hypothesis discovery
+          </div>
+          <div className="eqn-agents-blurb">
+            A Proposer agent walks the variable graph and suggests novel (target, sweep) pairs.
+            The deterministic engine evaluates each one. A Critic agent searches the corpus
+            and decides whether the result is <em>interesting</em>, <em>trivial</em>, or needs more data.
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <label style={{fontSize:12,color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
+            Tissue:
+            <select value={boneType}
+                    onChange={e => onBoneTypeChange(e.target.value)}
+                    disabled={loading}
+                    style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:'5px 8px',fontSize:12,color:'var(--text)',fontFamily:'var(--sans)'}}>
+              <option value="cortical">Cortical</option>
+              <option value="transitional">Transitional</option>
+              <option value="trabecular">Trabecular</option>
+            </select>
+          </label>
+          <button className="eqn-agents-btn" onClick={onRun} disabled={loading}>
+            {loading ? <Spinner/> : (agents ? 'Re-run' : 'Run agents')}
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:8}}>
+          <Dots/><span>Proposer is thinking… Critic is reading the corpus…</span>
+        </div>
+      )}
+      {error && <div className="eqn-agent-error">{error}</div>}
+
+      {agents && agents.length > 0 && (
+        <div className="eqn-agent-list">
+          {agents.map((item, i) => {
+            if (item.error) return (
+              <div key={i} className="eqn-agent-card">
+                <div className="eqn-agent-error">{item.error}</div>
+              </div>
+            );
+
+            const h = item.hypothesis || {};
+            const p = item.physics    || {};
+            const c = item.critique   || {};
+
+            const verdict   = c.verdict || 'needs-more-data';
+            const dirClass  = p.direction === 'increases' ? 'dir-up'
+                            : p.direction === 'decreases' ? 'dir-down'
+                            : 'dir-mixed';
+            const arrow     = p.direction === 'increases' ? '↑'
+                            : p.direction === 'decreases' ? '↓' : '↺';
+            const relChange = p.relative_change != null
+              ? `${(p.relative_change * 100).toFixed(0)}%` : '—';
+
+            return (
+              <div key={i} className={`eqn-agent-card verdict-${verdict}`}>
+                <div className="eqn-agent-row1">
+                  <div className="eqn-agent-title">
+                    #{i + 1} · {h.sweep_var} → {h.target}
+                  </div>
+                  <span className={`eqn-agent-verdict ${verdict}`}>
+                    {VERDICT_LABELS[verdict] || verdict}
+                  </span>
+                </div>
+
+                <div className="eqn-agent-pills">
+                  <span className={`eqn-agent-pill ${dirClass}`}>{arrow} {p.direction} ({relChange})</span>
+                  {p.physics_confidence != null && (
+                    <span className="eqn-agent-pill">phys conf {p.physics_confidence.toFixed(2)}</span>
+                  )}
+                  {p.magnitude != null && (
+                    <span className="eqn-agent-pill">mag {p.magnitude.toFixed(2)}</span>
+                  )}
+                  {c.confidence != null && (
+                    <span className="eqn-agent-pill">critic conf {c.confidence.toFixed(2)}</span>
+                  )}
+                  {p.proposer_mismatch && (
+                    <span className="eqn-agent-pill dir-down" title={`Proposer predicted ${p.predicted_direction}; engine got ${p.direction}`}>
+                      ⚠ proposer wrong
+                    </span>
+                  )}
+                </div>
+
+                {p.summary && (
+                  <div className="eqn-agent-sweep">{p.summary}</div>
+                )}
+
+                {h.rationale && (
+                  <div className="eqn-agent-rationale">Proposer: {h.rationale}</div>
+                )}
+
+                {c.reason && (
+                  <div className="eqn-agent-reason">Critic: {c.reason}</div>
+                )}
+
+                {c.corpus_passages && c.corpus_passages.length > 0 && (
+                  <div className="eqn-agent-corpus">
+                    {c.corpus_passages.map((s, j) => (
+                      <div key={j} style={{marginBottom:4}}>"{s}"</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReasonSection({view, presets, onRun, loading, result, error, elapsed,
+                    covariates, onCovariatesChange,
+                    query, onQueryChange, onAsk,
+                    surprises, surprisesLoading, surprisesError, onSurprisesRefresh,
+                    agents, agentsLoading, agentsError, onAgentsRun,
+                    boneType, onBoneTypeChange}) {
+  const groups = [
+    {mode: 'forward',        items: presets.filter(p => p.mode === 'forward')},
+    {mode: 'abductive',      items: presets.filter(p => p.mode === 'abductive')},
+    {mode: 'counterfactual', items: presets.filter(p => p.mode === 'counterfactual')},
+  ];
+
+  const loadingMsg = {
+    forward:        'Solving equation graph and propagating uncertainty…',
+    abductive:      'Sampling prior, propagating, and weighting by likelihood…',
+    counterfactual: 'Running paired baseline / intervened passes…',
+  };
+
+  if (view === 'agents') {
+    return (
+      <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+        {AGENTS_ENABLED && (
+          <AgentsPanel
+            agents={agents}
+            loading={agentsLoading}
+            error={agentsError}
+            onRun={onAgentsRun}
+            boneType={boneType}
+            onBoneTypeChange={onBoneTypeChange}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20,alignItems:'center',paddingTop:8,width:'100%'}}>
+      <CovariatePanel covariates={covariates} onChange={onCovariatesChange}/>
+
+      {!result && !loading && (
+        <div className="ex-chips">
+          <span className="chips-label">Try:</span>
+          {ASK_EXAMPLES.map((ex, i) => (
+            <button key={i} className="chip"
+              onClick={() => { onQueryChange(ex); onAsk(ex); }}>{ex}</button>
+          ))}
+        </div>
+      )}
+
+      {PRESETS_ENABLED && (
+      <div className="eqn-preset-groups">
+        {groups.map(g => {
+          const meta = MODE_META[g.mode];
+          return (
+            <div key={g.mode} className="eqn-preset-group">
+              <div className="eqn-preset-group-hdr">{meta.hdr} — {meta.blurb}</div>
+              <div className="eqn-presets" style={{justifyContent:'flex-start'}}>
+                {g.items.map(p => (
+                  <button key={p.id} className="eqn-preset" onClick={() => onRun(p)} disabled={loading}>
+                    <span className="eqn-preset-label">
+                      <span className={`eqn-mode-tag ${meta.cls}`}>{meta.tag}</span>
+                      {p.label}
+                      {p.syncCovariates && <span className="eqn-mode-tag eqn-mode-counterfactual" style={{marginLeft:8}}>covariates</span>}
+                    </span>
+                    <span className="eqn-preset-desc">{p.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      )}
+
+      {loading && (
+        <div className="loading-row" style={{marginTop:24}}>
+          <Dots/><span>{loadingMsg[result?.mode] || loadingMsg.forward}</span>
+        </div>
+      )}
+      {error && <div className="eqn-error">{error}</div>}
+
+      {result && !loading && (
+        <Fragment>
+          {result.mode === 'forward'        && <ForwardCard        result={result} elapsed={elapsed}/>}
+          {result.mode === 'abductive'      && <AbductiveCard      result={result} elapsed={elapsed}/>}
+          {result.mode === 'counterfactual' && <CounterfactualCard result={result} elapsed={elapsed}/>}
+          {SURPRISES_ENABLED && result.mode === 'explore' && (
+            <SurprisesPanel
+              candidates={result.candidates || []}
+              loading={false}
+              error=""
+              onRefresh={onSurprisesRefresh}
+              fromAsk={true}
+            />
+          )}
+
+          {result.citations && result.citations.length > 0 && (
+            <div className="eqn-card" style={{paddingTop:14}}>
+              <div className="eqn-card-title" style={{fontSize:11,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>Citations</div>
+              <div className="eqn-citations" style={{borderTop:'none',paddingTop:0}}>
+                {result.citations.map((c, i) => (
+                  <div key={i} className="eqn-citation-row">{c}</div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Fragment>
+      )}
+
+      {/* Always-on Surprises panel — independent of any user query. */}
+      {SURPRISES_ENABLED && result?.mode !== 'explore' && (
+        <SurprisesPanel
+          candidates={surprises}
+          loading={surprisesLoading}
+          error={surprisesError}
+          onRefresh={onSurprisesRefresh}
+          fromAsk={false}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// Quick (agent + grounding only) vs Deep (full agent + critic + evidence loop).
+function ModeToggle({ mode, setMode, disabled }) {
+  const opt = (val, label, title) => (
+    <button title={title} disabled={disabled} onClick={() => setMode(val)}
+      style={{
+        background: mode === val ? 'var(--navy)' : 'transparent',
+        color: mode === val ? '#fff' : 'var(--text2)',
+        border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12.5,
+        cursor: disabled ? 'default' : 'pointer', fontFamily: 'var(--sans)',
+      }}>{label}</button>
+  );
+  return (
+    <div style={{display:'inline-flex',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:2,gap:2,flexShrink:0}}>
+      {opt('quick', 'Quick', 'Agent + physical grounding only — fast (~5–10s)')}
+      {opt('deep', 'Deep', 'Full pipeline: agent + critic + literature/graph evidence (~10–40s)')}
+    </div>
+  );
+}
+
+// ── REASON TAB ────────────────────────────────────────────────────────────────
+// Phase 2 — pure-LLM reasoning agent (no RAG). Turn shape:
+//   { id, query, answer, physical_check, critic_notes, user_feedback, timestamp }
+// physical_check / critic_notes / user_feedback are reserved for later phases.
 function ReasonTab() {
-  const [concept, setConcept]         = useState('');
-  const [result, setResult]           = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
-  const [clientElapsed, setClientElapsed] = useState(null);
+  const [turns, setTurns]   = useState([]);
+  const [pendingQuery, setPendingQuery] = useState('');
+  const [input, setInput]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState('');
+  const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
+  const [proposedFor, setProposedFor] = useState({}); // turn_id -> {proposal, correction_id}
+  const [status, setStatus] = useState('');             // pipeline status pill while loading
+  const [mode, setMode]     = useState('deep');         // 'deep' (agent+critic) | 'quick' (agent only)
+  const endRef     = useRef(null);
+  const inputRef   = useRef(null);
+  const chatAreaRef = useRef(null);
+  const autoScroll = useRef(true);
 
-  const EXAMPLES = ['aging and fracture risk','collagen bone toughness','RANKL osteoclast resorption','cortical porosity elastic modulus'];
+  const handleWheel = () => { autoScroll.current = false; };
+  const handleTouchStart = () => { autoScroll.current = false; };
+  const handleChatScroll = () => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
+      autoScroll.current = true;
+    }
+  };
 
-  const reason = async (c) => {
-    const term = (c || concept).trim();
-    if (!term || loading) return;
-    setConcept(term); setLoading(true); setResult(null); setError(''); setClientElapsed(null);
-    const t0 = performance.now();
+  useEffect(() => {
+    if (autoScroll.current && endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [turns, loading, streaming, pendingQuery]);
+
+  const send = async (text) => {
+    const t = text.trim();
+    if (!t || loading) return;
+    autoScroll.current = true;
+    setInput('');
+    setPendingQuery(t);   // show user bubble immediately
+    setLoading(true);
+    setStreaming('');
+
+    // Sliding window of the last 10 messages (5 pairs). Strip thinking from
+    // assistant turns so we resend only the visible reasoning.
+    const recent = turns.slice(-5);
+    const history = [];
+    recent.forEach(turn => {
+      history.push({ role: 'user', content: turn.query });
+      history.push({ role: 'assistant', content: stripThinking(turn.answer) });
+    });
+    const allQuestions = turns.map(turn => turn.query);
+
+    let answer = '';
+    let physicalCheck = null;
+    let outOfScope = false;
+    let rounds = [];
+    let literature = [];
+    let kg = null;
+    let phase = 'agent';           // 'agent' | 'critic' | 'agent_revise'
+    let critic_resolved = true;
+    setStatus('Reasoning…');
     try {
       const fd = new FormData();
-      fd.append('query', term); fd.append('max_results','8'); fd.append('physics_filter','true');
-      const r = await fetch('/api/reason', { method:'POST', body:fd });
+      fd.append('question', t);
+      fd.append('history', JSON.stringify(history));
+      fd.append('all_questions', JSON.stringify(allQuestions));
+      fd.append('mode', mode);
+      const resp = await fetch('/api/reason/chat', { method:'POST', body:fd });
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'round_start') {
+            phase = ev.phase;
+            if (ev.phase === 'agent') setStatus('Reasoning…');
+            else if (ev.phase === 'critic') setStatus(ev.round === 2 ? 'Critic reviewing…' : 'Critic re-checking…');
+            else if (ev.phase === 'agent_revise') { answer = ''; setStreaming(''); setStatus('Revising…'); }
+          }
+          else if (ev.type === 'token') {
+            if (ev.phase === 'agent_revise') {
+              // Replace the displayed streaming text with the revision-in-progress.
+              answer += ev.content; setStreaming(answer);
+            } else {
+              answer += ev.content; setStreaming(answer);
+            }
+          }
+          else if (ev.type === 'literature') { literature = ev.passages || []; }
+          else if (ev.type === 'kg_context') { kg = {facts: ev.facts || [], anchors: ev.anchors || []}; }
+          else if (ev.type === 'physical_check') { physicalCheck = ev; rounds.push({role:'physical_check', round: ev.round, ...ev}); }
+          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority, user_override: ev.user_override}); }
+          else if (ev.type === 'done')  {
+            answer = ev.answer;
+            outOfScope = !!ev.out_of_scope;
+            critic_resolved = !!ev.critic_resolved;
+            if (ev.final_physical_check) physicalCheck = ev.final_physical_check;
+            if (Array.isArray(ev.rounds) && ev.rounds.length) rounds = ev.rounds;
+            if (Array.isArray(ev.literature)) literature = ev.literature;
+            if (ev.kg) kg = ev.kg;
+            if (typeof ev.prompt_tokens === 'number') {
+              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 8192, estimated: true });
+            }
+          }
+          else if (ev.type === 'error') { answer = '⚠️ ' + ev.message; }
+        }
+      }
+    } catch(e) { answer = '⚠️ Error: ' + e.message; }
+    const turn = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      query: t,
+      answer,
+      out_of_scope: outOfScope,
+      physical_check: physicalCheck,
+      rounds,
+      literature,
+      kg,
+      critic_resolved,
+      critic_notes: null,
+      user_feedback: null,
+      timestamp: new Date().toISOString(),
+    };
+    setTurns(prev => [...prev, turn]);
+    setStreaming('');
+    setStatus('');
+    setPendingQuery('');
+    setLoading(false);
+    inputRef.current?.focus();
+  };
+
+  const CHIPS = [
+    'What raises fracture risk in postmenopausal cortical bone?',
+    'How does a lytic lesion change vertebral failure load?',
+    'Why does trabecular bone fail before cortical in osteoporosis?',
+  ];
+
+  const [rulesOpen, setRulesOpen] = useState(false);
+
+  const empty = turns.length === 0 && !loading;
+  return (
+    <div className="ask" style={{position:'relative'}}>
+      <div style={{position:'absolute',top:12,right:16,zIndex:40,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+        <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneMind"
+          style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:18}}>⚙</span> Your rules
+        </button>
+        <ModeToggle mode={mode} setMode={setMode} disabled={loading}/>
+      </div>
+      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)}/>}
+      <div className="chat-area" ref={chatAreaRef} onScroll={handleChatScroll} onWheel={handleWheel} onTouchStart={handleTouchStart}>
+        <div className="chat-inner">
+          {empty ? (
+            <div className="empty-state">
+              <div className="empty-avatar"><BoneSVG size={100}/></div>
+              <div className="empty-title">Reasoning</div>
+              <div className="empty-sub">Grounded in bone mechanics, physical rules, and your feedback</div>
+              <div className="chips">
+                {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
+              </div>
+            </div>
+          ) : (
+            <div className="messages">
+              {turns.map(turn => (
+                <ReasonTurn key={turn.id} turn={turn}
+                  proposed={proposedFor[turn.id]}
+                  onFeedback={ev => {
+                    if (ev.polarity === -1 && ev.proposed_rule) {
+                      setProposedFor(prev => ({...prev, [turn.id]: {proposal: ev.proposed_rule, correction_id: ev.correction_id}}));
+                    }
+                  }}
+                  onProposalDone={() => {
+                    setProposedFor(prev => { const cp = {...prev}; delete cp[turn.id]; return cp; });
+                  }}
+                />
+              ))}
+              {pendingQuery && (
+                <div className="msg msg-user">
+                  <div className="msg-bubble"><div className="msg-text">{pendingQuery}</div></div>
+                </div>
+              )}
+              {(loading || streaming) && (
+                <div className="msg msg-asst">
+                  <div className="msg-avatar"><BoneSVG size={34}/></div>
+                  <div className="msg-bubble">
+                    {status && (
+                      <div style={{fontSize:11,color:'var(--text3)',marginBottom:6,letterSpacing:.3,textTransform:'uppercase'}}>
+                        {status}
+                      </div>
+                    )}
+                    <div className="msg-text">
+                      {streaming
+                        ? /final response/i.test(streaming)
+                          ? <>{parseCit(stripThinking(streaming))}<span className="blink">▍</span></>
+                          : <Dots/>
+                        : <Dots/>}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={endRef}/>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="chat-bar">
+        <div style={{width:'100%',maxWidth:760,display:'flex',alignItems:'center',gap:6}}>
+          {usage && <CtxRing usage={usage}/>}
+          <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
+            <input ref={inputRef} className="chat-input"
+              placeholder="Ask a reasoning question about bone fracture, fragility, remodelling…"
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
+              disabled={loading}/>
+            <button className="send-btn" onClick={() => send(input)} disabled={loading || !input.trim()}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 9h12M10 4l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ruleSummary(r) {
+  const p = r.params || {};
+  if (r.kind === 'range') {
+    const ctx = (p.context_terms || []).join(', ');
+    return `${p.lo}–${p.hi} ${p.unit || ''}${ctx ? ` · context: ${ctx}` : ''}`;
+  }
+  if (r.kind === 'forbid_pattern') {
+    const ctx = (p.context_terms || []).join(', ');
+    const forb = (p.forbidden_terms || []).join(', ');
+    return `avoid “${forb}”${ctx ? ` near ${ctx}` : ''}`;
+  }
+  return JSON.stringify(p);
+}
+
+function RulesPanel({ onClose }) {
+  const [rules, setRules] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState({});   // id -> true while a request is in flight
+  const [importMsg, setImportMsg] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef(null);
+
+  const load = async () => {
+    try {
+      const r = await fetch('/api/reason/rules');
+      const d = await r.json();
+      setRules(d.rules || []);
+    } catch (e) { setError(e.message); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const onImportFile = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    setImporting(true); setImportMsg(null); setError('');
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const r = await fetch('/api/reason/rules/import', { method:'POST', body: fd });
+      const d = await r.json();
+      if (d.error) { setError(d.error); }
+      else { setImportMsg(d); await load(); }
+    } catch (err) { setError(err.message); }
+    finally { setImporting(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
+  const setEnabled = async (rule, enabled) => {
+    setBusy(b => ({...b, [rule.id]: true}));
+    try {
+      const fd = new FormData(); fd.append('enabled', enabled ? 'true' : 'false');
+      await fetch(`/api/reason/rules/${rule.id}/enabled`, { method:'POST', body: fd });
+      setRules(rs => rs.map(x => x.id === rule.id ? {...x, enabled} : x));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [rule.id]: false})); }
+  };
+
+  const del = async (rule) => {
+    setBusy(b => ({...b, [rule.id]: true}));
+    try {
+      await fetch(`/api/reason/rules/${rule.id}`, { method:'DELETE' });
+      setRules(rs => rs.filter(x => x.id !== rule.id));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [rule.id]: false})); }
+  };
+
+  const activeCount = (rules || []).filter(r => r.enabled).length;
+
+  return (
+    <div onClick={onClose}
+      style={{position:'absolute',inset:0,zIndex:60,background:'rgba(0,0,0,.18)',display:'flex',justifyContent:'flex-end'}}>
+      <div onClick={e => e.stopPropagation()}
+        style={{width:'min(460px,92%)',height:'100%',background:'var(--surface)',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',boxShadow:'-4px 0 24px rgba(0,0,0,.08)'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Your rules</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>
+              Corrections you've taught BoneMind {rules ? `· ${activeCount} active of ${rules.length}` : ''}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
+        </div>
+        <div style={{padding:'10px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={onImportFile} style={{display:'none'}}/>
+          <button disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}
+            style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:6,padding:'6px 12px',fontSize:13,cursor:'pointer'}}>
+            {importing ? 'Importing…' : '⬆ Import CSV / Excel'}
+          </button>
+          <a href="/api/reason/rules/template" download
+            style={{fontSize:12,color:'var(--text2)',textDecoration:'underline'}}>download template</a>
+        </div>
+        {importMsg && (
+          <div style={{padding:'8px 20px',fontSize:12,background:'rgba(46,125,50,.06)',borderBottom:'1px solid var(--border)'}}>
+            <div style={{color:'#2e7d32',fontWeight:600}}>Imported {importMsg.imported} rule{importMsg.imported===1?'':'s'}.</div>
+            {(importMsg.skipped || []).length > 0 && (
+              <div style={{marginTop:4,color:'var(--text2)'}}>
+                Skipped {importMsg.skipped.length}:
+                <ul style={{margin:'2px 0 0 16px',padding:0}}>
+                  {importMsg.skipped.slice(0,8).map((s,i) => (
+                    <li key={i}>row {s.row}{s.name?` (${s.name})`:''}: {s.reason}</li>
+                  ))}
+                  {importMsg.skipped.length > 8 && <li>…and {importMsg.skipped.length - 8} more</li>}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
+          {error && <div style={{color:'#b02020',fontSize:13,marginBottom:8}}>{error}</div>}
+          {rules === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
+          {rules && rules.length === 0 && (
+            <div style={{color:'var(--text3)',fontSize:13,lineHeight:1.6,marginTop:8}}>
+              No rules yet. When you 👎 an answer and describe what's wrong, BoneMind proposes a rule;
+              once you confirm it, it appears here and applies to every future answer.
+            </div>
+          )}
+          {rules && rules.map(r => (
+            <div key={r.id} style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:10,opacity:r.enabled?1:.55,background:'var(--surface2)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13.5,fontWeight:600,color:'var(--text)'}}>{r.name}</div>
+                  <div style={{fontSize:12,color:'var(--text2)',marginTop:3}}>{ruleSummary(r)}</div>
+                  <div style={{fontSize:10,color:'var(--text3)',marginTop:4,textTransform:'uppercase',letterSpacing:.3,display:'flex',gap:6,alignItems:'center'}}>
+                    <span>{r.kind === 'range' ? 'numeric range' : 'forbidden pattern'}</span>
+                    {r.origin === 'imported' && <span style={{padding:'1px 5px',borderRadius:3,background:'rgba(46,90,130,.12)',color:'#2b5a82',letterSpacing:0}}>imported</span>}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button disabled={busy[r.id]} onClick={() => setEnabled(r, !r.enabled)}
+                  style={{background:r.enabled?'transparent':'var(--navy)',color:r.enabled?'var(--text2)':'#fff',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  {r.enabled ? 'Disable' : 'Enable'}
+                </button>
+                <button disabled={busy[r.id]} onClick={() => del(r)}
+                  style={{background:'transparent',color:'#b02020',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewDialogue({ turn }) {
+  const [open, setOpen] = useState(false);
+  const rounds = (turn.rounds || []).filter(r => r.role === 'critic' || r.role === 'agent');
+  const criticRounds = rounds.filter(r => r.role === 'critic');
+  const literature = turn.literature || [];
+  const kgFacts = (turn.kg && turn.kg.facts) || [];
+  if (!criticRounds.length) return null;
+  const finalVerdict = criticRounds[criticRounds.length - 1].verdict;
+  const color = finalVerdict === 'accept' ? '#2e7d32'
+              : finalVerdict === 'conflicting_evidence' ? '#8a5010'
+              : '#b02020';
+  const label = finalVerdict === 'accept'
+    ? (criticRounds.length === 1 ? 'Critic: accepted on first review' : 'Critic: accepted after revision')
+    : finalVerdict === 'conflicting_evidence'
+    ? 'Critic: literature conflicts — both positions shown'
+    : 'Critic: unresolved after revision';
+  return (
+    <div style={{marginTop:10,fontSize:12}}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{background:'transparent',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'var(--text2)',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{color}}>●</span>
+        <span>{label}</span>
+        <span style={{color:'var(--text3)'}}>· {open ? 'hide' : 'show'} dialogue</span>
+      </button>
+      {open && (
+        <div style={{marginTop:8,border:'1px solid var(--border)',borderRadius:6,padding:10,background:'var(--surface2)',display:'flex',flexDirection:'column',gap:10}}>
+          {criticRounds.map((r, i) => (
+            <div key={i}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Round {r.round} · Critic ({r.verdict === 'conflicting_evidence' ? 'conflicting evidence' : r.verdict})
+                {r.user_override && <span style={{marginLeft:6,fontSize:10,padding:'1px 5px',borderRadius:3,background:'rgba(176,120,32,.15)',color:'#8a5010'}}>forced by your rule</span>}
+              </div>
+              {(r.notes || []).length > 0 && (
+                <ul style={{margin:'2px 0 4px 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                  {r.notes.map((n,j) => <li key={j}>{n}</li>)}
+                </ul>
+              )}
+              {r.majority && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>
+                  <strong style={{color:'#2e7d32'}}>Majority:</strong> {r.majority}
+                </div>
+              )}
+              {r.minority && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>
+                  <strong style={{color:'#8a5010'}}>Minority:</strong> {r.minority}
+                </div>
+              )}
+              {r.suggested_revision && (
+                <div style={{fontSize:12,color:'var(--text3)',fontStyle:'italic',marginTop:2}}>
+                  Suggestion: {r.suggested_revision}
+                </div>
+              )}
+            </div>
+          ))}
+          {literature.length > 0 && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Evidence the critic reviewed
+              </div>
+              <ul style={{margin:'2px 0 0 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                {literature.map((p,j) => (
+                  <li key={j}>
+                    <strong>[L{p.rank}]</strong> {p.title}{p.year ? ` (${p.year})` : ''}
+                    {typeof p.score === 'number' && <span style={{color:'var(--text3)'}}> · {p.score.toFixed(3)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {kgFacts.length > 0 && (
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8}}>
+              <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
+                Knowledge-graph facts the critic saw
+              </div>
+              <ul style={{margin:'2px 0 0 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>
+                {kgFacts.map((f,j) => (
+                  <li key={j}>{f.subject} <span style={{color:'var(--amber)'}}>[{f.relation}]</span> {f.object}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedbackBar({ turn, onFeedback }) {
+  const [polarity, setPolarity] = useState(turn._feedback_polarity || null);
+  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const sendUp = async () => {
+    if (polarity) return;
+    setPolarity(1);
+    try {
+      await fetch('/api/reason/feedback', {
+        method:'POST',
+        body: (() => { const fd = new FormData(); fd.append('turn_id', turn.id); fd.append('polarity','1'); return fd; })(),
+      });
+      onFeedback && onFeedback({turn_id: turn.id, polarity: 1});
+    } catch(e) { setError(e.message); setPolarity(null); }
+  };
+
+  const startDown = () => {
+    if (polarity) return;
+    setShowInput(true);
+  };
+
+  const submitDown = async () => {
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('turn_id', turn.id);
+      fd.append('polarity', '-1');
+      fd.append('question', turn.query);
+      fd.append('answer', stripThinking(turn.answer || ''));
+      fd.append('feedback_text', text);
+      const resp = await fetch('/api/reason/feedback', { method:'POST', body: fd });
+      const data = await resp.json();
+      setPolarity(-1);
+      setShowInput(false);
+      onFeedback && onFeedback({turn_id: turn.id, polarity: -1, proposed_rule: data.proposed_rule, correction_id: data.correction_id});
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const cancelDown = () => { setShowInput(false); setText(''); };
+
+  const btn = (selected, color) => ({
+    background: selected ? color : 'transparent',
+    color: selected ? '#fff' : 'var(--text2)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '3px 9px',
+    fontSize: 13,
+    cursor: polarity ? 'default' : 'pointer',
+    opacity: polarity && !selected ? 0.4 : 1,
+  });
+
+  return (
+    <div style={{marginTop:10}}>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <button style={btn(polarity===1, '#2e7d32')} onClick={sendUp} disabled={!!polarity}>👍</button>
+        <button style={btn(polarity===-1, '#b02020')} onClick={startDown} disabled={!!polarity}>👎</button>
+        {polarity === -1 && !showInput && <span style={{fontSize:12,color:'var(--text3)'}}>feedback saved</span>}
+        {polarity === 1 && <span style={{fontSize:12,color:'var(--text3)'}}>thanks</span>}
+        {error && <span style={{fontSize:12,color:'#b02020'}}>{error}</span>}
+      </div>
+      {showInput && (
+        <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:6}}>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="What was wrong? Be specific — e.g. 'cortical modulus is 10–25 GPa, not 80'."
+            style={{minHeight:60,padding:8,border:'1px solid var(--border)',borderRadius:6,fontFamily:'var(--sans)',fontSize:13,resize:'vertical',background:'var(--surface2)',color:'var(--text)'}}/>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={submitDown} disabled={submitting}
+              style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              {submitting ? 'Submitting…' : 'Submit feedback'}
+            </button>
+            <button onClick={cancelDown} disabled={submitting}
+              style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProposedRuleCard({ proposal, onConfirm, onDismiss, correctionId }) {
+  const [editable, setEditable] = useState(() => JSON.parse(JSON.stringify(proposal)));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!proposal) return null;
+  if (proposal.kind === 'none') {
+    return (
+      <div style={{marginTop:10,padding:'8px 10px',border:'1px dashed var(--border)',borderRadius:6,fontSize:12,color:'var(--text3)'}}>
+        Saved your correction. Couldn't extract a structured rule — {proposal.reason || 'too open-ended'}.
+        <div style={{marginTop:4}}>
+          <button onClick={onDismiss} style={{background:'transparent',color:'var(--text2)',border:'none',padding:0,fontSize:12,cursor:'pointer',textDecoration:'underline'}}>dismiss</button>
+        </div>
+      </div>
+    );
+  }
+
+  const kind = editable.kind;
+  const p = editable.params || {};
+
+  const setParam = (k, v) => setEditable({...editable, params:{...p, [k]: v}});
+  const setList  = (k, v) => setParam(k, v.split(',').map(s => s.trim()).filter(Boolean));
+
+  const confirm = async () => {
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('name', editable.name || 'User rule');
+      fd.append('kind', kind);
+      fd.append('params', JSON.stringify(editable.params));
+      if (correctionId) fd.append('source_correction_id', String(correctionId));
+      const resp = await fetch('/api/reason/rules/confirm', { method:'POST', body: fd });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to save');
+      onConfirm && onConfirm(data.rule);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{marginTop:10,border:'1px solid var(--amber-border)',borderRadius:8,padding:10,background:'rgba(176,120,32,.05)'}}>
+      <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:6}}>
+        Proposed rule from your feedback
+        <span style={{marginLeft:6,fontWeight:400,color:'var(--text3)'}}>· {kind === 'range' ? 'numeric range' : 'forbidden pattern'}</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:12}}>
+        <RuleField label="Name" value={editable.name} onChange={v => setEditable({...editable, name:v})}/>
+        {kind === 'range' && <>
+          <RuleField label="Unit" value={p.unit} onChange={v => setParam('unit', v)}/>
+          <div style={{display:'flex',gap:6}}>
+            <RuleField label="Min" value={p.lo} onChange={v => setParam('lo', parseFloat(v) || 0)}/>
+            <RuleField label="Max" value={p.hi} onChange={v => setParam('hi', parseFloat(v) || 0)}/>
+          </div>
+          <RuleField label="Context terms" value={(p.context_terms||[]).join(', ')} onChange={v => setList('context_terms', v)}/>
+          <RuleField label="Value terms"   value={(p.value_terms||[]).join(', ')}   onChange={v => setList('value_terms', v)}/>
+        </>}
+        {kind === 'forbid_pattern' && <>
+          <RuleField label="Context terms"   value={(p.context_terms||[]).join(', ')}   onChange={v => setList('context_terms', v)}/>
+          <RuleField label="Forbidden terms" value={(p.forbidden_terms||[]).join(', ')} onChange={v => setList('forbidden_terms', v)}/>
+          <RuleField label="Exception terms" value={(p.exception_terms||[]).join(', ')} onChange={v => setList('exception_terms', v)}/>
+          <RuleField label="Explanation" value={p.explanation} onChange={v => setParam('explanation', v)}/>
+        </>}
+      </div>
+      <div style={{display:'flex',gap:6,marginTop:8}}>
+        <button onClick={confirm} disabled={submitting}
+          style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+          {submitting ? 'Saving…' : 'Confirm rule'}
+        </button>
+        <button onClick={onDismiss} disabled={submitting}
+          style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+          Discard
+        </button>
+        {error && <span style={{fontSize:12,color:'#b02020',alignSelf:'center'}}>{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+function RuleField({ label, value, onChange }) {
+  return (
+    <label style={{display:'flex',gap:6,alignItems:'center',fontSize:12}}>
+      <span style={{minWidth:110,color:'var(--text3)'}}>{label}</span>
+      <input value={value ?? ''} onChange={e => onChange(e.target.value)}
+        style={{flex:1,padding:'3px 6px',border:'1px solid var(--border)',borderRadius:4,fontFamily:'var(--sans)',fontSize:12,background:'var(--surface)',color:'var(--text)'}}/>
+    </label>
+  );
+}
+
+function PhysicalCheckBadge({ check }) {
+  const passed = check.passed;
+  const n = check.rule_count || 0;
+  const userN = check.user_rule_count || 0;
+  const vCount = (check.violations || []).length;
+  const headerBg = passed ? 'rgba(46,125,50,.08)' : 'rgba(176,32,32,.08)';
+  const headerColor = passed ? '#2e7d32' : '#b02020';
+  return (
+    <div style={{marginTop:12,border:'1px solid var(--border)',borderRadius:8,overflow:'hidden',fontSize:12}}>
+      <div style={{padding:'6px 10px',background:headerBg,color:headerColor,fontWeight:500,display:'flex',justifyContent:'space-between'}}>
+        <span>{passed ? '✓ Passed physical grounding' : `✗ ${vCount} violation${vCount===1?'':'s'} of physical grounding`}</span>
+        <span style={{color:'var(--text3)',fontWeight:400}}>{n} rules checked{userN ? ` (${userN} your rule${userN===1?'':'s'})` : ''}</span>
+      </div>
+      {!passed && (
+        <ul style={{margin:0,padding:'8px 10px 8px 26px',color:'var(--text2)',lineHeight:1.5}}>
+          {check.violations.map((v,i) => (
+            <li key={i}>
+              <strong>{v.name}</strong>
+              {v.source === 'user' && <span style={{marginLeft:4,fontSize:10,padding:'1px 5px',borderRadius:3,background:'rgba(176,120,32,.15)',color:'#8a5010'}}>your rule</span>}
+              : {v.detail}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
+  return (
+    <>
+      <div className="msg msg-user">
+        <div className="msg-bubble"><div className="msg-text">{turn.query}</div></div>
+      </div>
+      <div className="msg msg-asst">
+        <div className="msg-avatar"><BoneSVG size={34}/></div>
+        <div className="msg-bubble">
+          <div className="msg-text">{parseCit(stripThinking(turn.answer))}</div>
+          {!turn.out_of_scope && turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
+          {!turn.out_of_scope && <ReviewDialogue turn={turn}/>}
+          {!turn.out_of_scope && <FeedbackBar turn={turn} onFeedback={onFeedback}/>}
+          {!turn.out_of_scope && proposed && (
+            <ProposedRuleCard
+              proposal={proposed.proposal}
+              correctionId={proposed.correction_id}
+              onConfirm={onProposalDone}
+              onDismiss={onProposalDone}
+            />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function _ReasonTabArchived() {
+  const [result, setResult]       = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [elapsed, setElapsed]     = useState(null);
+  const [covariates, setCovariates] = useState({...DEFAULT_COVARIATES});
+  const [query, setQuery]           = useState('');
+
+  // Phase 5 — active exploration / Surprises panel state.
+  const [surprises,        setSurprisesPanel]        = useState(null);
+  const [surprisesLoading, setSurprisesPanelLoading] = useState(false);
+  const [surprisesError,   setSurprisesPanelError]   = useState('');
+
+  // Phase 7/8 — agents panel state.
+  const [agents,        setAgents]        = useState(null);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [agentsError,   setAgentsError]   = useState('');
+  const [boneType,      setBoneType]      = useState('cortical');
+
+  // Header toggle: 'reason' shows search/presets/result/surprises; 'agents'
+  // shows only the Proposer/Critic panel.
+  const [view, setView] = useState('reason');
+
+  const loadSurprisesPanel = async (refresh = false) => {
+    if (surprisesLoading) return;
+    setSurprisesPanelLoading(true); setSurprisesPanelError('');
+    try {
+      const r = await fetch('/api/reason/explore' + (refresh ? '?refresh=true' : ''));
       const data = await r.json();
-      setClientElapsed(((performance.now() - t0) / 1000).toFixed(2));
-      setResult(data);
-    } catch { setError('Could not generate hypothesis chains. Please try again.'); }
+      if (data.error) setSurprisesPanelError(data.error);
+      else setSurprisesPanel(data.candidates || []);
+    } catch { setSurprisesPanelError('Could not run active exploration. Please try again.'); }
+    setSurprisesPanelLoading(false);
+  };
+
+  const runAgents = async () => {
+    if (agentsLoading) return;
+    setAgentsLoading(true); setAgentsError('');
+    try {
+      const r = await fetch('/api/reason/agents', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({n_proposals: 2, bone_type: boneType}),
+      });
+      const data = await r.json();
+      if (data.error) setAgentsError(data.error);
+      else setAgents(data.proposals || []);
+    } catch { setAgentsError('Could not run agents. Please try again.'); }
+    setAgentsLoading(false);
+  };
+
+  // Lazy fetch on mount, gated by the Surprises feature flag so we don't
+  // trigger the (cold) 25s SPECTER2 exploration run when the panel is hidden.
+  useEffect(() => {
+    if (SURPRISES_ENABLED && surprises === null && !surprisesLoading) {
+      loadSurprisesPanel(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const runAsk = async (queryOverride) => {
+    const q = (queryOverride ?? query).trim();
+    if (!q || loading) return;
+    setQuery(q);
+    setLoading(true); setResult(null); setError(''); setElapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, covariates: covariates}),
+      });
+      const data = await r.json();
+      setElapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setError(data.error);
+      else setResult(data);
+    } catch { setError('Could not run inference. Please try again.'); }
+    setLoading(false);
+  };
+
+  const runPreset = async (preset) => {
+    if (loading) return;
+    // If the preset pins specific covariates (Phase 3 demos), sync the
+    // panel to them so the user can see what the run is actually using.
+    // The payload always reflects the (post-sync) panel state.
+    let covariatesForRequest = covariates;
+    if (preset.syncCovariates) {
+      covariatesForRequest = {...DEFAULT_COVARIATES, ...preset.syncCovariates};
+      setCovariates(covariatesForRequest);
+    }
+    setLoading(true); setResult(null); setError(''); setElapsed(null);
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/reason', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({preset: preset.id, covariates: covariatesForRequest}),
+      });
+      const data = await r.json();
+      setElapsed(((performance.now() - t0) / 1000).toFixed(2));
+      if (data.error) setError(data.error);
+      else setResult(data);
+    } catch { setError('Could not run inference. Please try again.'); }
     setLoading(false);
   };
 
   return (
     <div className="reason-tab">
       <div className="reason-hdr">
-        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>Hypothesis Generator</div>
-        <div className="reason-desc">Enter a concept or question. BoneMind traverses its bone knowledge graph to generate causal hypothesis chains, each validated by the physics engine and scored for novelty.</div>
-        <div className="reason-bar">
-          <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
-            <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
-            <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-          </svg>
-          <input className="reason-input" placeholder="e.g. aging and fracture risk, RANKL osteoclast…"
-            value={concept} onChange={e => setConcept(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && reason(concept)} disabled={loading}/>
-          <button className="reason-btn" onClick={() => reason(concept)} disabled={loading || !concept.trim()}>
-            {loading ? <Spinner/> : 'Reason'}
-          </button>
+        <div style={{fontFamily:'var(--sans)',fontSize:24,marginBottom:12,color:'var(--text)',textAlign:'center'}}>
+          Hypothesis Generator
         </div>
+        <div className="reason-desc">
+          {view === 'reason'
+            ? 'Forward, abductive and counterfactual inference over a typed equation graph. Patient covariates reshape each law’s priors before propagation.'
+            : 'A Proposer agent walks the equation graph and suggests novel (sweep_var → target) pairs. The deterministic engine evaluates each. A Critic agent searches the corpus and decides what is interesting.'}
+        </div>
+        <div className="reason-view-toggle">
+          <button className={view === 'reason' ? 'active' : ''}
+                  onClick={() => setView('reason')}>Reasoning</button>
+          <button className={view === 'agents' ? 'active' : ''}
+                  onClick={() => setView('agents')}>Agents</button>
+        </div>
+        {view === 'reason' && (
+          <div className="reason-bar">
+            <svg className="search-icon" width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="7.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.7"/>
+              <path d="M11.5 11.5l3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+            <input className="reason-input"
+              placeholder="Ask in plain English — e.g. bone stiffness under cyclic load"
+              value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && runAsk()} disabled={loading}/>
+            <button className="reason-btn" onClick={() => runAsk()}
+                    disabled={loading || !(query || '').trim()}>
+              {loading ? <Spinner/> : 'Reason'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="reason-body">
-        {!result && !loading && (
-          <div className="ex-chips">
-            <span className="chips-label">Try:</span>
-            {EXAMPLES.map((ex,i) => <button key={i} className="chip" onClick={() => reason(ex)}>{ex}</button>)}
-          </div>
-        )}
-
-        {loading && <div className="loading-row" style={{marginTop:48}}><Dots/><span>Traversing knowledge graph…</span></div>}
-        {error && <div className="error-note">{error}</div>}
-
-        {result && !loading && (
-        <div className="reason-results">
-          <div className="results-title">Causal hypothesis chains for <em>"{result.concept}"</em></div>
-          {result.graph_stats && (
-            <div className="graph-stats-line">
-              {result.graph_stats.nodes?.toLocaleString()} nodes · {result.graph_stats.edges?.toLocaleString()} edges · {clientElapsed}s
-            </div>
-          )}
-          {result.chains && result.chains.length > 0 ? result.chains.map((ch,i) => (
-            <div key={i} className="chain-card">
-              <div className="chain-lbl">Hypothesis {i+1} · score {ch.score}</div>
-              <div className="chain-nodes">
-                {ch.nodes.map((n,j) => (
-                  <Fragment key={j}>
-                    <div className="chain-node">{n}</div>
-                    {j < ch.nodes.length-1 && <ChainArrow/>}
-                  </Fragment>
-                ))}
-              </div>
-              <div>
-                <div className="chain-badges">
-                  {ch.validity === 'IMPLAUSIBLE' && <Badge label="IMPLAUSIBLE" map={VALIDITY_STYLES}/>}
-                  <Badge label={ch.novelty} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[ch.novelty]}/>
-                </div>
-                {ch.relations?.length > 0 && <div className="chain-rels" style={{marginTop:6}}>{ch.relations.join(' · ')}</div>}
-                {ch.explanation && <div className="chain-expl" style={{marginTop:4}}>{ch.explanation}</div>}
-              </div>
-              {ch.summary && <div className="chain-summary">{ch.summary}</div>}
-              {ch.disclaimer && ch.corpus_disclaimer && (
-                <div className="chain-disclaimer">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0,marginTop:1}}>
-                    <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3"/>
-                    <line x1="7" y1="5.5" x2="7" y2="9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                    <circle cx="7" cy="4" r="0.7" fill="currentColor"/>
-                  </svg>
-                  {ch.corpus_disclaimer}
-                </div>
-              )}
-            </div>
-          )) : <div style={{color:'var(--text3)',padding:'24px 0'}}>No hypothesis chains found. Try different search terms.</div>}
-
-          {result.chains?.length > 0 && (
-            <div className="badge-legend">
-              <div className="legend-grp">
-                <span className="legend-lbl">Physics</span>
-                <Badge label="PLAUSIBLE" map={VALIDITY_STYLES}/>
-                <Badge label="IMPLAUSIBLE" map={VALIDITY_STYLES}/>
-              </div>
-              <div className="legend-grp">
-                <span className="legend-lbl">Hypothesis</span>
-                {['GROUNDED','SPECULATIVE','NOVEL'].map(k => <Badge key={k} label={k} map={NOVELTY_STYLES} display={NOVELTY_DISPLAY[k]}/>)}
-              </div>
-            </div>
-          )}
-        </div>
-        )}
-        {/* <GapsSection/> */}
+        <ReasonSection
+          view={view}
+          presets={REASON_PRESETS}
+          onRun={runPreset}
+          loading={loading}
+          result={result}
+          error={error}
+          elapsed={elapsed}
+          covariates={covariates}
+          onCovariatesChange={setCovariates}
+          query={query}
+          onQueryChange={setQuery}
+          onAsk={runAsk}
+          surprises={surprises}
+          surprisesLoading={surprisesLoading}
+          surprisesError={surprisesError}
+          onSurprisesRefresh={() => loadSurprisesPanel(true)}
+          agents={agents}
+          agentsLoading={agentsLoading}
+          agentsError={agentsError}
+          onAgentsRun={runAgents}
+          boneType={boneType}
+          onBoneTypeChange={setBoneType}
+        />
       </div>
     </div>
   );
@@ -975,7 +2803,7 @@ function App() {
           </div>
           {stats && (
             <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>
-              {stats.graph_nodes?.toLocaleString()} KG nodes · {stats.graph_edges?.toLocaleString()} edges
+              {stats.graph_nodes?.toLocaleString()} nodes · {stats.graph_edges?.toLocaleString()} edges
             </div>
           )}
         </div>
@@ -988,8 +2816,8 @@ function App() {
         <div className={`panel-scroll${tab==='search'?' active':''}`}>
           <div className="panel-inner"><SearchTab totalChunks={stats?.chunks}/></div>
         </div>
-        <div className={`panel-scroll${tab==='reason'?' active':''}`}>
-          <div className="panel-inner"><ReasonTab/></div>
+        <div className={`panel${tab==='reason'?' active':''}`}>
+          <ReasonTab/>
         </div>
         <div className={`panel-scroll${tab==='analyse'?' active':''}`}>
           <div className="panel-inner"><AnalyseTab/></div>

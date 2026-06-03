@@ -1,6 +1,31 @@
-# Phase 4 — LRM Reasoning Layer
+# Phase 4 — Reasoning Layer
 
-**Status: 🔶 In Progress — Steps 4.1–4.6 complete · paper corpus extraction pending**
+> **Update — late May 2026.** The Reasoning tab described in this plan
+> (equation-graph reasoner, Proposer/Critic loop over 12 Variables / 7
+> Relations, Surprises panel) has been retired and rebuilt clean-slate
+> following supervision feedback on 21 May. The live Reasoning tab is
+> documented in [`reasoning_tab.md`](reasoning_tab.md). Knowledge-graph
+> artefacts produced during steps 4.1–4.3 (`data/db/ontology.db`, the
+> cleanup and reclassification scripts) are unaffected and still used by
+> other parts of BoneMind. The plan below remains for historical context.
+
+> **Design-to-as-built note (May 2026).** The original design planned a
+> graph-walk LRM over corpus-extracted triples. The reasoning engine went
+> through two iterations before reaching its current form — see
+> [`docs/reasoning/physics_grid.md`](reasoning/physics_grid.md) for the
+> intermediate physics-grid retrospective. The running system is the
+> **equation-graph reasoner** described in
+> [`docs/reasoning/equation_graph.md`](reasoning/equation_graph.md):
+> a `RelationRegistry` of 12 Variables and 7 Relations supporting forward,
+> abductive, and counterfactual inference with a Proposer/Critic agent loop.
+>
+> Steps 4.1–4.3 (seed ontology, triple extraction, physics concepts) produced
+> artefacts that still exist — `data/db/ontology.db` survives and is used for
+> type-aware queries. Steps 4.4–4.7 below describe the original LRM design;
+> the current implementation of those capabilities is the equation-graph
+> reasoner. See [`architecture.md`](architecture.md) for the live step list.
+
+**Status: 🟢 Active — equation-graph reasoner live · Proposer/Critic agents deployed · ontology.db maintained**
 
 Move from retrieval to reasoning. A structured bone ontology (knowledge graph) connects concepts causally. The LRM traverses the ontology to construct multi-hop reasoning chains and generate grounded hypotheses — not just summaries of what the literature says.
 
@@ -486,23 +511,30 @@ python eval/run_eval_lrm.py        # runs all three task benchmarks
 reasoning/
     __init__.py
     ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers, NODE_TYPES
-    graph_db.py          # SQLite-backed persistence + extraction_progress tracking
+    graph_db.py          # SQLite-backed persistence + OntologyStore
     seed.py              # ~200 seed concepts + ~80 hand-curated causal edges
     extractor.py         # LLM triple extraction pipeline from chunks.db (resumable)
-    physics.py           # Bone physics engine: 40 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
-    lrm.py               # Core reasoning engine: anchor → traverse → score → summarise
+    relation.py          # RelationRegistry — 12 Variables · 7 Relations
+    explorer.py          # Forward / abductive / counterfactual inference engine
     novelty.py           # Novelty classifier: keyword Tier 1 + SPECTER2 Tier 2
+    semantic_anchor.py   # SPECTER2-backed variable anchoring for free-text queries
+    proposer_agent.py    # LLM Proposer agent (hypothesis generation)
+    critic_agent.py      # LLM Critic agent (hypothesis validation)
+    agent_tools.py       # Tool definitions shared by Proposer and Critic
 
 data/db/
-    ontology.db          # Knowledge graph: 3,001 nodes · 2,339 edges (after textbook extraction)
+    ontology.db          # Knowledge graph: 1,597 nodes · 1,699 edges (post-cleanup + reclassification)
 
 eval/
-    benchmark_lrm.json   # 50-item benchmark (pending)
-    run_eval_lrm.py      # Evaluation runner (pending)
-    results_lrm.json     # Latest results (pending)
+    lrm_benchmark.json   # 75-item seed dataset (reusable for equation-graph benchmark)
+
+visualisation/graph/     # pyvis interactive HTML views (full · seed · hubs)
 
 docs/
-    phase4_lrm_plan.md   # This file
+    phase4_lrm_plan.md        # This file
+    reasoning/
+        equation_graph.md     # Current reasoner design and API reference
+        physics_grid.md       # Deprecated physics-grid retrospective (for paper writing)
 ```
 
 ### Physics engine implementation (`reasoning/physics.py`)
@@ -558,14 +590,15 @@ Embeds the hypothesis with SPECTER2 adhoc_query adapter. Computes cosine similar
 
 | Step | Work | Status | Output |
 |---|---|---|---|
-| 4.1 | Seed ontology with ~200 bone concepts + hand-curated edges | ✅ Done | `ontology.db` populated |
+| 4.1 | Seed ontology with ~200 bone concepts + hand-curated edges | ✅ Done | `ontology.db` populated (1,597 nodes · 1,699 edges after cleanup) |
 | 4.2 | Triple extraction on textbooks (highest quality) | ✅ Done | 2,935 triples · 3,001 nodes · 2,339 edges |
-| 4.3 | Physics engine — directional guard-rail rules + numerical laws | ✅ Done | 40 rules · 5 numerical functions |
-| 4.4 | LRM reasoning engine — anchor, traverse, score | ✅ Done | Multi-hop chains · gap detection |
-| 4.5 | Novelty classifier — keyword + SPECTER2 semantic tiers | ✅ Done | GROUNDED / SPECULATIVE / NOVEL |
-| 4.6 | Gradio "Reason" tab integration | ✅ Done | End-to-end UI with physics + novelty badges |
-| 4.7 | Triple extraction on full papers corpus | ⏳ Pending | ~50,000–100,000 additional triples |
-| 4.8 | LRM benchmark evaluation, fix gaps | ⏳ Pending | `results_lrm.json` |
+| 4.3 | Ontology node-type reclassification | ✅ Done | 571 / 1,200 `concept` nodes reclassified to typed categories |
+| 4.4 | Equation-graph reasoner — RelationRegistry + forward / abductive / counterfactual | ✅ Done | 12 Variables · 7 Relations · `/api/reason` endpoint |
+| 4.5 | Novelty classifier — keyword + SPECTER2 semantic tiers | ✅ Done | GROUNDED / SPECULATIVE / NOVEL labels |
+| 4.6 | Reasoning tab UI — presets, covariate panel, inference cards, Surprises panel | ✅ Done | Live in `frontend/index.html` |
+| 4.7 | Proposer / Critic agent loop | ✅ Done | `reasoning/proposer_agent.py` · `reasoning/critic_agent.py` |
+| 4.8 | Triple extraction on full papers corpus | ⏳ Pending | ~50,000–100,000 additional triples |
+| 4.9 | Equation-graph benchmark evaluation | ⏳ Pending | `eval/reasoning_results.json` — see `docs/lrm_benchmark.md` |
 
 ### Actual extraction results (textbooks, April 2026)
 
