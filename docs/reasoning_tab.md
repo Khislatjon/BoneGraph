@@ -202,6 +202,12 @@ Verdict logic:
   says so in notes.
 - **DISPUTE** on factual errors, internal contradictions, missing key
   mechanisms, or unaddressed genuine violations.
+- **User rules are non-negotiable.** If the grounding check flags any
+  `source:"user"` violation, the verdict is **deterministically forced to
+  `dispute`** (`_enforce_user_rules()`), regardless of the critic model's
+  output — the user explicitly taught the rule, so a model cannot overrule it.
+  The critic prompt is also told this, keeping its notes coherent. The UI
+  shows a "forced by your rule" chip when this fires.
 
 On DISPUTE, the agent receives a `REVISION_PROMPT_TEMPLATE` containing
 the critic's notes and suggested revision, and produces a new answer.
@@ -343,6 +349,7 @@ the meeting. See **What's next**.
 | **A2 — Conflict-aware critic** | 🟢 Built. Gated `conflicting_evidence` verdict (must cite both a majority and a minority passage); on it the agent presents both positions instead of picking a side. |
 | **A3 — Consistency bench** | 🟢 Built + validated (83% consistency, 100% correctness). Semi-automated; auto-judge ~83% reliable so stances are spot-checked. See [`reasoning/consistency_bench.md`](reasoning/consistency_bench.md). |
 | **A4 — KG shortcut → critic** | 🟢 Built. `reasoning/kg_context.py` anchors on concepts in the question and feeds the critic raw 1-hop edges from `ontology.db` (capped ~300 tokens) — never composed multi-hop chains. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
+| **B1 — Feedback-loop demo** | 🟢 Built + live-verified (`eval/feedback_demo.py`). Deterministic proof + live before/after trace of "second chat is better." Surfaced and fixed two bugs: critic now **forced to dispute on any user-rule violation** (deterministic override + prompt), and **unit-notation matching** is now tolerant (`g/cm^3`≡`g/cm³`≡`g/cm3`). See [`reasoning/feedback_demo.md`](reasoning/feedback_demo.md). |
 
 ## What's next
 

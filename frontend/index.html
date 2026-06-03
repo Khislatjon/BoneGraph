@@ -1889,7 +1889,7 @@ function ReasonTab() {
           else if (ev.type === 'literature') { literature = ev.passages || []; }
           else if (ev.type === 'kg_context') { kg = {facts: ev.facts || [], anchors: ev.anchors || []}; }
           else if (ev.type === 'physical_check') { physicalCheck = ev; rounds.push({role:'physical_check', round: ev.round, ...ev}); }
-          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority}); }
+          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority, user_override: ev.user_override}); }
           else if (ev.type === 'done')  {
             answer = ev.answer;
             outOfScope = !!ev.out_of_scope;
@@ -2043,6 +2043,7 @@ function ReviewDialogue({ turn }) {
             <div key={i}>
               <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3,marginBottom:4}}>
                 Round {r.round} · Critic ({r.verdict === 'conflicting_evidence' ? 'conflicting evidence' : r.verdict})
+                {r.user_override && <span style={{marginLeft:6,fontSize:10,padding:'1px 5px',borderRadius:3,background:'rgba(176,120,32,.15)',color:'#8a5010'}}>forced by your rule</span>}
               </div>
               {(r.notes || []).length > 0 && (
                 <ul style={{margin:'2px 0 4px 18px',padding:0,color:'var(--text2)',lineHeight:1.5}}>

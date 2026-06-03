@@ -249,6 +249,22 @@ RULES: list[Rule] = [
 
 # ── User rule compilation (Tier 2) ────────────────────────────────────────────
 
+def _unit_to_pattern(unit: str) -> str:
+    """Build a notation-tolerant regex for a unit string so a rule written with
+    one notation still matches the others. Handles:
+      - spacing:    "g / cm" ~ "g/cm"
+      - exponents:  "3" ~ "^3" ~ "³"  and  "2" ~ "^2" ~ "²"
+    Units in this domain (GPa, MPa, g/cm^3, %, mm) contain no other digits, so
+    treating any 2/3 as an exponent variant is safe here.
+    """
+    u = unit.strip().lower()
+    u = u.replace("^", "").replace("²", "2").replace("³", "3")  # canonicalise
+    pat = re.escape(u)
+    pat = pat.replace(r"\ ", r"\s*").replace(r"\/", r"\s*/\s*")
+    pat = pat.replace("2", r"(?:\^?2|²)").replace("3", r"(?:\^?3|³)")
+    return pat
+
+
 def _compile_user_rule(user_rule: dict) -> Rule | None:
     """Turn a stored user-rule row (dict from feedback_store) into a Rule."""
     rid = user_rule.get("rule_id") or f"user_{user_rule.get('id', 'x')}"
@@ -259,7 +275,7 @@ def _compile_user_rule(user_rule: dict) -> Rule | None:
     if kind == "range":
         unit = params.get("unit", "")
         lo = float(params["lo"]); hi = float(params["hi"])
-        unit_pattern = re.escape(unit).replace(r"\ ", r"\s*")
+        unit_pattern = _unit_to_pattern(unit)
         ctx = params.get("context_terms") or []
         val_terms = params.get("value_terms") or []
 

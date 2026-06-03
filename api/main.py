@@ -606,6 +606,7 @@ Rules:
 - KNOWLEDGE-GRAPH FACTS are individual curated relationships. Each line is ONE fact. Use them to check the answer's direction/sign (e.g. "porosity [decreases] mechanical strength"). Treat each edge independently — do NOT chain several edges into a multi-step causal argument, because chaining curated edges can imply relationships the graph never asserted.
 - ACCEPT if the answer is broadly correct and well-reasoned. A physical-grounding violation flagged on an edge case the agent already qualified is still acceptable — say so in notes.
 - DISPUTE only if there is a factual error, internal contradiction, missing key mechanism, a genuine physical-grounding violation that the agent did not address, or a claim the retrieved literature clearly contradicts.
+- USER RULES ARE NON-NEGOTIABLE. If any violation is tagged "USER RULE — must dispute", you MUST return "dispute". The user explicitly taught that constraint through feedback, and it overrides your own judgement and any literature. Your suggested_revision must tell the agent to comply with that rule.
 - CONFLICTING_EVIDENCE only when the retrieved literature genuinely disagrees — one body of passages supports the answer and another contradicts it, and the question has no single settled answer. You MUST fill both "majority" and "minority", and EACH must cite at least one [L#] tag. If you cannot cite both sides from the passages provided, do NOT use this verdict — use accept or dispute instead. Do not invent a conflict to hedge.
 - NOTES: 1–3 short bullets, each ≤ 15 words. Be specific. Cite [L#] where relevant. No generic praise.
 - SUGGESTED_REVISION: present for "dispute" (what to fix) and "conflicting_evidence" (how to present both positions). Omit for "accept". Do NOT rewrite the answer yourself.
@@ -734,7 +735,12 @@ def _call_critic(question: str, agent_answer: str, violations: list,
     verdict, notes, suggested_revision. Falls back to verdict='accept' on
     parse failure so a flaky critic never blocks the user."""
     from reasoning.kg_context import format_facts
-    viol_str = "\n".join(f"- [{v['name']}] {v['detail']}" for v in violations) or "(none)"
+    # Tag user-defined rule violations so the critic knows they are
+    # non-negotiable (they're also enforced deterministically downstream).
+    def _vline(v):
+        tag = "USER RULE — must dispute" if v.get("source") == "user" else v["name"]
+        return f"- [{tag}] {v['detail']}"
+    viol_str = "\n".join(_vline(v) for v in violations) or "(none)"
     lit_str = _format_literature(literature or [])
     kg_str = format_facts(kg or {})
     user_msg = (
@@ -793,6 +799,27 @@ def _call_critic(question: str, agent_answer: str, violations: list,
 
     return {"verdict": verdict, "notes": notes, "suggested_revision": suggestion,
             "majority": majority, "minority": minority}
+
+
+def _enforce_user_rules(critic: dict, pc: dict) -> dict:
+    """Deterministic guarantee: if the round flagged any user-defined rule
+    violation, the verdict MUST be 'dispute' regardless of what the critic
+    model decided. The user explicitly taught the rule; the model cannot
+    override it. (The critic prompt is also told this, but we do not rely on
+    a small model honouring it.)"""
+    user_viol = [v for v in pc.get("violations", []) if v.get("source") == "user"]
+    if not user_viol or critic.get("verdict") == "dispute":
+        return critic
+    details = "; ".join(v["detail"] for v in user_viol[:2])
+    note = f"User-defined rule violated — must be corrected: {details}"
+    return {
+        **critic,
+        "verdict": "dispute",
+        "notes": ([note] + (critic.get("notes") or []))[:3],
+        "suggested_revision": critic.get("suggested_revision")
+            or "Revise so the answer complies with the user's rule(s); do not restate the violating value.",
+        "user_override": True,
+    }
 
 
 def _safe_json(raw: str):
@@ -929,6 +956,7 @@ async def reason_chat(
             # ── Round 2: Critic review ─────────────────────────────────
             yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':2})}\n\n"
             critic1 = _call_critic(q, answer_visible, pc["violations"], user_rule_summary, literature, kg)
+            critic1 = _enforce_user_rules(critic1, pc)
             yield f"data: {json.dumps({'type':'critic_review','round':2, **critic1})}\n\n"
             rounds.append({"role": "critic", "round": 2, **critic1})
 
@@ -972,6 +1000,7 @@ async def reason_chat(
                 # ── Round 4: Critic re-reviews ─────────────────────────
                 yield f"data: {json.dumps({'type':'round_start','phase':'critic','round':4})}\n\n"
                 critic2 = _call_critic(q, revised_visible, pc2["violations"], user_rule_summary, literature, kg)
+                critic2 = _enforce_user_rules(critic2, pc2)
                 yield f"data: {json.dumps({'type':'critic_review','round':4, **critic2})}\n\n"
                 rounds.append({"role": "critic", "round": 4, **critic2})
 
