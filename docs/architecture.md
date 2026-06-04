@@ -80,7 +80,7 @@ BoneMind is intentionally restricted to bone science. This is not a limitation �
 | Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
 | Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](phase3_vlm_plan.md) |
-| Phase 4 — LRM reasoning layer | 🔶 Knowledge-graph artefacts retained; equation-graph Reasoning tab retired (May 2026) | [phase4_lrm_plan.md](phase4_lrm_plan.md) |
+| Phase 4 — Bone knowledge graph | ✅ Complete (May 2026) | Seed ontology · triple extraction · cleanup → 1,597 / 1,699 · [phase4_lrm_plan.md](phase4_lrm_plan.md) |
 | Phase 4b — Reasoning tab (rebuild) | 🟢 Live (May 2026) | Agent + critic loop · physical grounding · feedback-driven user rules · [reasoning_tab.md](reasoning_tab.md) |
 | Phase 5 — Feedback loop | 🟢 Live for the Reasoning tab (May 2026); other tabs pending | Reasoning-tab feedback flow documented in [reasoning_tab.md](reasoning_tab.md) |
 
@@ -97,18 +97,19 @@ Extract, chunk, and embed the text corpus. 248,629 sentence-aware chunks embedde
 ### Phase 3 — VLM integration 🔶 Partial
 Add image understanding for X-ray and MRI inputs. LLaVA 1.6 "Analyse Image" tab is live in both the React UI (`frontend/index.html`) and the legacy Gradio UI — users can upload an image and receive a structured radiological report. Full cross-modal retrieval (reports embedded with SPECTER2 and used to search the text corpus) is planned but not yet implemented.
 
-### Phase 4 — LRM reasoning layer 🔶 In Progress
-Move from retrieval to reasoning. Steps 4.1–4.7 are complete:
+### Phase 4 — Bone knowledge graph ✅
+Build the structured knowledge layer the Reasoning tab draws on. Steps 4.1–4.3 are complete:
 
 - **4.1 — Seed ontology**: ~200 bone science concepts and ~80 hand-curated causal edges bootstrapped into `ontology.db`.
 - **4.2 — Triple extraction**: `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt, via Ollama) extracts `(node_1, relation, node_2)` triples from corpus chunks into the knowledge graph. Two extraction runs completed:
   - **Textbooks** (April 2026): 1,983 chunks → 2,935 triples → 3,001 nodes, 2,339 edges
   - **Full paper corpus** (April 2026): 17,381 chunks attempted (9,258 yielded triples · 8,120 empty · 3 failed) · 2,310 min runtime → 41,359 triples → **35,338 nodes · 34,265 edges** (raw combined graph)
 - **4.3 — Graph cleanup** (`scripts/clean_graph.py` + [`reasoning/graph_cleanup.md`](reasoning/graph_cleanup.md)): six-stage cleanup of the LLM-extracted graph (cross-domain filter, sentence-fragment filter, affix canonicalisation, reverse-pair resolution, low-weight edge drop, orphan removal). 35,338 / 34,265 → **1,597 / 1,699** nodes / edges. Followed by a rule-based concept reclassification pass (`scripts/reclassify_concepts.py` + [`reasoning/graph_concept_reclassification.md`](reasoning/graph_concept_reclassification.md)) that retypes 571 of the 1,200 `concept`-typed nodes into their correct ontology types.
-- **4.4 — Equation-graph reasoner** (`reasoning/relation.py`, `reasoning/bone_relations.py`, `reasoning/explorer.py`, `reasoning/semantic_anchor.py`, `reasoning/query_router.py`): a typed equation graph over 12 bone-physics variables and 7 Relations (Currey, Paris–Vashishth, beam bending, Frost mechanostat, plus density / inertia / strain bridges). Forward / abductive / counterfactual inference modes; chains are discovered by traversing shared symbols. Patient covariates (age, sex, site, disease) reshape per-relation parameter priors before Monte-Carlo propagation. Free-text queries are routed by a single Ollama call and anchored to variables via SPECTER2 embeddings. An active-exploration ("Surprises") panel walks the graph without a query and scores candidates by corpus surprise. Supersedes the retired physics-grid pipeline preserved as a retrospective in [`reasoning/physics_grid.md`](reasoning/physics_grid.md).
-- **4.5 — Proposer / Critic agents** (`reasoning/agent_tools.py`, `reasoning/proposer_agent.py`, `reasoning/critic_agent.py`): a two-agent loop on top of the equation graph. The Proposer walks the variable graph and suggests novel `(target, sweep_var)` pairs the user has not asked about; the deterministic Explorer evaluates each; the Critic queries the corpus and verdicts the prediction as *interesting*, *trivial*, *out-of-domain*, or *needs-more-data*.
-- **4.6 — Novelty classifier** (`reasoning/novelty.py`): two-tier classification. Tier 1: SQLite LIKE keyword search (≥5 hits → GROUNDED, 1–4 → SPECULATIVE, 0 → NOVEL). Tier 2: SPECTER2 cosine similarity against 8,000 randomly sampled corpus embeddings (≥0.82 → GROUNDED, 0.60–0.82 → SPECULATIVE, <0.60 → NOVEL). Final label takes the more conservative tier. SPECTER2 model is shared with the retriever to avoid loading 1.6 GB twice.
-- **4.7 — Reasoning tab (equation-graph version, retired May 2026)** (`reasoning/legacy/`): React UI for the equation-graph reasoner. Endpoints `/api/reason`, `/api/reason/ask`, `/api/reason/presets`, `/api/reason/explore`, `/api/reason/agents` remain available for the archived UI; they are not used by the live tab. See [`reasoning/equation_graph.md`](reasoning/equation_graph.md) for the archived architecture and [`reasoning/physics_grid.md`](reasoning/physics_grid.md) for the earlier physics-grid retrospective.
+The cleaned `ontology.db` (1,597 nodes / 1,699 edges) is the graph the live
+Reasoning tab's critic reads from. An earlier equation-graph reasoner and a
+Proposer/Critic hypothesis-generation agent loop were built on top of this graph
+and **retired in May 2026** in favour of the clean-slate Reasoning tab below;
+their code and design docs have been removed (recoverable via git history).
 
 ### Phase 4b — Reasoning tab (clean-slate rebuild) 🟢
 Following the 21 May supervision direction, the Reasoning tab was rebuilt around three pillars: an agentic reasoning + critic loop, a deterministic fracture-scoped physical-grounding filter, and a user-feedback rule registry. Endpoints: `/api/reason/chat`, `/api/reason/feedback`, `/api/reason/rules/*`. Full architecture, data model, API surface, and demo flow in [`reasoning_tab.md`](reasoning_tab.md).
@@ -172,15 +173,18 @@ BoneMind/
 │   ├── retriever.py             BoneMindRetriever — loads all embeddings, cosine search
 │   └── query.py                 CLI entrypoint (single query + interactive mode)
 │
-├── reasoning/                   Phase 4: bone knowledge graph + LRM reasoning layer
+├── reasoning/                   Phase 4: bone knowledge graph + the live Reasoning tab
 │   ├── __init__.py
 │   ├── ontology.py              Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
 │   ├── graph_db.py              SQLite-backed graph persistence + extraction progress tracking
 │   ├── seed.py                  ~200 seed concepts + ~80 hand-curated causal edges
 │   ├── extractor.py             LLM triple extraction from chunks.db (resumable, huatuogpt-bone = HuatuoGPT-o1-8B + custom prompt)
-│   ├── physics.py               Bone physics engine: 71 guard-rail rules (IMPLAUSIBLE filter) + 5 numerical laws
-│   ├── lrm.py                   Core reasoning engine: anchor → traverse → score → summarise
-│   └── novelty.py               Novelty classifier: keyword tier + SPECTER2 semantic tier
+│   ├── visualize_ontology.py    Render ontology.db to an interactive graph
+│   ├── physical_grounding.py    Fracture-scoped Tier-1 rules + Tier-2 user-rule compiler
+│   ├── feedback_store.py        SQLite store: feedback events, corrections, user rules
+│   ├── rule_extractor.py        llama3.2:3b extraction of a structured rule from feedback
+│   ├── rule_import.py           Bulk CSV/XLSX user-rule import
+│   └── kg_context.py            1-hop knowledge-graph facts fed to the critic
 │
 ├── eval/                        Retrieval quality benchmarks
 │   ├── benchmark.json           30 questions across 7 domains with expected keywords

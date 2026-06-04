@@ -20,9 +20,8 @@ meeting:
 > the phased build log and demo flow.
 
 > The previous reasoning tab (equation-graph reasoner, Proposer/Critic over
-> 12 Variables / 7 Relations, Surprises panel) has been retired. See
-> [`reasoning/equation_graph.md`](reasoning/equation_graph.md) for the
-> archived design.
+> 12 Variables / 7 Relations, Surprises panel) was retired in May 2026 and its
+> code and design docs removed. It is recoverable via git history if needed.
 
 ---
 
@@ -400,7 +399,6 @@ frontend/index.html               ReasonTab, ReasonTurn, FeedbackBar,
                                   PhysicalCheckBadge
 ```
 
-Legacy reasoning artefacts (equation-graph reasoner, Proposer/Critic over
-12 variables, Surprises panel, physics-grid retrospective) live under
-`reasoning/legacy/` and `docs/reasoning/`. They are not used by the
-current Reasoning tab.
+The retired equation-graph reasoner, Proposer/Critic agent loop, novelty
+classifier, and Surprises panel — along with their design docs — were removed in
+May 2026. They are recoverable via git history if ever needed.

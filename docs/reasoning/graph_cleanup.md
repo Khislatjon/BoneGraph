@@ -167,8 +167,9 @@ mv data/db/ontology.db       data/db/ontology_raw.db
 mv data/db/ontology_clean.db data/db/ontology.db
 ```
 
-The LRM (`reasoning/lrm.py`) loads `ontology.db` via `OntologyStore.load_graph()`
-and will pick up the cleaned graph on the next API restart.
+The Reasoning tab's critic reads `ontology.db` for 1-hop facts via
+`reasoning/kg_context.py`, and `/api/stats` reads it via `OntologyStore`; both
+pick up the cleaned graph on the next API restart.
 
 ## Known residual issues
 
@@ -182,14 +183,14 @@ the conservative cleanup rules and can be addressed in future passes:
   `bone_mineral_density → increases → fracture_risk` (weight 24) coexists
   with `bone_mineral_density → decreases → fracture_risk` (weight 109).
   These are different relations so stage 4 doesn't catch them; the LRM's
-  weight-based scoring will favour the correct edge.
+  consumer's weight-based scoring will favour the correct edge.
 - **Some `concept`-typed nodes** that should be `property` or `process`
   remain mislabelled — an LLM-default typing problem the cleanup does not
   address.
 
 These can be fixed in a v2 pass with a small hand-curated canonical
-mapping, but the current cleanup is enough for the physics-driven
-hypothesis generator to work against.
+mapping, but the current cleanup is enough for the Reasoning tab's critic
+to draw reliable 1-hop facts from.
 
 ## Reproducibility
 

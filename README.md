@@ -13,14 +13,15 @@ An intelligent reasoning system for bone science — morphology, mechanics, path
 | [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — textbooks ingestion: 16 curated open-access books |
 | [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — text extraction, chunking, embedding, RAG, LLM, evaluation |
 | [docs/phase3_vlm_plan.md](docs/phase3_vlm_plan.md) | Phase 3 — VLM integration plan: datasets, pipeline, cross-modal retrieval, UI |
-| [docs/phase4_lrm_plan.md](docs/phase4_lrm_plan.md) | Phase 4 — LRM reasoning layer: bone knowledge graph, physics engine, hypothesis generation |
-| [docs/lrm_benchmark.md](docs/lrm_benchmark.md) | LRM benchmark: chain coverage, physics accuracy, novelty calibration — methodology and thresholds |
+| [docs/phase4_lrm_plan.md](docs/phase4_lrm_plan.md) | Phase 4 — bone knowledge graph build (seed ontology, triple extraction, cleanup) |
+| [docs/reasoning_tab.md](docs/reasoning_tab.md) | Reasoning tab — agent + critic loop, physical grounding, feedback-driven user rules |
+| [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab — full architecture: pipeline, components, rule tiers, modes, API, data model |
 
 ## Architecture (summary)
 
 ```
 Layer 1  │  LLM (text) + VLM (X-ray / MRI)      ← perception & understanding
-Layer 2  │  LRM (reasoning model)                ← hypothesis generation & prediction
+Layer 2  │  Reasoning tab (agent + critic)       ← grounded reasoning over the bone domain
 ```
 
 ## Progress
@@ -39,7 +40,8 @@ Layer 2  │  LRM (reasoning model)                ← hypothesis generation & p
 | Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links · ascending reference sort |
 | Phase 2 — Multi-turn chat | ✅ Complete | Sliding window (last 3 pairs) · thinking block + References stripped from history · bounded context |
 | Phase 3 — VLM integration | 🔶 Partial | LLaVA 1.6 tab implemented · cross-modal retrieval pending |
-| Phase 4 — LRM reasoning | 🔶 In Progress | Steps 4.1–4.6 complete · 35,338 nodes · 34,265 edges (textbooks + papers) |
+| Phase 4 — Knowledge graph | ✅ Complete | Seed ontology · triple extraction · cleanup → 1,597 nodes · 1,699 edges |
+| Phase 4b — Reasoning tab | 🟢 Live | Agent + critic loop · physical grounding · feedback-driven user rules |
 
 ---
 
@@ -156,9 +158,13 @@ Results are saved to `eval/results.json`. Current scores (top_k=10):
 
 ---
 
-## Phase 4 — LRM Reasoning Layer
+## Phase 4 — Bone Knowledge Graph
 
-Steps 4.1–4.6 are complete. The knowledge graph is seeded, triple extraction has run on all 16 textbooks, and the full reasoning stack (physics engine, LRM, novelty classifier, Reason tab) is live.
+The knowledge graph is seeded, triple extraction has run over the textbook and
+paper corpus, and the raw graph has been cleaned and reclassified down to a
+high-signal 1,597 nodes / 1,699 edges. The cleaned `ontology.db` is read by the
+live Reasoning tab's critic as a 1-hop fact source (see
+[docs/reasoning/architecture.md](docs/reasoning/architecture.md)).
 
 ### Check graph stats
 
@@ -177,10 +183,10 @@ print(f'Nodes: {nodes}  Edges: {edges}')
 
 ```bash
 # Textbooks only (highest quality, ~1,983 chunks, ~7 hours CPU-only)
-.venv/bin/python -m reasoning.legacy.extractor --source textbooks
+.venv/bin/python -m reasoning.extractor --source textbooks
 
 # All chunks including papers (long-running, use caffeinate / nohup on macOS)
-caffeinate -i nohup .venv/bin/python -m reasoning.legacy.extractor > logs/extractor.log 2>&1 &
+caffeinate -i nohup .venv/bin/python -m reasoning.extractor > logs/extractor.log 2>&1 &
 
 # Tail progress
 tail -f logs/extractor.log
@@ -198,26 +204,27 @@ tail -f logs/extractor.log
 | Nodes (unique concepts) | 3,001 |
 | Edges (unique relations) | 2,339 |
 
-### Launch the Reason tab
+### Launch the Reasoning tab
 
 ```bash
-python serve.py   # React UI at http://localhost:8000 — Reason tab in sidebar
+python serve.py   # React UI at http://localhost:8000 — Reasoning tab in sidebar
 ```
 
-The Reason tab supports:
-- **Physics-driven hypothesis generation** — each applicable physical law (Currey's law, Frost mechanostat, Paris crack growth, beam bending) is evaluated over a perturbation grid, producing quantitative ΔY/Y predictions
-- **Three-round adversarial critic** — directional consistency, magnitude in physical range, power-law domain validity
-- **Novelty classification** — Tier 1 keyword search + Tier 2 SPECTER2 semantic similarity → GROUNDED / SPECULATIVE / NOVEL
+The Reasoning tab runs an agent → physical-grounding → critic loop with bounded
+revision, grows a personal rule layer from your 👍/👎 feedback, and offers a
+Quick / Deep mode toggle. Full design in
+[docs/reasoning_tab.md](docs/reasoning_tab.md) and
+[docs/reasoning/architecture.md](docs/reasoning/architecture.md).
+
+- **Agentic** — a reasoning agent and a critic agent, with a hard 2-iteration cap.
+- **Physical grounding** — deterministic, fracture-scoped rules checked on every answer.
+- **Reinforcement** — confirmed corrections become user rules applied on every future request.
 
 Example queries:
-- `"cortical porosity and elastic modulus"`
-- `"mechanical loading and bone remodeling"`
-- `"fatigue crack growth"`
-- `"cortical thickness and bending stiffness"`
-
-### Legacy LRM benchmark
-
-The original LRM graph-walk reasoner and its physics-grid successor have been removed from the codebase. The current reasoner is documented in [docs/reasoning/equation_graph.md](docs/reasoning/equation_graph.md); a retrospective on the retired physics-grid pipeline lives in [docs/reasoning/physics_grid.md](docs/reasoning/physics_grid.md). See [docs/lrm_benchmark.md](docs/lrm_benchmark.md) for the historical evaluation methodology.
+- `"cortical bone elastic modulus"`
+- `"mechanical loading and bone remodelling"`
+- `"fatigue crack growth in cortical bone"`
+- `"how does a lytic lesion affect fracture risk"`
 
 ---
 
@@ -231,15 +238,17 @@ BoneMind/
 │   └── textbooks/           # Textbook scanner and storage
 ├── processing/              # Text extraction, chunking, embedding
 ├── retrieval/               # RAG retrieval engine + CLI/web query interface
-├── reasoning/               # Phase 4: bone knowledge graph + LRM reasoning layer
+├── reasoning/               # Phase 4: bone knowledge graph + the live Reasoning tab
 │   ├── __init__.py
 │   ├── ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
 │   ├── graph_db.py          # SQLite-backed graph persistence (ontology.db)
 │   ├── seed.py              # ~200 seed concepts + hand-curated causal edges
 │   ├── extractor.py         # LLM triple extraction pipeline from chunks.db (resumable)
-│   ├── physics.py           # Bone physics engine: 71 directional rules + numerical laws
-│   ├── lrm.py               # Core reasoning engine: path-finding, gap detection, scoring
-│   └── novelty.py           # Novelty classifier: keyword tier + SPECTER2 semantic tier
+│   ├── physical_grounding.py # Fracture-scoped Tier-1 rules + Tier-2 user-rule compiler
+│   ├── feedback_store.py    # SQLite store: feedback events, corrections, user rules
+│   ├── rule_extractor.py    # llama3.2:3b extraction of a structured rule from feedback
+│   ├── rule_import.py       # Bulk CSV/XLSX user-rule import
+│   └── kg_context.py        # 1-hop knowledge-graph facts fed to the critic
 ├── scripts/                 # Utilities: DB inspector, language filter
 ├── data/
 │   ├── raw/papers/          # Downloaded paper PDFs (gitignored)
@@ -249,7 +258,7 @@ BoneMind/
 │       ├── papers.db        # 54,634 paper metadata rows
 │       ├── textbooks.db     # 16 textbook metadata rows
 │       ├── chunks.db        # 248,629 chunks + SPECTER2 embeddings
-│       └── ontology.db      # Knowledge graph: 35,338 nodes · 34,265 edges
+│       └── ontology.db      # Knowledge graph: 1,597 nodes · 1,699 edges (cleaned)
 ├── eval/                    # Retrieval quality benchmark
 │   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
 │   ├── run_eval.py          # Eval script — computes MRR and Recall@k

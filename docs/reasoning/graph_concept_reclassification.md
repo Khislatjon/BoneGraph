@@ -158,9 +158,9 @@ mv data/db/ontology.db       data/db/ontology_pre_typed.db
 mv data/db/ontology_typed.db data/db/ontology.db
 ```
 
-The LRM (`reasoning/lrm.py`) loads `ontology.db` via
-`OntologyStore.load_graph()` and will pick up the reclassified types on the
-next API restart.
+The Reasoning tab's critic reads `ontology.db` via `reasoning/kg_context.py`
+(and `/api/stats` via `OntologyStore`); both pick up the reclassified types on
+the next API restart.
 
 ## Known residual issues
 
