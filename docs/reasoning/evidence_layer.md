@@ -8,7 +8,7 @@ external evidence (published literature and the knowledge graph) so it can
 dispute the reasoning agent with citations rather than with its own
 unanchored opinion.
 
-> See [`../reasoning_tab.md`](../reasoning_tab.md) for the live pipeline.
+> See [`reasoning_tab.md`](reasoning_tab.md) for the live pipeline.
 > The evidence layer is an addition to that pipeline, not a replacement.
 
 ---
@@ -39,7 +39,7 @@ evidence out of the agent prompt keeps the chat context window lean.
 
 | Channel | Source | Risk | Decision |
 |---------|--------|------|----------|
-| **Literature** | `BoneMindRetriever` (the Ask tab's RAG over the SPECTER2 corpus) | Low — proven, used daily | ✅ proceed (task A1) |
+| **Literature** | `BoneMindRetriever` (the Chat tab's RAG over the SPECTER2 corpus) | Low — proven, used daily | ✅ proceed (task A1) |
 | **Knowledge graph** | `data/db/ontology.db` (1,597 nodes / ~1,584 usable edges) | Medium — machine-extracted, pruned, unverified for fracture | ✅ proceed with care (task A4) |
 
 Both feed only the critic's one-shot prompt. They are **not** added to chat

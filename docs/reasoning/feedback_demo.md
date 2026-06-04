@@ -8,7 +8,7 @@ delta, that a user correction changes the system's behaviour on a repeat of the
 same question.
 
 > Code: [`eval/feedback_demo.py`](../../eval/feedback_demo.py)
-> Feedback mechanism: [`../reasoning_tab.md`](../reasoning_tab.md) §"Feedback loop"
+> Feedback mechanism: [`reasoning_tab.md`](reasoning_tab.md) §"Feedback loop"
 
 ---
 

@@ -16,7 +16,7 @@ meeting:
 
 > **For the full architecture** (pipeline diagram, components, rule tiers,
 > modes, API, data model, file map) see
-> [`reasoning/architecture.md`](reasoning/architecture.md). This document is
+> [`reasoning/architecture.md`](architecture.md). This document is
 > the phased build log and demo flow.
 
 > The previous reasoning tab (equation-graph reasoner, Proposer/Critic over
@@ -116,7 +116,7 @@ context window, leaving headroom for many follow-ups.
 
 ### Topic guard
 
-Two-stage classifier shared with the Ask tab:
+Two-stage classifier shared with the Chat tab:
 
 1. **Lexical pass.** If the question (or the last three user questions, for
    pronoun carry-over) contains any term in `_BONE_VOCAB`, accept
@@ -134,7 +134,7 @@ bar, and any proposed-rule card on that turn.
 
 ### Physical grounding — Tier 1 (built-in rules)
 
-Eight rules in [`reasoning/physical_grounding.py`](../reasoning/physical_grounding.py):
+Eight rules in [`reasoning/physical_grounding.py`](../../reasoning/physical_grounding.py):
 
 | Rule | Bound |
 |------|-------|
@@ -349,11 +349,11 @@ the meeting. See **What's next**.
 
 | Item | Status |
 |------|--------|
-| **A1 — Literature → critic** | 🟢 Built. The critic (not the agent) sees top-3 corpus passages, capped ~1200 tokens, and cites them as `[L#]`. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
+| **A1 — Literature → critic** | 🟢 Built. The critic (not the agent) sees top-3 corpus passages, capped ~1200 tokens, and cites them as `[L#]`. See [`reasoning/evidence_layer.md`](evidence_layer.md). |
 | **A2 — Conflict-aware critic** | 🟢 Built. Gated `conflicting_evidence` verdict (must cite both a majority and a minority passage); on it the agent presents both positions instead of picking a side. |
-| **A3 — Consistency bench** | 🟢 Built + validated (83% consistency, 100% correctness). Semi-automated; auto-judge ~83% reliable so stances are spot-checked. See [`reasoning/consistency_bench.md`](reasoning/consistency_bench.md). |
-| **A4 — KG shortcut → critic** | 🟢 Built. `reasoning/kg_context.py` anchors on concepts in the question and feeds the critic raw 1-hop edges from `ontology.db` (capped ~300 tokens) — never composed multi-hop chains. See [`reasoning/evidence_layer.md`](reasoning/evidence_layer.md). |
-| **B1 — Feedback-loop demo** | 🟢 Built + live-verified (`eval/feedback_demo.py`). Deterministic proof + live before/after trace of "second chat is better." Surfaced and fixed two bugs: critic now **forced to dispute on any user-rule violation** (deterministic override + prompt), and **unit-notation matching** is now tolerant (`g/cm^3`≡`g/cm³`≡`g/cm3`). See [`reasoning/feedback_demo.md`](reasoning/feedback_demo.md). |
+| **A3 — Consistency bench** | 🟢 Built + validated (83% consistency, 100% correctness). Semi-automated; auto-judge ~83% reliable so stances are spot-checked. See [`reasoning/consistency_bench.md`](consistency_bench.md). |
+| **A4 — KG shortcut → critic** | 🟢 Built. `reasoning/kg_context.py` anchors on concepts in the question and feeds the critic raw 1-hop edges from `ontology.db` (capped ~300 tokens) — never composed multi-hop chains. See [`reasoning/evidence_layer.md`](evidence_layer.md). |
+| **B1 — Feedback-loop demo** | 🟢 Built + live-verified (`eval/feedback_demo.py`). Deterministic proof + live before/after trace of "second chat is better." Surfaced and fixed two bugs: critic now **forced to dispute on any user-rule violation** (deterministic override + prompt), and **unit-notation matching** is now tolerant (`g/cm^3`≡`g/cm³`≡`g/cm3`). See [`reasoning/feedback_demo.md`](feedback_demo.md). |
 | **B2 — Rule management UI** | 🟢 Built. "⚙ Your rules" slide-over: list / enable-disable / delete user rules with plain-English summaries. Backend: `set_rule_enabled`, `GET /rules` returns all, `POST /rules/{id}/enabled`. |
 | **A5 — Bulk rule import** | 🟢 Built. CSV **and** XLSX (Gianluca's "pour an Excel file", 28 May). `reasoning/rule_import.py` parses → validates per row → dedupes → caps at 50 → tags `origin:"imported"`. `POST /api/reason/rules/import`, template at `GET /api/reason/rules/template`. Import button + skipped-row report in the rules panel. |
 | **B3 — Quick / Deep toggle** | 🟢 Built. Segmented control in the chat bar. **Deep** (default): full agent + critic + evidence loop. **Quick**: agent + physical grounding only, skips the critic and the critic-only evidence fetch (~5–10s) — for live demos with many casual questions. `mode` form field on `/api/reason/chat`. |

@@ -7,7 +7,7 @@ Gianluca's 28 May test: *"ask the opposite question, because if one is true,
 the other must be false."*
 
 > Code: [`eval/reasoning_consistency.py`](../../eval/reasoning_consistency.py)
-> Pipeline doc: [`../reasoning_tab.md`](../reasoning_tab.md)
+> Pipeline doc: [`reasoning_tab.md`](reasoning_tab.md)
 
 ---
 

@@ -4,7 +4,7 @@
 
 The single authoritative architecture reference for the Reasoning tab. For the
 phased build log, API field-by-field detail, and demo flow see
-[`../reasoning_tab.md`](../reasoning_tab.md). For the critic evidence channels
+[`reasoning_tab.md`](reasoning_tab.md). For the critic evidence channels
 see [`evidence_layer.md`](evidence_layer.md); for the feedback/eval harnesses
 see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consistency_bench.md).
 
@@ -14,7 +14,7 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 
 1. **The agent stays pure.** The reasoning agent (an LLM) reasons from the
    question alone — no retrieval injected into its prompt. This keeps the tab's
-   identity distinct from the Ask tab and keeps the chat context window lean.
+   identity distinct from the Chat tab and keeps the chat context window lean.
 2. **Determinism where it matters.** Physical grounding is code, not an LLM —
    same input, same outcome. User corrections become deterministic rules.
 3. **The critic is the judgement layer.** All probabilistic, evidence-weighing
@@ -118,7 +118,7 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 
 | Component | Type | Role |
 |-----------|------|------|
-| Topic guard | lexical + `llama3.2:3b` | Keep questions in the bone domain. Shared with Ask tab. |
+| Topic guard | lexical + `llama3.2:3b` | Keep questions in the bone domain. Shared with Chat tab. |
 | Reasoning agent | `huatuogpt-bone` | Produce a 1–4 point reasoning chain. Pure-LLM, streamed. |
 | Physical grounding | pure Python | Deterministic rule check over the answer text. |
 | Critic | `huatuogpt-bone` (JSON) | Review the answer against violations + evidence; verdict `accept`/`dispute`/`conflicting_evidence`. |

@@ -50,7 +50,7 @@ User query  ──────────────────────�
 | Embeddings complete | **248,629 / 248,629** chunks embedded |
 | Retrieval interface | CLI (`python -m retrieval.query`) + React web UI (`python serve.py`) |
 | LLM | HuatuoGPT-o1-8B served via Ollama as `huatuogpt-bone` (HuatuoGPT-o1-8B with a custom bone science system prompt) — streams grounded answers from retrieved context |
-| Web UI tabs | **Ask BoneMind** (RAG + LLM streaming) · **Search BoneScholar** (raw retrieval, no LLM) |
+| Web UI tabs | **Chat** (RAG + LLM streaming) · **Search** (raw retrieval, no LLM) |
 
 ---
 

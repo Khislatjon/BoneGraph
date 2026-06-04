@@ -79,10 +79,10 @@ BoneMind is intentionally restricted to bone science. This is not a limitation �
 | Phase 1 — Paper ingestion | ✅ Complete (March 2026) | [papers_ingestion_pipeline.md](papers_ingestion_pipeline.md) |
 | Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
-| Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](phase3_vlm_plan.md) |
-| Phase 4 — Bone knowledge graph | ✅ Complete (May 2026) | Seed ontology · triple extraction · cleanup → 1,597 / 1,699 · [phase4_lrm_plan.md](phase4_lrm_plan.md) |
-| Phase 4b — Reasoning tab (rebuild) | 🟢 Live (May 2026) | Agent + critic loop · physical grounding · feedback-driven user rules · [reasoning_tab.md](reasoning_tab.md) |
-| Phase 5 — Feedback loop | 🟢 Live for the Reasoning tab (May 2026); other tabs pending | Reasoning-tab feedback flow documented in [reasoning_tab.md](reasoning_tab.md) |
+| Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](vision/phase3_vlm_plan.md) |
+| Phase 4 — Bone knowledge graph | ✅ Complete (May 2026) | Seed ontology · triple extraction · cleanup → 1,597 / 1,699 · [phase4_lrm_plan.md](reasoning/phase4_lrm_plan.md) |
+| Phase 4b — Reasoning tab (rebuild) | 🟢 Live (May 2026) | Agent + critic loop · physical grounding · feedback-driven user rules · [reasoning_tab.md](reasoning/reasoning_tab.md) |
+| Phase 5 — Feedback loop | 🟢 Live for the Reasoning tab (May 2026); other tabs pending | Reasoning-tab feedback flow documented in [reasoning_tab.md](reasoning/reasoning_tab.md) |
 
 ---
 
@@ -112,10 +112,10 @@ and **retired in May 2026** in favour of the clean-slate Reasoning tab below;
 their code and design docs have been removed (recoverable via git history).
 
 ### Phase 4b — Reasoning tab (clean-slate rebuild) 🟢
-Following the 21 May supervision direction, the Reasoning tab was rebuilt around three pillars: an agentic reasoning + critic loop, a deterministic fracture-scoped physical-grounding filter, and a user-feedback rule registry. Endpoints: `/api/reason/chat`, `/api/reason/feedback`, `/api/reason/rules/*`. Full architecture, data model, API surface, and demo flow in [`reasoning_tab.md`](reasoning_tab.md).
+Following the 21 May supervision direction, the Reasoning tab was rebuilt around three pillars: an agentic reasoning + critic loop, a deterministic fracture-scoped physical-grounding filter, and a user-feedback rule registry. Endpoints: `/api/reason/chat`, `/api/reason/feedback`, `/api/reason/rules/*`. Full architecture, data model, API surface, and demo flow in [`reasoning_tab.md`](reasoning/reasoning_tab.md).
 
 ### Phase 5 — Feedback loop 🟢 (Reasoning tab) · ⏳ (other tabs)
-Make the system improve with use. **For the Reasoning tab** this is live: thumbs-down + free-text corrections feed an LLM rule extractor whose proposals the user confirms into a personal SQLite-backed rule registry, merged into the physical-grounding check on every future request. See [`reasoning_tab.md`](reasoning_tab.md) §"Feedback loop". For the Ask and Analyse tabs, a feedback channel into the ontology / retrieval is still planned.
+Make the system improve with use. **For the Reasoning tab** this is live: thumbs-down + free-text corrections feed an LLM rule extractor whose proposals the user confirms into a personal SQLite-backed rule registry, merged into the physical-grounding check on every future request. See [`reasoning_tab.md`](reasoning/reasoning_tab.md) §"Feedback loop". For the Chat and Vision tabs, a feedback channel into the ontology / retrieval is still planned.
 
 ---
 
@@ -203,13 +203,21 @@ BoneMind/
 │       ├── chunks.db            248,629 chunks + SPECTER2 embeddings (gitignored)
 │       └── ontology.db          Knowledge graph: 35,338 nodes · 34,265 edges (gitignored)
 │
-├── docs/
-│   ├── architecture.md                    ← this file (high-level overview)
-│   ├── papers_ingestion_pipeline.md       Phase 1 — papers ingestion deep-dive
-│   ├── textbooks_ingestion_pipeline.md    Phase 1b — textbooks ingestion deep-dive
-│   ├── phase2_rag_pipeline.md             Phase 2 — text processing, RAG, evaluation
-│   ├── phase3_vlm_plan.md                 Phase 3 — VLM integration plan
-│   └── phase4_lrm_plan.md                 Phase 4 — LRM reasoning layer plan + progress
+├── docs/                                   one folder per tab + shared top-level docs
+│   ├── architecture.md                    ← this file (system-wide overview)
+│   ├── papers_ingestion_pipeline.md       shared — papers ingestion (feeds Chat + Search)
+│   ├── textbooks_ingestion_pipeline.md    shared — textbooks ingestion (feeds Chat + Search)
+│   ├── phase2_rag_pipeline.md             shared — text processing, RAG, evaluation
+│   ├── chat/                              Chat tab (RAG question-answering)
+│   ├── search/                            Search tab (semantic corpus search)
+│   ├── reasoning/                         Reasoning tab (agent + critic + grounding + feedback)
+│   │   ├── architecture.md                  authoritative pipeline reference
+│   │   ├── reasoning_tab.md                 build log + demo flow
+│   │   ├── evidence_layer.md · consistency_bench.md · feedback_demo.md
+│   │   ├── phase4_lrm_plan.md               knowledge-graph background
+│   │   └── graph_cleanup.md · graph_concept_reclassification.md
+│   └── vision/                            Vision tab (image understanding)
+│       └── phase3_vlm_plan.md               VLM integration plan
 │
 ├── tests/
 │   └── test_ingestion.py
