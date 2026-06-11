@@ -1,6 +1,6 @@
 # Vision tab
 
-The **Vision** tab is BoneMind's image-understanding surface (internally
+The **Vision** tab is BoneGraph's image-understanding surface (internally
 `analyse`). Today it runs a LLaVA-based VLM that produces a structured
 description / radiology-style report from an uploaded X-ray, MRI, micro-CT, or
 histology image.

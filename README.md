@@ -1,8 +1,8 @@
-# BoneMind
+# BoneGraph
 
 An intelligent reasoning system for bone science — morphology, mechanics, pathology, and biomaterials.
 
-**BoneScholar** is the curated dataset that powers BoneMind. It contains 54,634 peer-reviewed papers (7,433 with full text) and 16 open-access textbooks, all focused on bone science. Papers were collected via the OpenAlex API across targeted keyword groups, filtered to English, extracted, chunked into 248,629 sentence-aware passages, and embedded with SPECTER2 for semantic retrieval. The Search BoneScholar tab lets you query this dataset directly by concept, method, or author without going through the LLM.
+**BoneScholar** is the curated dataset that powers BoneGraph. It contains 54,634 peer-reviewed papers (7,433 with full text) and 16 open-access textbooks, all focused on bone science. Papers were collected via the OpenAlex API across targeted keyword groups, filtered to English, extracted, chunked into 248,629 sentence-aware passages, and embedded with SPECTER2 for semantic retrieval. The Search BoneScholar tab lets you query this dataset directly by concept, method, or author without going through the LLM.
 
 ## Documentation
 
@@ -127,11 +127,11 @@ python -m retrieval.query "cortical bone fracture toughness"
 # CLI — interactive mode (embeddings loaded once, fast repeated queries)
 python -m retrieval.query --interactive
 
-# React web UI (tabs: Ask BoneMind · Search BoneScholar · Analyse Image · Reason)
+# React web UI (tabs: Ask BoneGraph · Search BoneScholar · Analyse Image · Reason)
 python serve.py    # FastAPI backend + React frontend at http://localhost:8000
 ```
 
-**Ask BoneMind tab** requires Ollama running with the fine-tuned model:
+**Ask BoneGraph tab** requires Ollama running with the fine-tuned model:
 
 ```bash
 ollama serve          # start the server (separate terminal if not running as a service)
@@ -231,7 +231,7 @@ Example queries:
 ## Project structure
 
 ```
-BoneMind/
+BoneGraph/
 ├── config/                  # Central settings (paths, model names, constants)
 ├── ingestion/
 │   ├── papers/              # OpenAlex API client, storage, downloader

@@ -1,6 +1,6 @@
 # Chat tab
 
-The **Chat** tab is BoneMind's conversational question-answering surface
+The **Chat** tab is BoneGraph's conversational question-answering surface
 (internally `ask`). It answers bone-science questions with retrieval-augmented
 generation: SPECTER2 retrieval over the corpus + `huatuogpt-bone` streaming,
 with inline `[N]` citations and a References section. Multi-turn via a sliding

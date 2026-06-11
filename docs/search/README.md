@@ -1,6 +1,6 @@
 # Search tab
 
-The **Search** tab is BoneMind's semantic search over the corpus — raw
+The **Search** tab is BoneGraph's semantic search over the corpus — raw
 retrieval with no LLM in the loop. Queries are embedded with SPECTER2 and
 ranked by cosine similarity against the indexed chunks of the BoneScholar
 dataset (54,634 papers + 16 textbooks). Results are returned with source

@@ -11,7 +11,7 @@ Three tables:
   user_rules       — structured rules derived from corrections; merged with
                      the built-in Tier-1 rules in physical_grounding.check()
 
-Path: data/db/reasoning_feedback.db (alongside the existing BoneMind DBs).
+Path: data/db/reasoning_feedback.db (alongside the existing BoneGraph DBs).
 
 The store is intentionally single-user / single-machine. Multi-user shipping
 is a future concern; the schema includes a `user_id` column so we don't have

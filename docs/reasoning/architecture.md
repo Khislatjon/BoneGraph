@@ -123,7 +123,7 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 | Physical grounding | pure Python | Deterministic rule check over the answer text. |
 | Critic | `huatuogpt-bone` (JSON) | Review the answer against violations + evidence; verdict `accept`/`dispute`/`conflicting_evidence`. |
 | Rule extractor | `llama3.2:3b` (JSON) | Turn a 👎 + free-text correction into a structured rule proposal. |
-| Evidence: literature | `BoneMindRetriever` | Top-3 corpus passages for the critic (A1). |
+| Evidence: literature | `BoneGraphRetriever` | Top-3 corpus passages for the critic (A1). |
 | Evidence: knowledge graph | `ontology.db` | 1-hop edges around question concepts for the critic (A4). |
 
 ---

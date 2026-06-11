@@ -104,7 +104,7 @@ a paper than quoting a single auto-judged percentage.
 
 ## Running it
 
-Requires the BoneMind server running (`python serve.py`) and Ollama up.
+Requires the BoneGraph server running (`python serve.py`) and Ollama up.
 
 ```bash
 .venv/bin/python -m eval.reasoning_consistency

@@ -21,7 +21,7 @@ Reports a per-pair table plus overall consistency % and correctness %.
 Consistency is the headline metric for the showcase / paper.
 
 Requirements:
-  - The BoneMind server must be running (python serve.py) at --base.
+  - The BoneGraph server must be running (python serve.py) at --base.
   - Ollama must be up (the pipeline + the stance judge both use it).
 
 Run:
@@ -251,7 +251,7 @@ def report(results: list[dict]) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://localhost:8000",
-                    help="BoneMind server base URL (default: http://localhost:8000)")
+                    help="BoneGraph server base URL (default: http://localhost:8000)")
     ap.add_argument("--json", help="Write full results (incl. answers) to this JSON file.")
     args = ap.parse_args()
 

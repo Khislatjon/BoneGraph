@@ -6,7 +6,7 @@ Phase 0.1 — de-risk the evidence layer BEFORE wiring it into the critic.
 
 Two questions this script answers, on a fixed set of fracture-domain probes:
 
-  1. LITERATURE — does BoneMindRetriever return passages that are actually
+  1. LITERATURE — does BoneGraphRetriever return passages that are actually
      relevant to a fracture-reasoning query? (low expected risk — it's the
      same retriever the Ask tab uses daily)
 
@@ -164,15 +164,15 @@ def audit_kg() -> None:
 
 def audit_literature() -> None:
     print("=" * 74)
-    print("LITERATURE AUDIT  (BoneMindRetriever)")
+    print("LITERATURE AUDIT  (BoneGraphRetriever)")
     print("=" * 74)
     try:
-        from retrieval.retriever import BoneMindRetriever
+        from retrieval.retriever import BoneGraphRetriever
     except Exception as e:
         print(f"  Could not import retriever: {e}\n  (run with --no-literature to skip)\n")
         return
     print("  Loading retriever (this loads SPECTER2 — may take a moment)…\n")
-    retriever = BoneMindRetriever()
+    retriever = BoneGraphRetriever()
     retriever.load()
 
     for q in LITERATURE_PROBES:

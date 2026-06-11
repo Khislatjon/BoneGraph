@@ -39,7 +39,7 @@ evidence out of the agent prompt keeps the chat context window lean.
 
 | Channel | Source | Risk | Decision |
 |---------|--------|------|----------|
-| **Literature** | `BoneMindRetriever` (the Chat tab's RAG over the SPECTER2 corpus) | Low — proven, used daily | ✅ proceed (task A1) |
+| **Literature** | `BoneGraphRetriever` (the Chat tab's RAG over the SPECTER2 corpus) | Low — proven, used daily | ✅ proceed (task A1) |
 | **Knowledge graph** | `data/db/ontology.db` (1,597 nodes / ~1,584 usable edges) | Medium — machine-extracted, pruned, unverified for fracture | ✅ proceed with care (task A4) |
 
 Both feed only the critic's one-shot prompt. They are **not** added to chat

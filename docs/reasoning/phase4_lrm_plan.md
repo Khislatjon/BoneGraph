@@ -2,7 +2,7 @@
 
 **Status: ✅ Knowledge graph built and maintained · reasoning layer is the live Reasoning tab**
 
-Phase 4 moves BoneMind from retrieval to reasoning. It has two parts:
+Phase 4 moves BoneGraph from retrieval to reasoning. It has two parts:
 
 1. **The bone knowledge graph** (this document) — a structured ontology of bone
    concepts and causal edges, extracted from the corpus and cleaned into a
@@ -31,7 +31,7 @@ that no single source covers end-to-end, or reason about cause and effect.
 A structured knowledge graph adds that missing layer: concepts as typed nodes,
 causal relations as weighted edges. The approach is inspired by Buehler (MIT,
 arXiv:2403.11996), which turns biomaterials papers into an ontological graph and
-reasons over it; BoneMind's corpus is larger and bone-specific, and the graph is
+reasons over it; BoneGraph's corpus is larger and bone-specific, and the graph is
 consumed by a reasoning agent with a deterministic physical-grounding layer.
 
 ---

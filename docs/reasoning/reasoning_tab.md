@@ -2,7 +2,7 @@
 
 **Status: 🟢 Live — clean-slate rebuild, May 2026.**
 
-The Reasoning tab is BoneMind's hypothesis-generation and step-by-step
+The Reasoning tab is BoneGraph's hypothesis-generation and step-by-step
 reasoning surface for bone fracture, fragility, and remodelling questions.
 It is a complete rewrite of the previous equation-graph reasoner, scoped
 narrower and built around three pillars taken from the 21 May supervision

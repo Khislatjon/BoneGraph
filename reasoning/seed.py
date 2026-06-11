@@ -1,7 +1,7 @@
 """
 reasoning/seed.py
 =================
-Hand-curated seed data for the BoneMind bone knowledge graph.
+Hand-curated seed data for the BoneGraph bone knowledge graph.
 
 Content
 -------
@@ -575,7 +575,7 @@ def seed_graph(verbose: bool = True) -> BoneKnowledgeGraph:
         g_stats = graph.stats()
         print()
         print("─" * 55)
-        print("  BoneMind — Phase 4 Step 1: Ontology bootstrap")
+        print("  BoneGraph — Phase 4 Step 1: Ontology bootstrap")
         print("─" * 55)
         print(f"  Nodes written   : {new_n} new · {upd_n} updated")
         print(f"  Edges written   : {new_e} new · {upd_e} updated")
@@ -604,7 +604,7 @@ def seed_graph(verbose: bool = True) -> BoneKnowledgeGraph:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bootstrap the BoneMind bone knowledge graph from seed data.",
+        description="Bootstrap the BoneGraph bone knowledge graph from seed data.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
@@ -633,7 +633,7 @@ def main() -> None:
         g_stats = graph.stats()
         print()
         print("─" * 55)
-        print("  BoneMind ontology.db — current stats")
+        print("  BoneGraph ontology.db — current stats")
         print("─" * 55)
         print(f"  Total nodes   : {g_stats['n_nodes']}")
         print(f"  Total edges   : {g_stats['n_edges']}")

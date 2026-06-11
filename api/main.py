@@ -1,7 +1,7 @@
 """
 api/main.py
 ===========
-FastAPI backend for the BoneMind React frontend.
+FastAPI backend for the BoneGraph React frontend.
 
 Endpoints
 ---------
@@ -47,7 +47,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from retrieval.retriever import BoneMindRetriever
+from retrieval.retriever import BoneGraphRetriever
 from reasoning.graph_db import OntologyStore
 from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
 
@@ -163,7 +163,7 @@ VLM_PROMPT = (
     '"assessment":"...","recommendation":"...","confidence":"HIGH|MODERATE|LOW"}'
 )
 
-SYSTEM_PROMPT = """You are BoneMind, an expert AI assistant specialised in bone science.
+SYSTEM_PROMPT = """You are BoneGraph, an expert AI assistant specialised in bone science.
 You have access to a curated corpus of peer-reviewed bone science literature and textbooks.
 
 MOST IMPORTANT RULE — citations are mandatory:
@@ -185,7 +185,7 @@ RULES — follow exactly:
 
 4. OUT-OF-DOMAIN. If the question is not about bone science (morphology, structure-function
    relationships, mechanics, pathology, imaging, biomaterials, or simulation), respond:
-   "This question is outside BoneMind's domain. I cover bone science only."
+   "This question is outside BoneGraph's domain. I cover bone science only."
 
 5. HYPOTHESES. If you extend beyond direct evidence, mark it explicitly:
    **Hypothesis:** [speculative claim]
@@ -232,8 +232,8 @@ CITATION RULES — enforced strictly:
 
 
 # ── Startup: load models once ──────────────────────────────────────────────────
-print("Loading BoneMind retriever...")
-retriever = BoneMindRetriever()
+print("Loading BoneGraph retriever...")
+retriever = BoneGraphRetriever()
 retriever.load()
 
 print("Loading bone knowledge graph (for /api/stats)...")
@@ -270,7 +270,7 @@ print(
 )
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
-app = FastAPI(title="BoneMind API")
+app = FastAPI(title="BoneGraph API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -418,11 +418,11 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         # resolve pronouns even when early turns fall outside the LLM context window.
         if not _is_bone_science(q, prior_questions_all):
             out = (
-                "I'm BoneMind, a specialist assistant for bone science. "
+                "I'm BoneGraph, a specialist assistant for bone science. "
                 "Your question doesn't appear to be related to bone biology, skeletal mechanics, "
                 "or a closely related biomedical topic. Please ask something within that domain "
                 "and I'll do my best to answer from the literature.\n\n"
-                "Note: BoneMind is a research tool and does not provide personal medical advice. "
+                "Note: BoneGraph is a research tool and does not provide personal medical advice. "
                 "For clinical decisions — including starting, adjusting, or stopping any medication — "
                 "please consult a qualified healthcare professional."
             )
@@ -501,7 +501,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
 # bone mechanics / fracture / fragility. Later phases add (3) physical-grounding
 # filter, (4) user-feedback memory, (5) critic agent.
 
-REASONING_SYSTEM_PROMPT = """You are BoneMind's reasoning agent. Given a question about bone
+REASONING_SYSTEM_PROMPT = """You are BoneGraph's reasoning agent. Given a question about bone
 mechanics, fracture, fragility, remodelling, or related pathology, work through it as a chain
 of reasoning points.
 
@@ -519,12 +519,12 @@ Do not pad. If one point is enough, stop there. Never repeat the same idea acros
 Rules:
 - Reason about mechanisms (cause → effect), not just list facts.
 - Stay within bone science (mechanics, biology, pathology, imaging, biomaterials). If the question
-  is out of scope, reply with exactly: "Out of scope for BoneMind's reasoning tab."
+  is out of scope, reply with exactly: "Out of scope for BoneGraph's reasoning tab."
 - Be honest about uncertainty. If a point is speculative, say so in the *Basis* line.
 - No preamble, no closing summary. Start directly with "**Point 1.**"."""
 
 
-CRITIC_SYSTEM_PROMPT = """You are BoneMind's critic agent. You review another agent's bone-science reasoning for correctness, internal consistency, completeness, and appropriately calibrated uncertainty.
+CRITIC_SYSTEM_PROMPT = """You are BoneGraph's critic agent. You review another agent's bone-science reasoning for correctness, internal consistency, completeness, and appropriately calibrated uncertainty.
 
 You will receive:
   - the original question
@@ -853,7 +853,7 @@ async def reason_chat(
 
         if not _is_bone_science(q, prior_questions_all):
             out = (
-                "This question is outside BoneMind's reasoning scope. "
+                "This question is outside BoneGraph's reasoning scope. "
                 "I cover bone mechanics, fracture and fragility, remodelling, "
                 "imaging, biomaterials, and related pathology. "
                 "Please ask within that domain."
@@ -1077,7 +1077,7 @@ async def reason_rules_template():
     """Downloadable CSV template (header + examples) for bulk import."""
     from reasoning.rule_import import TEMPLATE_CSV
     return PlainTextResponse(TEMPLATE_CSV, headers={
-        "Content-Disposition": 'attachment; filename="bonemind_rules_template.csv"'
+        "Content-Disposition": 'attachment; filename="bonegraph_rules_template.csv"'
     })
 
 

@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BoneMind</title>
+<title>BoneGraph</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
-<link rel="icon" href="/static/bonemind-icon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/bonegraph-icon.svg" type="image/svg+xml">
 <script src="/static/react.dev.js"></script>
 <script src="/static/react-dom.dev.js"></script>
 <script src="/static/babel.min.js"></script>
@@ -163,7 +163,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#928f82">Loading BoneMind…</div></div>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#928f82">Loading BoneGraph…</div></div>
 
 <script type="text/babel">
 const { useState, useEffect, useRef, Fragment } = React;
@@ -457,7 +457,7 @@ function AskTab({ totalChunks }) {
           {empty ? (
             <div className="empty-state">
               <div className="empty-avatar"><BoneSVG size={100}/></div>
-              <div className="empty-title">Ask BoneMind</div>
+              <div className="empty-title">Ask BoneGraph</div>
               <div className="empty-sub">Grounded in {totalChunks ? totalChunks.toLocaleString() : '248,629'} indexed papers and textbooks</div>
               <div className="chips">
                 {CHIPS.map((s,i) => <button key={i} className="chip" onClick={() => send(s)}>{s}</button>)}
@@ -839,7 +839,7 @@ function ReasonTab() {
   return (
     <div className="ask" style={{position:'relative'}}>
       <div style={{position:'absolute',top:12,right:16,zIndex:40,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
-        <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneMind"
+        <button onClick={() => setRulesOpen(true)} title="Manage the rules you've taught BoneGraph"
           style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
           <span style={{fontSize:18}}>⚙</span> Your rules
         </button>
@@ -997,7 +997,7 @@ function RulesPanel({ onClose }) {
           <div>
             <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Your rules</div>
             <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>
-              Corrections you've taught BoneMind {rules ? `· ${activeCount} active of ${rules.length}` : ''}
+              Corrections you've taught BoneGraph {rules ? `· ${activeCount} active of ${rules.length}` : ''}
             </div>
           </div>
           <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
@@ -1032,7 +1032,7 @@ function RulesPanel({ onClose }) {
           {rules === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
           {rules && rules.length === 0 && (
             <div style={{color:'var(--text3)',fontSize:13,lineHeight:1.6,marginTop:8}}>
-              No rules yet. When you 👎 an answer and describe what's wrong, BoneMind proposes a rule;
+              No rules yet. When you 👎 an answer and describe what's wrong, BoneGraph proposes a rule;
               once you confirm it, it appears here and applies to every future answer.
             </div>
           )}
@@ -1429,7 +1429,7 @@ function AnalyseTab() {
         <div className="dz-title">Drop an X-ray or MRI here</div>
         <div className="dz-sub">or click to select · PNG, JPG</div>
       </div>
-      <div className="analyse-note">BoneMind will generate a structured radiology report using LLaVA 13b. For research and educational use only.</div>
+      <div className="analyse-note">BoneGraph will generate a structured radiology report using LLaVA 13b. For research and educational use only.</div>
     </div>
   );
 
@@ -1494,7 +1494,7 @@ function App() {
       <aside className="sidebar">
         <div className="sb-logo">
           <div className="sb-logo-icon"><BoneSVG size={34}/></div>
-          <span className="sb-logo-text">BoneMind</span>
+          <span className="sb-logo-text">BoneGraph</span>
         </div>
         <nav className="sb-nav">
           {TABS.map(t => (
