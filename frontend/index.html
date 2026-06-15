@@ -226,6 +226,15 @@ function stripThinking(text) {
   return text.slice(idx).replace(marker, '').trimStart();
 }
 
+// The reasoning agent's format is "**Point N.** … *Basis.* …", with Basis on
+// its own line. The model sometimes runs Basis inline; force it onto a new line
+// so each point reads Point-then-Basis. Targets the asterisked label only, so it
+// never touches the word "basis" in ordinary prose.
+function fixBasis(text) {
+  if (!text) return text;
+  return text.replace(/([^\n])[ \t]*(\*+\s*Basis)/g, '$1\n$2');
+}
+
 // ── Inline citations renderer ─────────────────────────────────────────────────
 // Renders **bold**, *italic*, citation markers [N] and markdown links inline.
 function renderInline(text, keyPrefix) {
@@ -491,7 +500,7 @@ function AskTab({ totalChunks }) {
                     <div className="msg-text">
                       {streaming
                         ? /final response/i.test(streaming)
-                          ? <>{parseCit(stripThinking(streaming))}<span className="blink">▍</span></>
+                          ? <>{parseCit(fixBasis(stripThinking(streaming)))}<span className="blink">▍</span></>
                           : <Dots/>
                         : <Dots/>}
                     </div>
@@ -899,7 +908,7 @@ function ReasonTab() {
                     <div className="msg-text">
                       {streaming
                         ? /final response/i.test(streaming)
-                          ? <>{parseCit(stripThinking(streaming))}<span className="blink">▍</span></>
+                          ? <>{parseCit(fixBasis(stripThinking(streaming)))}<span className="blink">▍</span></>
                           : <Dots/>
                         : <Dots/>}
                     </div>
@@ -1424,7 +1433,7 @@ function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
       <div className="msg msg-asst">
         <div className="msg-avatar"><BoneSVG size={34}/></div>
         <div className="msg-bubble">
-          <div className="msg-text">{parseCit(stripThinking(turn.answer))}</div>
+          <div className="msg-text">{parseCit(fixBasis(stripThinking(turn.answer)))}</div>
           {!turn.out_of_scope && turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
           {!turn.out_of_scope && <ReviewDialogue turn={turn}/>}
           {!turn.out_of_scope && <FeedbackBar turn={turn} onFeedback={onFeedback}/>}
