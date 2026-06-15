@@ -146,6 +146,16 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .dz-title{font-size:17px;font-weight:500}
 .dz-sub{font-size:13px;color:var(--text3)}
 .vision-note{font-size:12.5px;color:var(--text3);max-width:560px}
+.vision-msg-img{max-width:240px;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block}
+.id-card{display:flex;flex-direction:column;gap:8px}
+.id-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.id-name{font-size:15px;font-weight:600}
+.id-rows{display:flex;flex-direction:column;gap:6px}
+.id-row{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;line-height:1.5}
+.id-k{color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:500;padding-top:2px}
+.id-feats{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.vision-strip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
+.vision-strip img{width:28px;height:28px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
 .analysis-view{display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start}
 .scan-img{width:100%;border-radius:10px;border:1px solid var(--border);display:block;object-fit:contain;max-height:380px;background:#111}
 .reupload{background:none;border:1px solid var(--border);border-radius:7px;padding:7px 14px;font-size:13px;color:var(--text3);cursor:pointer;font-family:var(--sans);transition:all .15s}
@@ -1453,32 +1463,81 @@ function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
 
 // ── ANALYSE TAB ───────────────────────────────────────────────────────────────
 function VisionTab() {
-  const [imgURL, setImgURL]   = useState(null);
-  const [file, setFile]       = useState(null);
-  const [prompt, setPrompt]   = useState('');
-  const [ident, setIdent]     = useState(null);   // structured identification schema
-  const [status, setStatus]   = useState('');     // '' | 'identifying' | error string
-  const [drag, setDrag]       = useState(false);
+  // Multi-turn chat about ONE uploaded image. The image is re-sent on every
+  // turn (the backend re-encodes it); prior turns are replayed as text history
+  // so follow-ups have context. Mirrors ReasonTab's chat loop.
+  const [messages, setMessages] = useState([]);   // {role, text?, imgURL?, ident?, error?}
+  const [imageFile, setImageFile] = useState(null);
+  const [imageURL, setImageURL]   = useState(null);
+  const [input, setInput]   = useState('');
+  const [busy, setBusy]     = useState(false);
+  const [drag, setDrag]     = useState(false);
   const fileRef = useRef(null);
+  const endRef  = useRef(null);
 
-  const busy = status === 'identifying';
+  useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior:'smooth' }); }, [messages, busy]);
 
-  const processFile = (f) => {
-    if (!f || !f.type.startsWith('image/')) return;
-    setFile(f);
-    setImgURL(URL.createObjectURL(f));
-    setIdent(null); setStatus('');
+  const attach = (f) => { if (!f || !f.type.startsWith('image/')) return; setImageFile(f); setImageURL(URL.createObjectURL(f)); };
+  const reset  = () => { setMessages([]); setImageFile(null); setImageURL(null); setInput(''); };
+
+  const ConfBadge = ({ level }) => {
+    const m = { HIGH:{bg:'#eaf5ee',color:'#1a7a4e',border:'#a8d8b8'}, MODERATE:{bg:'#fef5e4',color:'#a07010',border:'#f0d48a'}, LOW:{bg:'#fdeaea',color:'#b01c1c',border:'#f0a8a8'} };
+    const s = m[level] || m.MODERATE;
+    return <span className="badge" style={{background:s.bg,color:s.color,borderColor:s.border}}>Confidence: {level}</span>;
   };
 
-  const reset = () => { setImgURL(null); setFile(null); setIdent(null); setStatus(''); setPrompt(''); };
+  const IdentCard = ({ ident }) => (
+    <div className="id-card">
+      <div className="id-head">
+        <span className="id-name">{ident.identification}</span>
+        {ident.confidence && <ConfBadge level={ident.confidence}/>}
+      </div>
+      <div className="id-rows">
+        {[['Modality',ident.modality],['Morphology',ident.morphology],['Estimated scale',ident.estimated_scale],['Also considered',ident.runner_up]].map(([k,v]) => v && (
+          <div key={k} className="id-row"><div className="id-k">{k}</div><div>{v}</div></div>
+        ))}
+        {ident.features?.length > 0 && (
+          <div className="id-row"><div className="id-k">Features</div>
+            <ul className="id-feats">{ident.features.map((f,i)=><li key={i}>{f}</li>)}</ul></div>
+        )}
+      </div>
+    </div>
+  );
 
-  const identify = async () => {
-    if (!file || busy) return;
-    setIdent(null); setStatus('identifying');
+  const patchLastAsst = (patch) => setMessages(prev => {
+    const copy = [...prev];
+    for (let i = copy.length-1; i>=0; i--) { if (copy[i].role==='assistant') { copy[i] = {...copy[i], ...patch}; break; } }
+    return copy;
+  });
+
+  const firstTurn = !messages.some(m => m.role === 'assistant');
+
+  const send = async () => {
+    if (busy || !imageFile) return;
+    const text = input.trim();
+    if (!firstTurn && !text) return;   // follow-ups need a question
+
+    // History from completed turns — text only (the image is re-sent each call).
+    const history = [];
+    for (const m of messages) {
+      if (m.role === 'user' && m.text) history.push({ role:'user', content:m.text });
+      else if (m.role === 'assistant' && m.ident) {
+        const i = m.ident;
+        history.push({ role:'assistant', content:`Identification: ${i.identification} (modality: ${i.modality}; confidence: ${i.confidence}). ${i.morphology||''}`.trim() });
+      }
+    }
+
+    setMessages(prev => [...prev,
+      { role:'user', text, imgURL: firstTurn ? imageURL : null },
+      { role:'assistant', ident:null, error:null },
+    ]);
+    setInput(''); setBusy(true);
+
     try {
       const fd = new FormData();
-      fd.append('image', file);
-      fd.append('prompt', prompt);
+      fd.append('image', imageFile);
+      fd.append('prompt', text);
+      fd.append('history', JSON.stringify(history));
       fd.append('mode', 'deep');
       const resp = await fetch('/api/vision/chat', { method:'POST', body:fd });
       const reader = resp.body.getReader();
@@ -1493,92 +1552,86 @@ function VisionTab() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'identification') { setIdent(ev.schema); }
-          else if (ev.type === 'done')  { if (ev.identification) setIdent(ev.identification); setStatus(''); }
-          else if (ev.type === 'error') { setStatus('⚠️ ' + ev.message); }
+          if (ev.type === 'identification') patchLastAsst({ ident: ev.schema });
+          else if (ev.type === 'done')  patchLastAsst({ ident: ev.identification || null });
+          else if (ev.type === 'error') patchLastAsst({ error: ev.message });
         }
       }
-      setStatus(s => s === 'identifying' ? '' : s);
-    } catch { setStatus('⚠️ Could not reach the vision service. Ensure Ollama is running with llava:13b.'); }
+    } catch {
+      patchLastAsst({ error: 'Could not reach the vision service. Ensure Ollama is running with llava:13b.' });
+    }
+    setBusy(false);
   };
 
-  const ConfBadge = ({ level }) => {
-    const m = { HIGH:{bg:'#eaf5ee',color:'#1a7a4e',border:'#a8d8b8'}, MODERATE:{bg:'#fef5e4',color:'#a07010',border:'#f0d48a'}, LOW:{bg:'#fdeaea',color:'#b01c1c',border:'#f0a8a8'} };
-    const s = m[level] || m.MODERATE;
-    return <span className="badge" style={{background:s.bg,color:s.color,borderColor:s.border}}>Confidence: {level}</span>;
-  };
-
-  if (!imgURL) return (
-    <div className="vision-tab" style={{alignItems:'center',justifyContent:'center',minHeight:'72vh'}}>
-      <div className={`dropzone${drag?' drag':''}`}
-        onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
-        onDrop={e=>{e.preventDefault();setDrag(false);processFile(e.dataTransfer.files[0])}}
-        onClick={()=>fileRef.current.click()}>
-        <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>processFile(e.target.files[0])}/>
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
-          <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <div className="dz-title">Drop a bone image here</div>
-        <div className="dz-sub">X-ray · MRI · micro-CT · or click to select · PNG, JPG</div>
+  // Empty state — centered dropzone (no image attached yet).
+  if (!imageFile && messages.length === 0) return (
+    <div className="chat-area">
+      <div className="chat-inner" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,minHeight:'72vh'}}>
+        <div className={`dropzone${drag?' drag':''}`}
+          onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
+          onDrop={e=>{e.preventDefault();setDrag(false);attach(e.dataTransfer.files[0])}}
+          onClick={()=>fileRef.current.click()}>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>attach(e.target.files[0])}/>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
+            <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="dz-title">Drop a bone image here</div>
+          <div className="dz-sub">X-ray · MRI · micro-CT · or click to select · PNG, JPG</div>
+        </div>
+        <div className="vision-note" style={{marginTop:16,textAlign:'center'}}>BoneGraph identifies the image with a vision-language model (LLaVA 13b), then you can chat about it. For research and educational use only — not a clinical diagnosis.</div>
       </div>
-      <div className="vision-note">BoneGraph identifies the image with a vision-language model (LLaVA 13b) and returns a structured identification. For research and educational use only — not a clinical diagnosis.</div>
     </div>
   );
 
-  const isError = status.startsWith('⚠️');
-
   return (
-    <div className="vision-tab">
-      <div className="analysis-view">
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <img src={imgURL} alt="scan" className="scan-img"/>
-          <button className="reupload" onClick={reset}>Upload different image</button>
-        </div>
-        <div className="report-pane">
-          <div style={{display:'flex',gap:8,marginBottom:14}}>
-            <input
-              type="text" value={prompt} placeholder="Ask about this image (optional) — e.g. is this cortical or trabecular bone?"
-              onChange={e=>setPrompt(e.target.value)}
-              onKeyDown={e=>{ if(e.key==='Enter') identify(); }}
-              disabled={busy}
-              style={{flex:1,padding:'9px 12px',fontSize:13,border:'1px solid var(--border)',borderRadius:8,background:'var(--bg)',color:'var(--text1)',outline:'none'}}/>
-            <button className="reupload" style={{whiteSpace:'nowrap',opacity:busy?0.6:1}} onClick={identify} disabled={busy}>
-              {busy ? 'Identifying…' : 'Identify'}
-            </button>
-          </div>
-
-          {busy ? (
-            <div className="report-loading"><Dots/><span>Identifying the image…</span></div>
-          ) : isError ? (
-            <div className="report-loading">{status}</div>
-          ) : ident ? (
-            <div>
-              <div className="report-heading">
-                <span>Identification</span>
-                {ident.confidence && <ConfBadge level={ident.confidence}/>}
-              </div>
-              <div className="report-disc">For research and educational use only. Not a clinical diagnosis.</div>
-              <div className="report-row">
-                <div className="report-key">Identification</div>
-                <div className="report-val" style={{fontWeight:600}}>{ident.identification}</div>
-              </div>
-              {[['Modality',ident.modality],['Morphology',ident.morphology],['Estimated scale',ident.estimated_scale],['Also considered',ident.runner_up]].map(([k,v]) => v && (
-                <div key={k} className="report-row"><div className="report-key">{k}</div><div className="report-val">{v}</div></div>
-              ))}
-              {ident.features?.length > 0 && (
-                <div className="report-row">
-                  <div className="report-key">Features</div>
-                  <ul className="report-findings">{ident.features.map((f,i)=><li key={i}>{f}</li>)}</ul>
+    <>
+      <div className="chat-area">
+        <div className="chat-inner">
+          <div className="messages">
+            {messages.map((m,i) => (
+              <div key={i} className={`msg ${m.role==='user'?'msg-user':'msg-asst'}`}>
+                {m.role==='assistant' && <div className="msg-avatar"><BoneSVG size={34}/></div>}
+                <div className="msg-bubble">
+                  {m.role==='user' ? (
+                    <>
+                      {m.imgURL && <img src={m.imgURL} alt="upload" className="vision-msg-img" style={{marginBottom: m.text?8:0}}/>}
+                      {m.text && <div className="msg-text">{m.text}</div>}
+                    </>
+                  ) : m.error ? (
+                    <div className="msg-text">⚠️ {m.error}</div>
+                  ) : m.ident ? (
+                    <IdentCard ident={m.ident}/>
+                  ) : (
+                    <div className="msg-text"><Dots/></div>
+                  )}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="report-loading">Add an optional prompt, then click Identify.</div>
-          )}
+              </div>
+            ))}
+            <div ref={endRef}/>
+          </div>
         </div>
       </div>
-    </div>
+      <div className="chat-bar">
+        <div style={{width:'100%',maxWidth:760,display:'flex',flexDirection:'column',gap:8}}>
+          <div className="vision-strip">
+            {imageURL && <img src={imageURL} alt="active"/>}
+            <span>{firstTurn ? 'Image ready — ask a question or just send to identify' : 'Chatting about the uploaded image'}</span>
+            <button className="reupload" style={{marginLeft:'auto',padding:'4px 10px',fontSize:12}} onClick={reset}>New image</button>
+          </div>
+          <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
+            <input className="chat-input"
+              placeholder={firstTurn ? 'Ask about this image (optional) — e.g. cortical or trabecular?' : 'Ask a follow-up…'}
+              value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } }}
+              disabled={busy}/>
+            <button className="send-btn" onClick={send} disabled={busy || !imageFile || (!firstTurn && !input.trim())}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 9h12M9 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1637,8 +1690,8 @@ function App() {
         <div className={`panel${tab==='reason'?' active':''}`}>
           <ReasonTab/>
         </div>
-        <div className={`panel-scroll${tab==='vision'?' active':''}`}>
-          <div className="panel-inner"><VisionTab/></div>
+        <div className={`panel${tab==='vision'?' active':''}`}>
+          <VisionTab/>
         </div>
       </main>
     </div>
