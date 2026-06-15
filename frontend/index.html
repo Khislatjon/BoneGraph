@@ -46,6 +46,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .sb-item.active{background:var(--amber-light);color:var(--amber)}
 .sb-item-icon{flex-shrink:0;opacity:.55;display:flex;align-items:center;justify-content:center}
 .sb-item.active .sb-item-icon{opacity:1}
+.sb-feedback-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
+.sb-feedback-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
 .sb-foot{padding:14px 16px;border-top:1px solid var(--border);min-height:73px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 .corpus-badge{font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:6px}
 .corpus-dot{width:6px;height:6px;border-radius:50%;background:#1a7a4e;flex-shrink:0}
@@ -1870,9 +1872,95 @@ const TABS = [
   { id:'vision', label:'Vision', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ];
 
+function FeedbackModal({ tab, onClose }) {
+  const [category, setCategory] = useState('idea');
+  const [name, setName]         = useState('');
+  const [message, setMessage]   = useState('');
+  const [email, setEmail]       = useState('');
+  const [status, setStatus]     = useState('idle'); // idle | sending | done | error
+  const canSend = name.trim() && message.trim();
+  const cats = [
+    ['bug','🐞 Bug'], ['idea','💡 Idea'], ['question','❓ Question'], ['praise','🎉 Praise'],
+  ];
+
+  const submit = async () => {
+    if (!canSend || status === 'sending') return;
+    setStatus('sending');
+    try {
+      const fd = new FormData();
+      fd.append('message', message.trim());
+      fd.append('name', name.trim());
+      fd.append('category', category);
+      fd.append('email', email.trim());
+      fd.append('tab', tab || '');
+      fd.append('page', window.location.pathname);
+      const r = await fetch('/api/feedback', { method:'POST', body: fd });
+      if (!r.ok) throw new Error('bad status');
+      setStatus('done');
+    } catch (e) { setStatus('error'); }
+  };
+
+  return (
+    <div onClick={onClose}
+      style={{position:'absolute',inset:0,zIndex:80,background:'rgba(0,0,0,.22)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div onClick={e => e.stopPropagation()}
+        style={{width:'min(460px,92%)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,.18)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Send feedback</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>BoneGraph is in public beta — tell us what works and what doesn't.</div>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
+        </div>
+
+        {status === 'done' ? (
+          <div style={{padding:'32px 20px',textAlign:'center'}}>
+            <div style={{fontSize:32,marginBottom:8}}>🙏</div>
+            <div style={{fontFamily:'var(--sans)',fontSize:15,fontWeight:600,color:'var(--text)'}}>Thanks for the feedback!</div>
+            <div style={{fontSize:13,color:'var(--text3)',marginTop:6}}>It's been recorded. We read every note.</div>
+            <button onClick={onClose}
+              style={{marginTop:18,background:'var(--navy)',color:'#fff',border:'none',borderRadius:8,padding:'8px 18px',fontSize:13,cursor:'pointer'}}>Close</button>
+          </div>
+        ) : (
+          <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              {cats.map(([id,label]) => (
+                <button key={id} onClick={() => setCategory(id)}
+                  style={{border:`1px solid ${category===id?'var(--amber)':'var(--border)'}`,background:category===id?'var(--amber-light)':'transparent',color:category===id?'var(--amber)':'var(--text2)',borderRadius:8,padding:'6px 12px',fontSize:13,cursor:'pointer',fontFamily:'var(--sans)'}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input value={name} onChange={e => setName(e.target.value)} autoFocus
+              placeholder="Full name *"
+              style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+            <textarea value={message} onChange={e => setMessage(e.target.value)}
+              placeholder="What's on your mind? Bugs, ideas, anything…" rows={5}
+              style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',fontSize:14,fontFamily:'var(--sans)',resize:'vertical',background:'var(--surface)',color:'var(--text)'}}/>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+              placeholder="Email (optional — only if you'd like a reply)"
+              style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+            {status === 'error' && (
+              <div style={{color:'#b02020',fontSize:13}}>Couldn't send — please try again.</div>
+            )}
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10,alignItems:'center'}}>
+              <button onClick={onClose} style={{background:'transparent',border:'none',color:'var(--text3)',fontSize:13,cursor:'pointer'}}>Cancel</button>
+              <button onClick={submit} disabled={!canSend || status==='sending'}
+                style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:8,padding:'8px 18px',fontSize:13,cursor:canSend?'pointer':'not-allowed',opacity:canSend?1:.5}}>
+                {status==='sending' ? 'Sending…' : 'Send feedback'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [tab, setTab]     = useState(() => localStorage.getItem('bl-tab') || 'ask');
   const [stats, setStats] = useState(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(setStats).catch(() => {});
@@ -1899,6 +1987,13 @@ function App() {
             </button>
           ))}
         </nav>
+        <div style={{padding:'0 8px 8px'}}>
+          <button onClick={() => setFeedbackOpen(true)} className="sb-feedback-btn"
+            title="Send feedback about the beta">
+            <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+            Send feedback
+          </button>
+        </div>
         <div className="sb-foot">
           <div className="corpus-badge">
             <div className="corpus-dot"/>
@@ -1926,6 +2021,7 @@ function App() {
           <VisionTab/>
         </div>
       </main>
+      {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)}/>}
     </div>
   );
 }

@@ -43,7 +43,7 @@ import time
 from pathlib import Path
 
 import requests
-from fastapi import FastAPI, Form, UploadFile, File, Query
+from fastapi import FastAPI, Form, UploadFile, File, Query, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1633,3 +1633,46 @@ async def vision_correction_delete(correction_id: int):
     from vision.correction_store import delete_correction, stats
     deleted = delete_correction(correction_id)
     return {"ok": deleted, "stats": stats()}
+
+
+# ── Public-beta feedback ──────────────────────────────────────────────────────
+
+@app.post("/api/feedback")
+async def submit_feedback(
+    request: Request,
+    message: str = Form(...),
+    name: str = Form(...),
+    category: str = Form("other"),
+    email: str = Form(""),
+    tab: str = Form(""),
+    page: str = Form(""),
+):
+    """Store one free-text feedback submission from the beta UI."""
+    from api.beta_feedback import save_feedback
+    msg = (message or "").strip()
+    if not msg:
+        raise HTTPException(status_code=422, detail="Feedback message is required.")
+    if not (name or "").strip():
+        raise HTTPException(status_code=422, detail="Full name is required.")
+    fid = save_feedback(
+        msg,
+        name=name,
+        category=category,
+        email=email,
+        tab=tab,
+        page=page,
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    return {"ok": True, "id": fid}
+
+
+@app.get("/api/feedback/list")
+async def list_feedback_admin(token: str = Query("")):
+    """Read submitted feedback. Gated by FEEDBACK_ADMIN_TOKEN when that env var
+    is set (recommended in production so submitted emails aren't public); open
+    locally when it's unset."""
+    from api.beta_feedback import list_feedback, count
+    admin_token = os.getenv("FEEDBACK_ADMIN_TOKEN", "")
+    if admin_token and token != admin_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return {"count": count(), "feedback": list_feedback()}
