@@ -176,6 +176,34 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .report-val{font-size:13.5px;line-height:1.55}
 .report-findings{padding-left:16px;display:flex;flex-direction:column;gap:4px}
 .report-findings li{font-size:13.5px;line-height:1.55}
+
+/* Mobile top bar — hidden on desktop, shown below the breakpoint */
+.mobile-bar{display:none}
+.sb-backdrop{display:none}
+
+@media (max-width:768px){
+  .app-shell{flex-direction:column}
+
+  /* Top bar with hamburger + wordmark */
+  .mobile-bar{display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--border);z-index:50}
+  .mobile-bar .hamb{background:none;border:none;cursor:pointer;display:flex;padding:6px;margin:-6px;color:var(--text2)}
+  .mobile-title{font-family:var(--sans);font-size:16px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px}
+
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar{position:fixed;top:0;left:0;z-index:70;width:264px;max-width:84%;height:100vh;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 24px rgba(0,0,0,.14)}
+  .sidebar.open{transform:translateX(0)}
+  .sb-backdrop{display:block;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,.32)}
+
+  /* Main fills the rest of the column */
+  .main{height:auto;flex:1;min-height:0}
+
+  /* Tighten desktop-width paddings for phone screens */
+  .chat-inner{padding:20px 16px 16px}
+  .panel-inner{padding:0 14px 32px}
+  .dropzone{padding:40px 22px}
+  .msg-bubble{max-width:92%}
+  .empty-state{margin-top:48px}
+}
 </style>
 </head>
 <body>
@@ -1961,16 +1989,25 @@ function App() {
   const [tab, setTab]     = useState(() => localStorage.getItem('bl-tab') || 'ask');
   const [stats, setStats] = useState(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(setStats).catch(() => {});
   }, []);
 
-  const switchTab = id => { setTab(id); localStorage.setItem('bl-tab', id); };
+  const switchTab = id => { setTab(id); localStorage.setItem('bl-tab', id); setSidebarOpen(false); };
+  const activeLabel = (TABS.find(t => t.id === tab) || {}).label || 'BoneGraph';
 
   return (
-    <div style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
-      <aside className="sidebar">
+    <div className="app-shell" style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
+      <div className="mobile-bar">
+        <button className="hamb" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+        </button>
+        <span className="mobile-title"><BoneSVG size={20}/>{activeLabel}</span>
+      </div>
+      {sidebarOpen && <div className="sb-backdrop" onClick={() => setSidebarOpen(false)}/>}
+      <aside className={`sidebar${sidebarOpen?' open':''}`}>
         <div className="sb-logo">
           <div className="sb-logo-icon"><BoneSVG size={34}/></div>
           <div className="sb-logo-meta">
