@@ -1353,46 +1353,69 @@ VISION_AGENT_PROMPT = (
 )
 
 
-def _vlm_identify_stream(img_b64: str, prompt: str, history: list[dict],
-                         result_out: dict, temperature: float = 0.2):
-    """Generator yielding raw token strings from the VLM adapter. The VLM
-    receives image + prompt and must emit the structured identification JSON.
-    After the iterator is exhausted, result_out['full'] holds the raw text.
+# Follow-up turns answer conversationally (prose), not as the rigid schema —
+# the first turn anchors the identification, then the user can chat about the
+# image like with an LLM ("is there anything unusual here?", "what about the
+# top edge?"). History gives the model the context for "this"/"it" references.
+VISION_CHAT_PROMPT = (
+    "You are a bone-imaging assistant discussing ONE image with the user. You "
+    "already identified this image earlier in the conversation (see history). "
+    "Answer the user's question conversationally and concisely, grounded in what "
+    "is actually visible in the image and consistent with your earlier "
+    "identification. Write normal prose — do NOT return JSON. When the user says "
+    "\"this\", \"it\", or \"the image\", they mean the uploaded image. Scope: bone "
+    "imaging only; if asked something outside that, say so briefly. For research "
+    "and education only — not a clinical diagnosis."
+)
+
+VLM_NUM_CTX = 4096  # llava:13b context window — also reported to the UI's CtxRing
+
+
+def _vlm_stream(img_b64: str, instruction: str, prompt: str, history: list[dict],
+                result_out: dict, temperature: float = 0.2):
+    """Generator yielding raw token strings from the VLM adapter. `instruction`
+    frames the task (structured identification vs conversational answer);
+    `prompt` is the user's text. After the iterator is exhausted, result_out
+    holds 'full', 'eval_count', and 'prompt_chars'.
 
     The VLM call is the ONLY model-specific code in the vision loop — keep it
     confined here so the model stays swappable (see the block comment above)."""
-    user_content = VISION_AGENT_PROMPT
+    user_content = instruction
     if prompt:
-        user_content += f"\n\nUser prompt: {prompt}"
+        user_content += f"\n\nUser question: {prompt}"
     messages: list[dict] = []
     # Light continuity: replay prior TEXT turns only (re-sending images each turn
-    # is unreliable across VLMs). Images are per-turn in Phase 1.
+    # is unreliable across VLMs). The current image is attached to this turn.
     for t in history:
         role = t.get("role")
         content = t.get("content")
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": str(content)})
     messages.append({"role": "user", "content": user_content, "images": [img_b64]})
+    result_out["prompt_chars"] = sum(len(m.get("content", "")) for m in messages)
 
     resp = requests.post(
         OLLAMA_URL,
         json={"model": VLM_MODEL, "messages": messages, "stream": True,
-              "options": {"temperature": temperature}},
+              "options": {"temperature": temperature, "num_ctx": VLM_NUM_CTX}},
         stream=True,
         timeout=240,
     )
     resp.raise_for_status()
     chunks: list[str] = []
+    evc = 0
     for line in resp.iter_lines():
         if not line:
             continue
         data = json.loads(line)
         if data.get("done"):
+            evc = data.get("eval_count", 0)
             continue
         t = data["message"]["content"]
         chunks.append(t)
         yield t
     result_out["full"] = "".join(chunks)
+    result_out["eval_count"] = evc
 
 
 def _parse_identification(raw: str) -> dict:
@@ -1426,16 +1449,21 @@ async def vision_chat(
     history: str = Form("[]"),
     mode: str = Form("deep"),
 ):
-    """SSE stream — vision agent (VLM) producing a structured identification.
+    """SSE stream — vision agent (VLM) over an uploaded image.
 
-    Phase 1 pipeline: Round 1 (VLM) only. `mode` is accepted for forward
-    compatibility but does not yet branch (the critic loop arrives in Phase 2).
+    First turn (no prior assistant reply in history) → a structured
+    identification card. Follow-up turns → a conversational prose answer, like
+    an LLM, with the image + history for context. `mode` is accepted for forward
+    compatibility (the critic loop arrives in Phase 2).
 
     SSE events:
       {"type": "round_start",    "phase": "vision", "round": 1}
-      {"type": "token",          "content": "...", "phase": "vision"}
-      {"type": "identification", "schema": {...}}
-      {"type": "done",           "identification": {...}, "rounds": [...], "mode": "..."}
+      {"type": "token",          "content": "...", "phase": "vision"}  (prose, follow-up turns)
+      {"type": "identification", "schema": {...}}                      (first turn only)
+      {"type": "done",           "kind": "identify"|"chat",
+                                 "identification": {...} | "answer": "...",
+                                 "prompt_tokens": N, "completion_tokens": N,
+                                 "context_window": N, "mode": "..."}
       {"type": "error",          "message": "..."}
     """
     from PIL import Image as PILImage
@@ -1453,17 +1481,29 @@ async def vision_chat(
     img_b64 = base64.b64encode(buf.getvalue()).decode()
     prior_turns: list[dict] = json.loads(history) if history else []
     user_prompt = (prompt or "").strip()
+    # A follow-up = the conversation already has an assistant reply. First turn
+    # identifies (structured); follow-ups chat (prose).
+    is_followup = any(t.get("role") == "assistant" and t.get("content") for t in prior_turns)
 
     def generate():
         try:
             yield f"data: {json.dumps({'type':'round_start','phase':'vision','round':1})}\n\n"
             res: dict = {}
-            for t in _vlm_identify_stream(img_b64, user_prompt, prior_turns, res):
+            instruction = VISION_CHAT_PROMPT if is_followup else VISION_AGENT_PROMPT
+            for t in _vlm_stream(img_b64, instruction, user_prompt, prior_turns, res):
                 yield f"data: {json.dumps({'type':'token','content':t,'phase':'vision'})}\n\n"
-            ident = _parse_identification(res.get("full", ""))
-            yield f"data: {json.dumps({'type':'identification','schema':ident})}\n\n"
-            rounds = [{"role": "vision", "round": 1, "identification": ident}]
-            yield f"data: {json.dumps({'type':'done','identification':ident,'rounds':rounds,'mode':(mode or 'deep')})}\n\n"
+            prompt_tokens = max(1, round(res.get("prompt_chars", 0) / 3.5))
+            usage = {"prompt_tokens": prompt_tokens,
+                     "completion_tokens": res.get("eval_count", 0),
+                     "context_window": VLM_NUM_CTX}
+            if is_followup:
+                answer = res.get("full", "").strip()
+                yield f"data: {json.dumps({'type':'done','kind':'chat','answer':answer, **usage, 'mode':(mode or 'deep')})}\n\n"
+            else:
+                ident = _parse_identification(res.get("full", ""))
+                yield f"data: {json.dumps({'type':'identification','schema':ident})}\n\n"
+                rounds = [{"role": "vision", "round": 1, "identification": ident}]
+                yield f"data: {json.dumps({'type':'done','kind':'identify','identification':ident,'rounds':rounds, **usage, 'mode':(mode or 'deep')})}\n\n"
         except requests.ConnectionError:
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve && ollama pull llava:13b'})}\n\n"
         except Exception as e:

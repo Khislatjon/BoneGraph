@@ -1472,13 +1472,14 @@ function VisionTab() {
   const [input, setInput]   = useState('');
   const [busy, setBusy]     = useState(false);
   const [drag, setDrag]     = useState(false);
+  const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
   const fileRef = useRef(null);
   const endRef  = useRef(null);
 
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior:'smooth' }); }, [messages, busy]);
 
   const attach = (f) => { if (!f || !f.type.startsWith('image/')) return; setImageFile(f); setImageURL(URL.createObjectURL(f)); };
-  const reset  = () => { setMessages([]); setImageFile(null); setImageURL(null); setInput(''); };
+  const reset  = () => { setMessages([]); setImageFile(null); setImageURL(null); setInput(''); setUsage(null); };
 
   const ConfBadge = ({ level }) => {
     const m = { HIGH:{bg:'#eaf5ee',color:'#1a7a4e',border:'#a8d8b8'}, MODERATE:{bg:'#fef5e4',color:'#a07010',border:'#f0d48a'}, LOW:{bg:'#fdeaea',color:'#b01c1c',border:'#f0a8a8'} };
@@ -1509,6 +1510,11 @@ function VisionTab() {
     for (let i = copy.length-1; i>=0; i--) { if (copy[i].role==='assistant') { copy[i] = {...copy[i], ...patch}; break; } }
     return copy;
   });
+  const appendLastAnswer = (chunk) => setMessages(prev => {
+    const copy = [...prev];
+    for (let i = copy.length-1; i>=0; i--) { if (copy[i].role==='assistant') { copy[i] = {...copy[i], answer:(copy[i].answer||'')+chunk}; break; } }
+    return copy;
+  });
 
   const firstTurn = !messages.some(m => m.role === 'assistant');
 
@@ -1527,9 +1533,10 @@ function VisionTab() {
       }
     }
 
+    const wasFollowup = !firstTurn;   // first turn identifies; follow-ups chat
     setMessages(prev => [...prev,
       { role:'user', text, imgURL: firstTurn ? imageURL : null },
-      { role:'assistant', ident:null, error:null },
+      { role:'assistant', ident:null, answer:wasFollowup?'':null, error:null },
     ]);
     setInput(''); setBusy(true);
 
@@ -1552,8 +1559,15 @@ function VisionTab() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'identification') patchLastAsst({ ident: ev.schema });
-          else if (ev.type === 'done')  patchLastAsst({ ident: ev.identification || null });
+          if (ev.type === 'token') { if (wasFollowup) appendLastAnswer(ev.content); }
+          else if (ev.type === 'identification') patchLastAsst({ ident: ev.schema });
+          else if (ev.type === 'done') {
+            if (ev.kind === 'chat') patchLastAsst({ answer: (ev.answer || '') });
+            else patchLastAsst({ ident: ev.identification || null });
+            if (typeof ev.prompt_tokens === 'number') {
+              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 4096, estimated: true });
+            }
+          }
           else if (ev.type === 'error') patchLastAsst({ error: ev.message });
         }
       }
@@ -1602,6 +1616,12 @@ function VisionTab() {
                     <div className="msg-text">⚠️ {m.error}</div>
                   ) : m.ident ? (
                     <IdentCard ident={m.ident}/>
+                  ) : m.answer != null ? (
+                    <div className="msg-text">
+                      {m.answer
+                        ? <>{m.answer}{busy && i===messages.length-1 && <span className="blink">▍</span>}</>
+                        : <Dots/>}
+                    </div>
                   ) : (
                     <div className="msg-text"><Dots/></div>
                   )}
@@ -1619,6 +1639,8 @@ function VisionTab() {
             <span>{firstTurn ? 'Image ready — ask a question or just send to identify' : 'Chatting about the uploaded image'}</span>
             <button className="reupload" style={{marginLeft:'auto',padding:'4px 10px',fontSize:12}} onClick={reset}>New image</button>
           </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+          {usage && <CtxRing usage={usage}/>}
           <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
             <input className="chat-input"
               placeholder={firstTurn ? 'Ask about this image (optional) — e.g. cortical or trabecular?' : 'Ask a follow-up…'}
@@ -1628,6 +1650,7 @@ function VisionTab() {
             <button className="send-btn" onClick={send} disabled={busy || !imageFile || (!firstTurn && !input.trim())}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 9h12M9 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
+          </div>
           </div>
         </div>
       </div>
