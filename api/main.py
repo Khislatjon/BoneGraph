@@ -1320,3 +1320,153 @@ async def analyse(image: UploadFile = File(...)):
         "recommendation": "Manual review recommended.",
         "confidence": "LOW",
     }
+
+
+# ── Vision tab — Phase 1: chat shell + structured VLM identification ───────────
+#
+# Mirrors the Reasoning tab's /api/reason/chat pipeline, with the agent swapped
+# for a vision-language model answering "what am I looking at?". Phase 1 ships
+# ONLY round 1 (the VLM agent) — grounding, critic, evidence and correction
+# memory are Phases 2–3 (see docs/vision/architecture.md).
+#
+# The VLM is a deliberately ISOLATED, swappable adapter: everything downstream
+# depends on the structured identification schema below, never on llava-specific
+# behaviour. Swapping llava:13b → a medical VLM → a fine-tuned model is a change
+# to VLM_MODEL + this one prompt, with zero changes to the loop.
+
+VISION_AGENT_PROMPT = (
+    "You are a bone-imaging identification assistant. You are shown ONE image "
+    "and (optionally) a user prompt. Identify what the image shows.\n\n"
+    "Scope: musculoskeletal / bone imaging only — X-ray, MRI, micro-CT, "
+    "histology. If the image is clearly NOT a bone image, set \"identification\" "
+    "to \"not a bone image\" and \"confidence\" to \"LOW\".\n\n"
+    "Return ONLY a JSON object with these exact fields (no prose, no markdown):\n"
+    "{\n"
+    '  "identification": "<single most likely structure/tissue, e.g. cortical bone, trabecular bone, vertebral body>",\n'
+    '  "modality": "<X-ray | MRI | micro-CT | histology | unknown>",\n'
+    '  "morphology": "<1-2 sentence description of the visible morphology>",\n'
+    '  "estimated_scale": "<rough field of view, e.g. whole bone (cm), trabecular network (mm), unknown>",\n'
+    '  "features": ["<short salient feature>", "..."],\n'
+    '  "confidence": "HIGH | MODERATE | LOW",\n'
+    '  "runner_up": "<second most likely identification, or empty string>"\n'
+    "}"
+)
+
+
+def _vlm_identify_stream(img_b64: str, prompt: str, history: list[dict],
+                         result_out: dict, temperature: float = 0.2):
+    """Generator yielding raw token strings from the VLM adapter. The VLM
+    receives image + prompt and must emit the structured identification JSON.
+    After the iterator is exhausted, result_out['full'] holds the raw text.
+
+    The VLM call is the ONLY model-specific code in the vision loop — keep it
+    confined here so the model stays swappable (see the block comment above)."""
+    user_content = VISION_AGENT_PROMPT
+    if prompt:
+        user_content += f"\n\nUser prompt: {prompt}"
+    messages: list[dict] = []
+    # Light continuity: replay prior TEXT turns only (re-sending images each turn
+    # is unreliable across VLMs). Images are per-turn in Phase 1.
+    for t in history:
+        role = t.get("role")
+        content = t.get("content")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": str(content)})
+    messages.append({"role": "user", "content": user_content, "images": [img_b64]})
+
+    resp = requests.post(
+        OLLAMA_URL,
+        json={"model": VLM_MODEL, "messages": messages, "stream": True,
+              "options": {"temperature": temperature}},
+        stream=True,
+        timeout=240,
+    )
+    resp.raise_for_status()
+    chunks: list[str] = []
+    for line in resp.iter_lines():
+        if not line:
+            continue
+        data = json.loads(line)
+        if data.get("done"):
+            continue
+        t = data["message"]["content"]
+        chunks.append(t)
+        yield t
+    result_out["full"] = "".join(chunks)
+
+
+def _parse_identification(raw: str) -> dict:
+    """Parse the VLM's raw output into the structured identification schema.
+    Never raises — falls back to a low-confidence 'unclear' identification so a
+    malformed VLM response never breaks the stream."""
+    parsed = _safe_json(raw) or {}
+    feats = parsed.get("features")
+    if isinstance(feats, str):
+        feats = [feats]
+    if not isinstance(feats, list):
+        feats = []
+    conf = str(parsed.get("confidence", "")).strip().upper()
+    if conf not in ("HIGH", "MODERATE", "LOW"):
+        conf = "LOW"
+    return {
+        "identification":  str(parsed.get("identification") or "").strip() or "unclear",
+        "modality":        str(parsed.get("modality") or "").strip() or "unknown",
+        "morphology":      str(parsed.get("morphology") or "").strip(),
+        "estimated_scale": str(parsed.get("estimated_scale") or "").strip() or "unknown",
+        "features":        [str(f).strip() for f in feats if str(f).strip()][:8],
+        "confidence":      conf,
+        "runner_up":       str(parsed.get("runner_up") or "").strip(),
+    }
+
+
+@app.post("/api/vision/chat")
+async def vision_chat(
+    image: UploadFile = File(...),
+    prompt: str = Form(""),
+    history: str = Form("[]"),
+    mode: str = Form("deep"),
+):
+    """SSE stream — vision agent (VLM) producing a structured identification.
+
+    Phase 1 pipeline: Round 1 (VLM) only. `mode` is accepted for forward
+    compatibility but does not yet branch (the critic loop arrives in Phase 2).
+
+    SSE events:
+      {"type": "round_start",    "phase": "vision", "round": 1}
+      {"type": "token",          "content": "...", "phase": "vision"}
+      {"type": "identification", "schema": {...}}
+      {"type": "done",           "identification": {...}, "rounds": [...], "mode": "..."}
+      {"type": "error",          "message": "..."}
+    """
+    from PIL import Image as PILImage
+
+    contents = await image.read()
+    try:
+        pil_img = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        def err_gen():
+            yield f"data: {json.dumps({'type':'error','message':'Could not read image file.'})}\n\n"
+        return StreamingResponse(err_gen(), media_type="text/event-stream")
+
+    buf = io.BytesIO()
+    pil_img.save(buf, format="PNG")
+    img_b64 = base64.b64encode(buf.getvalue()).decode()
+    prior_turns: list[dict] = json.loads(history) if history else []
+    user_prompt = (prompt or "").strip()
+
+    def generate():
+        try:
+            yield f"data: {json.dumps({'type':'round_start','phase':'vision','round':1})}\n\n"
+            res: dict = {}
+            for t in _vlm_identify_stream(img_b64, user_prompt, prior_turns, res):
+                yield f"data: {json.dumps({'type':'token','content':t,'phase':'vision'})}\n\n"
+            ident = _parse_identification(res.get("full", ""))
+            yield f"data: {json.dumps({'type':'identification','schema':ident})}\n\n"
+            rounds = [{"role": "vision", "round": 1, "identification": ident}]
+            yield f"data: {json.dumps({'type':'done','identification':ident,'rounds':rounds,'mode':(mode or 'deep')})}\n\n"
+        except requests.ConnectionError:
+            yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve && ollama pull llava:13b'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

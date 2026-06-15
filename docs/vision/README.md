@@ -15,7 +15,9 @@ from the existing corpus PDFs.
 
 Docs:
 
-- [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original VLM integration plan
-- [`../reasoning/architecture.md`](../reasoning/architecture.md) — the pipeline this tab will mirror
+- [`architecture.md`](architecture.md) — **the authoritative design** for the rebuilt tab (mirrors the Reasoning tab)
+- [`phase0_reuse_map.md`](phase0_reuse_map.md) — audit of what the reasoning pipeline lends to vision
+- [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original one-shot VLM integration plan
+- [`../reasoning/architecture.md`](../reasoning/architecture.md) — the pipeline this tab mirrors
 
 Add Vision-tab design notes and the rebuild plan here as they take shape.

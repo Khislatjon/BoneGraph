@@ -18,3 +18,4 @@ nltk
 ollama
 openpyxl>=3.1
 python-multipart
+Pillow>=10.0
