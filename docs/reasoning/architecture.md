@@ -12,9 +12,14 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 
 ## Design principles
 
-1. **The agent stays pure.** The reasoning agent (an LLM) reasons from the
-   question alone — no retrieval injected into its prompt. This keeps the tab's
-   identity distinct from the Chat tab and keeps the chat context window lean.
+1. **The agent reasons from the question + the user's own rules — never from
+   retrieval.** No literature or knowledge-graph evidence is injected into the
+   agent's prompt (that lives in the critic), which keeps the tab's identity
+   distinct from the Chat tab and the context window lean. The one thing primed
+   into the agent is the user's *learned rules*: they go into its system prompt
+   so it complies on the **first pass** instead of waiting for the critic to
+   catch a violation and force a revision. Retrieval-based evidence still never
+   reaches the agent.
 2. **Determinism where it matters.** Physical grounding is code, not an LLM —
    same input, same outcome. User corrections become deterministic rules.
 3. **The critic is the judgement layer.** All probabilistic, evidence-weighing
@@ -40,7 +45,7 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
                           └────────┬────────┘
                                    ▼
                           ┌─────────────────┐
-                          │ Load user rules │  (enabled only)
+                          │ Load user rules │  (enabled only; primes agent + critic)
                           └────────┬────────┘
                                    ▼
                    ┌───────────────────────────────┐
@@ -56,8 +61,9 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
                            │                       │
                            ▼                       ▼
                    ┌──────────────────────────────────────────┐
-                   │ ROUND 1 · Reasoning agent (streamed)     │  pure LLM
-                   │ huatuogpt-bone · Point/Basis format      │
+                   │ ROUND 1 · Reasoning agent (streamed)     │  LLM + user rules
+                   │ huatuogpt-bone · Point/Basis format      │  (no retrieval)
+                   │ primed with user rules → right 1st pass  │
                    └────────────────────┬─────────────────────┘
                                         ▼
                    ┌──────────────────────────────────────────┐
@@ -119,12 +125,39 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 | Component | Type | Role |
 |-----------|------|------|
 | Topic guard | lexical + `llama3.2:3b` | Keep questions in the bone domain. Shared with Chat tab. |
-| Reasoning agent | `huatuogpt-bone` | Produce a 1–4 point reasoning chain. Pure-LLM, streamed. |
+| Reasoning agent | `huatuogpt-bone` | Produce a 1–4 point reasoning chain. Streamed. Primed with the user's active rules so it complies on the first pass; no retrieval/KG evidence. |
 | Physical grounding | pure Python | Deterministic rule check over the answer text. |
 | Critic | `huatuogpt-bone` (JSON) | Review the answer against violations + evidence; verdict `accept`/`dispute`/`conflicting_evidence`. |
 | Rule extractor | `llama3.2:3b` (JSON) | Turn a 👎 + free-text correction into a structured rule proposal. |
 | Evidence: literature | `BoneGraphRetriever` | Top-3 corpus passages for the critic (A1). |
 | Evidence: knowledge graph | `ontology.db` | 1-hop edges around question concepts for the critic (A4). |
+
+---
+
+## Agent vs critic — what each can access
+
+Two LLM roles, deliberately given different inputs. The agent reasons; the
+critic judges. Built from `reason_chat` / `_call_critic` in `api/main.py`.
+
+| Input | Reasoning agent | Critic |
+|-------|:---------------:|:------:|
+| The question | ✅ | ✅ |
+| Conversation history (prior turns) | ✅ | ❌ |
+| User's learned rules | ✅ **primed into system prompt** | ✅ as a summary |
+| The agent's answer | produces it | ✅ reviews it |
+| Physical-grounding violations | ❌ (only via critic notes on revision) | ✅ tagged `builtin`/`user` |
+| Retrieved literature `[L#]` | ❌ | ✅ top-3 (≤ ~1200 tok) |
+| Knowledge-graph facts | ❌ | ✅ 1-hop edges (≤ ~300 tok) |
+| Critic notes / suggested revision | ✅ only in Round 3 revision | produces them |
+| Majority / minority positions | ✅ only in a conflict revision | produces them |
+| Model | `huatuogpt-bone`, streamed | `huatuogpt-bone`, one-shot JSON |
+| Output | Point/Basis answer | verdict `accept`/`dispute`/`conflicting_evidence` |
+
+**In one line:** the agent sees *the question + history + the user's own rules*
+and nothing probabilistic; the critic sees *everything evidential* (violations,
+literature, KG) but **not** the conversation history. User rules are the only
+channel that reaches **both** — deliberately, because they are deterministic
+ground truth, not evidence to be weighed.
 
 ---
 
@@ -136,16 +169,16 @@ every violation is tagged with its `source`.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ PHYSICAL GROUNDING                                          │
-│                                                            │
+│                                                             │
 │  Tier 1 · built-in (8 rules, in code)        source=builtin │
-│    cortical/trabecular modulus, density, BV/TV,            │
-│    osteoporosis T-score, Wolff direction,                 │
-│    density–strength scaling, lytic lesion                 │
-│                                                            │
-│  Tier 2 · user rules (SQLite)                              │
+│    cortical/trabecular modulus, density, BV/TV,             │
+│    osteoporosis T-score, Wolff direction,                   │
+│    density–strength scaling, lytic lesion                   │
+│                                                             │
+│  Tier 2 · user rules (SQLite)                               │ 
 │    • from feedback (👎 → extractor → confirm) source=user   │
 │    • imported (CSV/XLSX bulk)               source=user     │
-│      origin column distinguishes them                      │
+│      origin column distinguishes them                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -155,6 +188,13 @@ Rule kinds:
   `[lo, hi]`.
 - **forbid_pattern** — a sentence matching any `forbidden_terms` near
   `context_terms` is a violation, unless it also matches `exception_terms`.
+- **comparative** — an ordinal/directional claim "A `<comparator>` B" (e.g.
+  *trabecular fails before cortical*). Stores the asserted order
+  (`first_terms` = A, `second_terms` = B) plus `comparator_terms` naming the
+  axis. A sentence on that axis that states the **reverse** order (B before A)
+  is a violation. Negated/contrast sentences (e.g. *"cortical does **not** fail
+  before trabecular"*) are skipped to avoid mis-flagging a correct rebuttal.
+  Heuristic by design — a flag for the critic to weigh, not a truth oracle.
 
 User rules can be enabled/disabled/deleted in the "Your rules" panel; disabled
 rules stay stored but drop out of the check.
@@ -169,7 +209,8 @@ rules stay stored but drop out of the check.
 👎  →  free-text correction
         │
         ▼
-   rule_extractor (llama3.2 JSON)  →  proposed rule (range | forbid | none)
+   rule_extractor (llama3.2 JSON)  →  proposed rule
+                                      (range | forbid_pattern | comparative | none)
         │
         ▼
    user confirms / edits in the proposed-rule card
@@ -178,8 +219,11 @@ rules stay stored but drop out of the check.
    user_rules table (Tier 2)
         │
         ▼
-   applied on EVERY future request → caught by grounding → critic forced to
-   dispute (deterministic override) → agent revises → "second chat is better"
+   applied on EVERY future request, two ways:
+     • primed into the agent's prompt → usually correct on the FIRST pass
+     • checked deterministically by grounding → if the agent ignores the prime,
+       a user violation forces the critic to dispute → agent revises
+   → "second chat is better"
 ```
 
 Bulk path (A5): a CSV/XLSX of rules → `rule_import` (parse → validate → dedup →

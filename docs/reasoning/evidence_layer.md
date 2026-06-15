@@ -30,8 +30,11 @@ reviewing. That has three failure modes:
    already blended disagreeing literature into one averaged answer.
 
 The fix: arm the **critic** (not the agent) with two evidence channels.
-The agent stays a pure reasoner — that is the tab's identity, and keeping
-evidence out of the agent prompt keeps the chat context window lean.
+The agent stays free of *retrieved evidence* — that is the tab's identity, and
+keeping literature/KG out of the agent prompt keeps the chat context window
+lean. (The agent *is* primed with the user's own learned rules — see
+[`architecture.md`](architecture.md) — but never with retrieval-based evidence,
+which is what this layer governs.)
 
 ---
 
@@ -156,8 +159,9 @@ based on the bulk of literature" while letting the user re-weight later.
 | A2 | `conflicting_evidence` verdict + caveat revision | 🟢 built (gated on citing both sides) |
 | A4 | KG 1-hop / raw-edge context → critic | 🟢 built (`reasoning/kg_context.py`) |
 
-The agent remains pure-LLM throughout. The evidence layer touches only the
-critic.
+No *retrieved evidence* reaches the agent throughout — the evidence layer
+touches only the critic. (The agent's prompt is still primed with the user's
+learned rules; that is a separate, deterministic channel, not evidence.)
 
 ### A4 as built
 

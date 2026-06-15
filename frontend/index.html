@@ -943,6 +943,12 @@ function ruleSummary(r) {
     const forb = (p.forbidden_terms || []).join(', ');
     return `avoid “${forb}”${ctx ? ` near ${ctx}` : ''}`;
   }
+  if (r.kind === 'comparative') {
+    const a = (p.first_terms || []).join('/');
+    const b = (p.second_terms || []).join('/');
+    const ax = (p.comparator_terms || []).join(', ');
+    return `${a} before/exceeds ${b}${ax ? ` · axis: ${ax}` : ''}`;
+  }
   return JSON.stringify(p);
 }
 
@@ -1299,7 +1305,7 @@ function ProposedRuleCard({ proposal, onConfirm, onDismiss, correctionId }) {
     <div style={{marginTop:10,border:'1px solid var(--amber-border)',borderRadius:8,padding:10,background:'rgba(176,120,32,.05)'}}>
       <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:6}}>
         Proposed rule from your feedback
-        <span style={{marginLeft:6,fontWeight:400,color:'var(--text3)'}}>· {kind === 'range' ? 'numeric range' : 'forbidden pattern'}</span>
+        <span style={{marginLeft:6,fontWeight:400,color:'var(--text3)'}}>· {kind === 'range' ? 'numeric range' : kind === 'comparative' ? 'comparative / ordinal' : 'forbidden pattern'}</span>
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:12}}>
         <RuleField label="Name" value={editable.name} onChange={v => setEditable({...editable, name:v})}/>
@@ -1316,6 +1322,12 @@ function ProposedRuleCard({ proposal, onConfirm, onDismiss, correctionId }) {
           <RuleField label="Context terms"   value={(p.context_terms||[]).join(', ')}   onChange={v => setList('context_terms', v)}/>
           <RuleField label="Forbidden terms" value={(p.forbidden_terms||[]).join(', ')} onChange={v => setList('forbidden_terms', v)}/>
           <RuleField label="Exception terms" value={(p.exception_terms||[]).join(', ')} onChange={v => setList('exception_terms', v)}/>
+          <RuleField label="Explanation" value={p.explanation} onChange={v => setParam('explanation', v)}/>
+        </>}
+        {kind === 'comparative' && <>
+          <RuleField label="First terms"      value={(p.first_terms||[]).join(', ')}      onChange={v => setList('first_terms', v)}/>
+          <RuleField label="Second terms"     value={(p.second_terms||[]).join(', ')}     onChange={v => setList('second_terms', v)}/>
+          <RuleField label="Comparator terms" value={(p.comparator_terms||[]).join(', ')} onChange={v => setList('comparator_terms', v)}/>
           <RuleField label="Explanation" value={p.explanation} onChange={v => setParam('explanation', v)}/>
         </>}
       </div>

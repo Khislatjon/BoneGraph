@@ -315,6 +315,64 @@ def _compile_user_rule(user_rule: dict) -> Rule | None:
             return bad
         return Rule(rid, name, fn)
 
+    if kind == "comparative":
+        # Ordinal / directional claim "A <comparator> B" (e.g. "trabecular fails
+        # before cortical"). The rule encodes the asserted order: first_terms = A,
+        # second_terms = B, comparator_terms = the axis words. A sentence violates
+        # the rule when it sits on that axis (mentions A, B, and a comparator) but
+        # asserts the REVERSE order — the earliest B-term appears before the
+        # earliest A-term. This catches the agent restating "cortical fails before
+        # trabecular" after the user taught the opposite. It is heuristic (a flag
+        # for the critic to weigh), not a hard truth oracle.
+        first = params.get("first_terms") or []
+        second = params.get("second_terms") or []
+        comparators = params.get("comparator_terms") or []
+        explanation = params.get("explanation") or ""
+
+        # The comparator words gate which sentences are "on this axis" (so we
+        # don't flag a sentence that merely co-mentions both entities without
+        # comparing them). Match on the full phrases AND their individual
+        # significant words, so "fails before" still catches "fail before" /
+        # "failed before". Short connective words (than, more, …) are dropped.
+        _STOP = {"than", "more", "less", "much", "with", "that", "this", "from", "into", "over"}
+        gate_tokens = set(comparators)
+        for phrase in comparators:
+            for w in phrase.split():
+                if len(w) >= 4 and w not in _STOP:
+                    gate_tokens.add(w)
+
+        # Negation / contrast cues: a sentence like "cortical does NOT fail before
+        # trabecular, rather trabecular fails first" states the operands in reverse
+        # order on the page but is actually asserting the CORRECT claim (often the
+        # agent explicitly correcting the question's premise). The naive operand-
+        # order check would mis-flag it, so we skip any sentence carrying a negation
+        # cue. We'd rather miss a rare genuinely-negated violation than dispute a
+        # correct answer.
+        _NEG = (" not ", "n't", "never", "rather than", "instead of", "instead,",
+                "contrary to", "as opposed to", "not before", "does not", "do not")
+
+        def fn(text: str, _first=first, _second=second, _gate=gate_tokens,
+               _exp=explanation, _name=name, _neg=_NEG) -> list[str]:
+            bad = []
+            for sentence in re.split(r"(?<=[.!?])\s+", text):
+                low = sentence.lower()
+                if not any(c in low for c in _gate):
+                    continue
+                if any(neg in low for neg in _neg):
+                    continue
+                a_pos = min((low.find(t) for t in _first if t in low), default=-1)
+                b_pos = min((low.find(t) for t in _second if t in low), default=-1)
+                if a_pos < 0 or b_pos < 0:
+                    continue
+                # Asserted order is A before B (a_pos < b_pos). Flag the reverse.
+                if b_pos < a_pos:
+                    detail = f"User rule '{_name}' triggered: \"{sentence.strip()}\" — asserts the reverse order"
+                    if _exp:
+                        detail += f". Expected: {_exp}"
+                    bad.append(detail)
+            return bad
+        return Rule(rid, name, fn)
+
     return None
 
 

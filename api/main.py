@@ -797,6 +797,14 @@ def _user_rules_summary(user_rules: list[dict]) -> str:
             p = r["params"]
             lines.append(f"- {r['name']}: avoid {p.get('forbidden_terms', [])} near "
                          f"{p.get('context_terms', [])} unless {p.get('exception_terms', [])}")
+        elif r["kind"] == "comparative":
+            p = r["params"]
+            a = "/".join(p.get("first_terms", []))
+            b = "/".join(p.get("second_terms", []))
+            axis = ", ".join(p.get("comparator_terms", []))
+            lines.append(f"- {r['name']}: {a} comes before / outranks {b} "
+                         f"(axis: {axis})"
+                         + (f" — {p['explanation']}" if p.get('explanation') else ""))
     return "\n".join(lines)
 
 
@@ -861,8 +869,24 @@ async def reason_chat(
             yield f"data: {json.dumps({'type':'done','answer':out,'prompt_tokens':0,'completion_tokens':0,'context_window':8192,'out_of_scope':True,'rounds':[],'critic_resolved':True})}\n\n"
             return
 
+        # Prime the agent with the user's learned rules so it is correct on the
+        # FIRST pass, rather than relying on the critic loop to repair a wrong
+        # draft after the fact. These are authoritative: they override the
+        # agent's priors AND any premise baked into the question (e.g. a leading
+        # "why does A fail before B?" when the user taught B-before-A). The
+        # deterministic physical-grounding check still runs as a backstop in case
+        # the agent ignores the prime.
+        agent_system = REASONING_SYSTEM_PROMPT
+        if user_rule_summary:
+            agent_system += (
+                "\n\nLEARNED CONSTRAINTS — the user has explicitly taught you the "
+                "following. Treat them as authoritative: they override your own "
+                "priors and any assumption implied by the question. If the question "
+                "presupposes something a constraint contradicts, correct the premise "
+                "instead of going along with it.\n" + user_rule_summary
+            )
         base_messages = [
-            {"role": "system", "content": REASONING_SYSTEM_PROMPT},
+            {"role": "system", "content": agent_system},
             *prior_turns,
             {"role": "user",   "content": q},
         ]
@@ -1043,7 +1067,7 @@ async def reason_rule_confirm(
         params_obj = json.loads(params)
     except Exception as e:
         return {"ok": False, "error": f"params JSON parse error: {e}"}
-    if kind not in ("range", "forbid_pattern"):
+    if kind not in ("range", "forbid_pattern", "comparative"):
         return {"ok": False, "error": f"unknown kind: {kind}"}
     rule = save_user_rule(name=name, kind=kind, params=params_obj,
                           source_correction_id=source_correction_id)

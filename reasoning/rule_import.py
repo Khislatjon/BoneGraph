@@ -12,14 +12,16 @@ problems instead of silently dropping them.
 Both formats share one table layout (first row = header):
 
     name, kind, unit, lo, hi, context_terms, value_terms,
-    forbidden_terms, exception_terms, explanation
+    forbidden_terms, exception_terms, explanation,
+    first_terms, second_terms, comparator_terms
 
-  - kind ∈ {range, forbid_pattern}
+  - kind ∈ {range, forbid_pattern, comparative}
   - multi-value cells separated by ';'
   - empty cells ignored
 
 A `range` row → {unit, lo, hi, context_terms, value_terms}
 A `forbid_pattern` row → {context_terms, forbidden_terms, exception_terms, explanation}
+A `comparative` row → {first_terms, second_terms, comparator_terms, explanation}
 
 Public API:
     parse_file(filename, data: bytes) -> list[dict rows]
@@ -33,18 +35,20 @@ import csv
 import io
 
 COLUMNS = ["name", "kind", "unit", "lo", "hi", "context_terms",
-           "value_terms", "forbidden_terms", "exception_terms", "explanation"]
+           "value_terms", "forbidden_terms", "exception_terms", "explanation",
+           "first_terms", "second_terms", "comparator_terms"]
 
 MAX_IMPORT_RULES = 50   # practical cap — see docs/reasoning; beyond this the
                         # violation badge becomes noise from overlapping rules.
 
 TEMPLATE_CSV = (
-    "name,kind,unit,lo,hi,context_terms,value_terms,forbidden_terms,exception_terms,explanation\n"
-    "Cortical modulus 10-25 GPa,range,GPa,10,25,cortical,modulus;stiffness;young,,,\n"
-    "Trabecular modulus 0.01-3 GPa,range,GPa,0.01,3,trabecular;cancellous,modulus;stiffness,,,\n"
-    "Cortical density 1.8-2.0,range,g/cm^3,1.8,2.0,cortical,density,,,\n"
-    "Loading strengthens bone,forbid_pattern,,,,bone;loading,,weaken;loses mass;reduces density,disuse;unloading;microgravity,Mechanical loading strengthens bone per Wolff's law\n"
-    "Lytic lesion not negligible,forbid_pattern,,,,lytic;lesion;vertebra,,negligible;no effect;minimal,,Even small lytic lesions reduce vertebral failure load\n"
+    "name,kind,unit,lo,hi,context_terms,value_terms,forbidden_terms,exception_terms,explanation,first_terms,second_terms,comparator_terms\n"
+    "Cortical modulus 10-25 GPa,range,GPa,10,25,cortical,modulus;stiffness;young,,,,,,\n"
+    "Trabecular modulus 0.01-3 GPa,range,GPa,0.01,3,trabecular;cancellous,modulus;stiffness,,,,,,\n"
+    "Cortical density 1.8-2.0,range,g/cm^3,1.8,2.0,cortical,density,,,,,,\n"
+    "Loading strengthens bone,forbid_pattern,,,,bone;loading,,weaken;loses mass;reduces density,disuse;unloading;microgravity,Mechanical loading strengthens bone per Wolff's law,,,\n"
+    "Lytic lesion not negligible,forbid_pattern,,,,lytic;lesion;vertebra,,negligible;no effect;minimal,,Even small lytic lesions reduce vertebral failure load,,,\n"
+    "Trabecular fails before cortical,comparative,,,,,,,,Trabecular fails before cortical due to higher surface area,trabecular;cancellous,cortical;compact,fails before;fails first;weaker;lower strength\n"
 )
 
 
@@ -104,8 +108,8 @@ def validate_row(row: dict) -> tuple[dict | None, str | None]:
     kind = str(row.get("kind", "")).strip().lower()
     if not name:
         return None, "missing name"
-    if kind not in ("range", "forbid_pattern"):
-        return None, f"kind must be 'range' or 'forbid_pattern' (got '{kind}')"
+    if kind not in ("range", "forbid_pattern", "comparative"):
+        return None, f"kind must be 'range', 'forbid_pattern' or 'comparative' (got '{kind}')"
 
     if kind == "range":
         unit = str(row.get("unit", "")).strip()
@@ -124,6 +128,21 @@ def validate_row(row: dict) -> tuple[dict | None, str | None]:
         params = {"unit": unit, "lo": lo, "hi": hi,
                   "context_terms": ctx, "value_terms": _split(row.get("value_terms"))}
         return {"name": name, "kind": "range", "params": params}, None
+
+    if kind == "comparative":
+        first = _split(row.get("first_terms"))
+        second = _split(row.get("second_terms"))
+        comp = _split(row.get("comparator_terms"))
+        if not first:
+            return None, "comparative needs at least one first_term"
+        if not second:
+            return None, "comparative needs at least one second_term"
+        if not comp:
+            return None, "comparative needs at least one comparator_term"
+        params = {"first_terms": first, "second_terms": second,
+                  "comparator_terms": comp,
+                  "explanation": str(row.get("explanation", "")).strip()}
+        return {"name": name, "kind": "comparative", "params": params}, None
 
     # forbid_pattern
     ctx = _split(row.get("context_terms"))
@@ -144,5 +163,8 @@ def rule_signature(rule: dict) -> tuple:
     if rule["kind"] == "range":
         return ("range", p["unit"].lower(), p["lo"], p["hi"],
                 tuple(sorted(p["context_terms"])), tuple(sorted(p.get("value_terms", []))))
+    if rule["kind"] == "comparative":
+        return ("comparative", tuple(sorted(p["first_terms"])),
+                tuple(sorted(p["second_terms"])), tuple(sorted(p["comparator_terms"])))
     return ("forbid_pattern", tuple(sorted(p["context_terms"])),
             tuple(sorted(p["forbidden_terms"])), tuple(sorted(p.get("exception_terms", []))))
