@@ -1340,9 +1340,22 @@ VISION_AGENT_PROMPT = (
     "Scope: musculoskeletal / bone imaging only — X-ray, MRI, micro-CT, "
     "histology. If the image is clearly NOT a bone image, set \"identification\" "
     "to \"not a bone image\" and \"confidence\" to \"LOW\".\n\n"
+    "BE AS SPECIFIC AS THE IMAGE ALLOWS. Name the actual anatomical structure, "
+    "not just the tissue class:\n"
+    "  - For radiographs / MRI: name the specific bone(s) and region, and the "
+    "view if discernible — e.g. \"radius and ulna (forearm), AP view\", "
+    "\"proximal femur\", \"lumbar vertebra L4\". Do NOT answer with a broad tissue "
+    "term like \"cortical bone\" when the bone itself is identifiable.\n"
+    "  - For micro-CT / histology, where gross anatomy is not visible: identify "
+    "the tissue type and structure — e.g. \"trabecular bone (cancellous network)\", "
+    "\"cortical bone (osteonal)\".\n"
+    "Only fall back to a broad term if the specific structure genuinely cannot "
+    "be determined, and lower the confidence accordingly. Put the tissue class "
+    "(cortical / trabecular) in \"tissue_type\".\n\n"
     "Return ONLY a JSON object with these exact fields (no prose, no markdown):\n"
     "{\n"
-    '  "identification": "<single most likely structure/tissue, e.g. cortical bone, trabecular bone, vertebral body>",\n'
+    '  "identification": "<most specific anatomical structure, e.g. radius and ulna (forearm), proximal femur, lumbar vertebra L4>",\n'
+    '  "tissue_type": "<cortical | trabecular | mixed | not applicable>",\n'
     '  "modality": "<X-ray | MRI | micro-CT | histology | unknown>",\n'
     '  "morphology": "<1-2 sentence description of the visible morphology>",\n'
     '  "estimated_scale": "<rough field of view, e.g. whole bone (cm), trabecular network (mm), unknown>",\n'
@@ -1433,6 +1446,7 @@ def _parse_identification(raw: str) -> dict:
         conf = "LOW"
     return {
         "identification":  str(parsed.get("identification") or "").strip() or "unclear",
+        "tissue_type":     str(parsed.get("tissue_type") or "").strip(),
         "modality":        str(parsed.get("modality") or "").strip() or "unknown",
         "morphology":      str(parsed.get("morphology") or "").strip(),
         "estimated_scale": str(parsed.get("estimated_scale") or "").strip() or "unknown",

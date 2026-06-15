@@ -146,7 +146,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .dz-title{font-size:17px;font-weight:500}
 .dz-sub{font-size:13px;color:var(--text3)}
 .vision-note{font-size:12.5px;color:var(--text3);max-width:560px}
-.vision-msg-img{max-width:240px;max-height:240px;border-radius:10px;border:1px solid var(--border);display:block}
+.vision-msg-img{max-width:240px;max-height:300px;width:auto;height:auto;object-fit:contain;align-self:flex-end;border-radius:10px;border:1px solid var(--border)}
 .id-card{display:flex;flex-direction:column;gap:8px}
 .id-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .id-name{font-size:15px;font-weight:600}
@@ -1474,17 +1474,22 @@ function VisionTab() {
   const [drag, setDrag]     = useState(false);
   const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
   const fileRef = useRef(null);
+  const addRef  = useRef(null);
   const endRef  = useRef(null);
 
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior:'smooth' }); }, [messages, busy]);
 
-  const attach = (f) => { if (!f || !f.type.startsWith('image/')) return; setImageFile(f); setImageURL(URL.createObjectURL(f)); };
-  const reset  = () => { setMessages([]); setImageFile(null); setImageURL(null); setInput(''); setUsage(null); };
+  // One image per chat. Picking an image starts a fresh conversation.
+  const startChat = (f) => {
+    if (!f || !f.type.startsWith('image/')) return;
+    setMessages([]); setInput(''); setUsage(null);
+    setImageFile(f); setImageURL(URL.createObjectURL(f));
+  };
 
   const ConfBadge = ({ level }) => {
     const m = { HIGH:{bg:'#eaf5ee',color:'#1a7a4e',border:'#a8d8b8'}, MODERATE:{bg:'#fef5e4',color:'#a07010',border:'#f0d48a'}, LOW:{bg:'#fdeaea',color:'#b01c1c',border:'#f0a8a8'} };
     const s = m[level] || m.MODERATE;
-    return <span className="badge" style={{background:s.bg,color:s.color,borderColor:s.border}}>Confidence: {level}</span>;
+    return <span className="badge" style={{display:'inline-block',padding:'2px 9px',borderRadius:7,border:`1px solid ${s.border}`,background:s.bg,color:s.color,fontSize:11.5,fontWeight:500,whiteSpace:'nowrap'}}>Confidence: {level}</span>;
   };
 
   const IdentCard = ({ ident }) => (
@@ -1494,7 +1499,7 @@ function VisionTab() {
         {ident.confidence && <ConfBadge level={ident.confidence}/>}
       </div>
       <div className="id-rows">
-        {[['Modality',ident.modality],['Morphology',ident.morphology],['Estimated scale',ident.estimated_scale],['Also considered',ident.runner_up]].map(([k,v]) => v && (
+        {[['Tissue type',ident.tissue_type],['Modality',ident.modality],['Morphology',ident.morphology],['Estimated scale',ident.estimated_scale],['Also considered',ident.runner_up]].map(([k,v]) => v && (
           <div key={k} className="id-row"><div className="id-k">{k}</div><div>{v}</div></div>
         ))}
         {ident.features?.length > 0 && (
@@ -1516,6 +1521,7 @@ function VisionTab() {
     return copy;
   });
 
+  // First turn = no assistant reply yet (identify); afterwards we chat (prose).
   const firstTurn = !messages.some(m => m.role === 'assistant');
 
   const send = async () => {
@@ -1531,6 +1537,7 @@ function VisionTab() {
         const i = m.ident;
         history.push({ role:'assistant', content:`Identification: ${i.identification} (modality: ${i.modality}; confidence: ${i.confidence}). ${i.morphology||''}`.trim() });
       }
+      else if (m.role === 'assistant' && m.answer) history.push({ role:'assistant', content:m.answer });
     }
 
     const wasFollowup = !firstTurn;   // first turn identifies; follow-ups chat
@@ -1583,9 +1590,9 @@ function VisionTab() {
       <div className="chat-inner" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,minHeight:'72vh'}}>
         <div className={`dropzone${drag?' drag':''}`}
           onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
-          onDrop={e=>{e.preventDefault();setDrag(false);attach(e.dataTransfer.files[0])}}
+          onDrop={e=>{e.preventDefault();setDrag(false);startChat(e.dataTransfer.files[0])}}
           onClick={()=>fileRef.current.click()}>
-          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>attach(e.target.files[0])}/>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>startChat(e.target.files[0])}/>
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
             <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
             <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1637,7 +1644,8 @@ function VisionTab() {
           <div className="vision-strip">
             {imageURL && <img src={imageURL} alt="active"/>}
             <span>{firstTurn ? 'Image ready — ask a question or just send to identify' : 'Chatting about the uploaded image'}</span>
-            <button className="reupload" style={{marginLeft:'auto',padding:'4px 10px',fontSize:12}} onClick={reset}>New image</button>
+            <input ref={addRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ startChat(e.target.files[0]); e.target.value=''; }}/>
+            <button className="reupload" style={{marginLeft:'auto',padding:'4px 10px',fontSize:12}} onClick={()=>addRef.current.click()} title="Start a new chat with a different image">New chat with image</button>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
           {usage && <CtxRing usage={usage}/>}
