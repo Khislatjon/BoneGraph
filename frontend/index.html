@@ -138,14 +138,24 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Analyse tab */
-.analyse-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
+.vision-tab{padding:32px;flex:1;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
 .dropzone{max-width:560px;border:2px dashed var(--border2);border-radius:14px;padding:60px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;background:var(--surface);transition:border-color .15s,background .15s;text-align:center}
 .dropzone:hover,.dropzone.drag{border-color:var(--amber);background:var(--amber-light)}
 .dz-icon{color:var(--text3);transition:color .15s}
 .dropzone:hover .dz-icon,.dropzone.drag .dz-icon{color:var(--amber)}
 .dz-title{font-size:17px;font-weight:500}
 .dz-sub{font-size:13px;color:var(--text3)}
-.analyse-note{font-size:12.5px;color:var(--text3);max-width:560px}
+.vision-note{font-size:12.5px;color:var(--text3);max-width:560px}
+.vision-msg-img{max-width:240px;max-height:300px;width:auto;height:auto;object-fit:contain;align-self:flex-end;border-radius:10px;border:1px solid var(--border)}
+.id-card{display:flex;flex-direction:column;gap:8px}
+.id-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.id-name{font-size:15px;font-weight:600}
+.id-rows{display:flex;flex-direction:column;gap:6px}
+.id-row{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;line-height:1.5}
+.id-k{color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:500;padding-top:2px}
+.id-feats{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.vision-strip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
+.vision-strip img{width:28px;height:28px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
 .analysis-view{display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start}
 .scan-img{width:100%;border-radius:10px;border:1px solid var(--border);display:block;object-fit:contain;max-height:380px;background:#111}
 .reupload{background:none;border:1px solid var(--border);border-radius:7px;padding:7px 14px;font-size:13px;color:var(--text3);cursor:pointer;font-family:var(--sans);transition:all .15s}
@@ -1091,6 +1101,83 @@ function RulesPanel({ onClose }) {
   );
 }
 
+// Right-side panel listing the image corrections taught in the Vision tab —
+// mirrors RulesPanel, but corrections have no enable/disable or import (they
+// come only from a 👎 + note, recalled by image similarity).
+function CorrectionsPanel({ onClose }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState({});   // id -> true while a request is in flight
+
+  const load = async () => {
+    try {
+      const r = await fetch('/api/vision/corrections');
+      const d = await r.json();
+      setItems(d.corrections || []);
+    } catch (e) { setError(e.message); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const del = async (it) => {
+    setBusy(b => ({...b, [it.id]: true}));
+    try {
+      await fetch(`/api/vision/corrections/${it.id}`, { method:'DELETE' });
+      setItems(xs => xs.filter(x => x.id !== it.id));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [it.id]: false})); }
+  };
+
+  const fmtDate = (s) => { try { return new Date(s).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); } catch { return ''; } };
+
+  return (
+    <div onClick={onClose}
+      style={{position:'absolute',inset:0,zIndex:60,background:'rgba(0,0,0,.18)',display:'flex',justifyContent:'flex-end'}}>
+      <div onClick={e => e.stopPropagation()}
+        style={{width:'min(460px,92%)',height:'100%',background:'var(--surface)',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',boxShadow:'-4px 0 24px rgba(0,0,0,.08)'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Past corrections</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>
+              Images you've corrected{items ? ` · ${items.length} stored` : ''}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
+          {error && <div style={{color:'#b02020',fontSize:13,marginBottom:8}}>{error}</div>}
+          {items === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
+          {items && items.length === 0 && (
+            <div style={{color:'var(--text3)',fontSize:13,lineHeight:1.6,marginTop:8}}>
+              No corrections yet. When you 👎 an identification and describe what's wrong, BoneGraph
+              stores it against the image and recalls it the next time a similar image comes up.
+            </div>
+          )}
+          {items && items.map(it => (
+            <div key={it.id} style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:10,background:'var(--surface2)'}}>
+              <div style={{fontSize:13.5,color:'var(--text)',lineHeight:1.45}}>“{it.feedback_text}”</div>
+              {it.identification && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:4}}>
+                  was identified as <span style={{fontStyle:'italic'}}>{it.identification}</span>
+                </div>
+              )}
+              <div style={{fontSize:10,color:'var(--text3)',marginTop:5,textTransform:'uppercase',letterSpacing:.3,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                {fmtDate(it.created_at) && <span>{fmtDate(it.created_at)}</span>}
+                {it.n_embeddings != null && <span>{it.n_embeddings} image variant{it.n_embeddings===1?'':'s'}</span>}
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button disabled={busy[it.id]} onClick={() => del(it)}
+                  style={{background:'transparent',color:'#b02020',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReviewDialogue({ turn }) {
   const [open, setOpen] = useState(false);
   const rounds = (turn.rounds || []).filter(r => r.role === 'critic' || r.role === 'agent');
@@ -1451,82 +1538,320 @@ function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
   );
 }
 
-// ── ANALYSE TAB ───────────────────────────────────────────────────────────────
-function AnalyseTab() {
-  const [imgURL, setImgURL]     = useState(null);
-  const [report, setReport]     = useState(null);
-  const [loading, setLoading]   = useState(false);
-  const [drag, setDrag]         = useState(false);
-  const fileRef = useRef(null);
+// Shown when correction memory recalled a prior 👎 for a similar image.
+function RecalledNote({ hits }) {
+  return (
+    <div style={{marginBottom:10,padding:'8px 11px',border:'1px solid #c9b07a',background:'#fbf4e2',borderRadius:8,fontSize:12.5,color:'#7a5c10'}}>
+      <div style={{fontWeight:500,marginBottom:hits.some(h=>h.feedback_text)?4:0}}>Recalled a past correction for a similar image</div>
+      {hits.map((h,i)=> h.feedback_text && (
+        <div key={i} style={{opacity:0.95}}>“{h.feedback_text}” <span style={{opacity:0.6}}>({Math.round((h.score||0)*100)}% match)</span></div>
+      ))}
+    </div>
+  );
+}
 
-  const processFile = async (file) => {
-    if (!file || !file.type.startsWith('image/')) return;
-    setImgURL(URL.createObjectURL(file));
-    setReport(null); setLoading(true);
+// Feedback for a vision turn. 👍 logs an event; 👎 + text stores an
+// image-keyed correction (the image is re-sent so the backend can embed it).
+function VisionFeedbackBar({ turn, imageFile }) {
+  const [polarity, setPolarity] = useState(null);
+  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const sendUp = async () => {
+    if (polarity) return;
+    setPolarity(1);
     try {
-      const fd = new FormData(); fd.append('image', file);
-      const r = await fetch('/api/analyse', { method:'POST', body:fd });
-      setReport(await r.json());
-    } catch { setReport({ error:true }); }
-    setLoading(false);
+      const fd = new FormData();
+      fd.append('turn_id', turn.id); fd.append('polarity', '1');
+      await fetch('/api/vision/feedback', { method:'POST', body: fd });
+    } catch(e) { setError(e.message); setPolarity(null); }
+  };
+
+  const submitDown = async () => {
+    if (!text.trim()) { setError('Please describe the correction.'); return; }
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('turn_id', turn.id);
+      fd.append('polarity', '-1');
+      fd.append('prompt', turn.query || '');
+      fd.append('identification', turn.ident?.identification || '');
+      fd.append('feedback_text', text.trim());
+      if (imageFile) fd.append('image', imageFile);
+      const resp = await fetch('/api/vision/feedback', { method:'POST', body: fd });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Could not save correction');
+      setPolarity(-1); setShowInput(false);
+    } catch(e) { setError(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const btn = (selected, color) => ({
+    background: selected ? color : 'transparent',
+    color: selected ? '#fff' : 'var(--text2)',
+    border: '1px solid var(--border)', borderRadius: 6, padding: '3px 9px',
+    fontSize: 13, cursor: polarity ? 'default' : 'pointer',
+    opacity: polarity && !selected ? 0.4 : 1,
+  });
+
+  return (
+    <div style={{marginTop:10}}>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <button style={btn(polarity===1,'#2e7d32')} onClick={sendUp} disabled={!!polarity}>👍</button>
+        <button style={btn(polarity===-1,'#b02020')} onClick={()=>!polarity && setShowInput(true)} disabled={!!polarity}>👎</button>
+        {polarity === -1 && !showInput && <span style={{fontSize:12,color:'var(--text3)'}}>correction saved — I'll remember this next time</span>}
+        {polarity === 1 && <span style={{fontSize:12,color:'var(--text3)'}}>thanks</span>}
+        {error && <span style={{fontSize:12,color:'#b02020'}}>{error}</span>}
+      </div>
+      {showInput && (
+        <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:6}}>
+          <textarea value={text} onChange={e=>setText(e.target.value)}
+            placeholder="What was wrong? Be specific — e.g. 'this is trabecular bone, not cortical'."
+            style={{minHeight:60,padding:8,border:'1px solid var(--border)',borderRadius:6,fontFamily:'var(--sans)',fontSize:13,resize:'vertical',background:'var(--surface2)',color:'var(--text)'}}/>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={submitDown} disabled={submitting}
+              style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              {submitting ? 'Saving…' : 'Save correction'}
+            </button>
+            <button onClick={()=>{setShowInput(false);setText('');setError('');}} disabled={submitting}
+              style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ANALYSE TAB ───────────────────────────────────────────────────────────────
+function VisionTab() {
+  // Multi-turn chat about ONE uploaded image. The image is re-sent on every
+  // turn (the backend re-encodes it); prior turns are replayed as text history
+  // so follow-ups have context. Mirrors ReasonTab's chat loop.
+  const [messages, setMessages] = useState([]);   // {role, text?, imgURL?, ident?, error?}
+  const [imageFile, setImageFile] = useState(null);
+  const [imageURL, setImageURL]   = useState(null);
+  const [input, setInput]   = useState('');
+  const [busy, setBusy]     = useState(false);
+  const [drag, setDrag]     = useState(false);
+  const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
+  const [corrOpen, setCorrOpen] = useState(false); // "Past corrections" panel
+  const fileRef = useRef(null);
+  const addRef  = useRef(null);
+  const endRef  = useRef(null);
+
+  useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior:'smooth' }); }, [messages, busy]);
+
+  // One image per chat. Picking an image starts a fresh conversation.
+  const startChat = (f) => {
+    if (!f || !f.type.startsWith('image/')) return;
+    setMessages([]); setInput(''); setUsage(null);
+    setImageFile(f); setImageURL(URL.createObjectURL(f));
   };
 
   const ConfBadge = ({ level }) => {
     const m = { HIGH:{bg:'#eaf5ee',color:'#1a7a4e',border:'#a8d8b8'}, MODERATE:{bg:'#fef5e4',color:'#a07010',border:'#f0d48a'}, LOW:{bg:'#fdeaea',color:'#b01c1c',border:'#f0a8a8'} };
     const s = m[level] || m.MODERATE;
-    return <span className="badge" style={{background:s.bg,color:s.color,borderColor:s.border}}>Confidence: {level}</span>;
+    return <span className="badge" style={{display:'inline-block',padding:'2px 9px',borderRadius:7,border:`1px solid ${s.border}`,background:s.bg,color:s.color,fontSize:11.5,fontWeight:500,whiteSpace:'nowrap'}}>Confidence: {level}</span>;
   };
 
-  if (!imgURL) return (
-    <div className="analyse-tab">
-      <div className={`dropzone${drag?' drag':''}`}
-        onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
-        onDrop={e=>{e.preventDefault();setDrag(false);processFile(e.dataTransfer.files[0])}}
-        onClick={()=>fileRef.current.click()}>
-        <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>processFile(e.target.files[0])}/>
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
-          <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
-          <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <div className="dz-title">Drop an X-ray or MRI here</div>
-        <div className="dz-sub">or click to select · PNG, JPG</div>
+  const IdentCard = ({ ident }) => (
+    <div className="id-card">
+      <div className="id-head">
+        <span className="id-name">{ident.identification}</span>
+        {ident.confidence && <ConfBadge level={ident.confidence}/>}
       </div>
-      <div className="analyse-note">BoneGraph will generate a structured radiology report using LLaVA 13b. For research and educational use only.</div>
+      <div className="id-rows">
+        {[['Tissue type',ident.tissue_type],['Modality',ident.modality],['Morphology',ident.morphology],['Estimated scale',ident.estimated_scale],['Also considered',ident.runner_up]].map(([k,v]) => v && (
+          <div key={k} className="id-row"><div className="id-k">{k}</div><div>{v}</div></div>
+        ))}
+        {ident.features?.length > 0 && (
+          <div className="id-row"><div className="id-k">Features</div>
+            <ul className="id-feats">{ident.features.map((f,i)=><li key={i}>{f}</li>)}</ul></div>
+        )}
+      </div>
+    </div>
+  );
+
+  const patchLastAsst = (patch) => setMessages(prev => {
+    const copy = [...prev];
+    for (let i = copy.length-1; i>=0; i--) { if (copy[i].role==='assistant') { copy[i] = {...copy[i], ...patch}; break; } }
+    return copy;
+  });
+  const appendLastAnswer = (chunk) => setMessages(prev => {
+    const copy = [...prev];
+    for (let i = copy.length-1; i>=0; i--) { if (copy[i].role==='assistant') { copy[i] = {...copy[i], answer:(copy[i].answer||'')+chunk}; break; } }
+    return copy;
+  });
+
+  // First turn = no assistant reply yet (identify); afterwards we chat (prose).
+  const firstTurn = !messages.some(m => m.role === 'assistant');
+
+  const send = async () => {
+    if (busy || !imageFile) return;
+    const text = input.trim();
+    if (!firstTurn && !text) return;   // follow-ups need a question
+
+    // History from completed turns — text only (the image is re-sent each call).
+    const history = [];
+    for (const m of messages) {
+      if (m.role === 'user' && m.text) history.push({ role:'user', content:m.text });
+      else if (m.role === 'assistant' && m.ident) {
+        const i = m.ident;
+        history.push({ role:'assistant', content:`Identification: ${i.identification} (modality: ${i.modality}; confidence: ${i.confidence}). ${i.morphology||''}`.trim() });
+      }
+      else if (m.role === 'assistant' && m.answer) history.push({ role:'assistant', content:m.answer });
+    }
+
+    const wasFollowup = !firstTurn;   // first turn identifies; follow-ups chat
+    const turnId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random();
+    setMessages(prev => [...prev,
+      { role:'user', text, imgURL: firstTurn ? imageURL : null },
+      { role:'assistant', id:turnId, query:text, ident:null, answer:wasFollowup?'':null, error:null, recalled:null },
+    ]);
+    setInput(''); setBusy(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('image', imageFile);
+      fd.append('prompt', text);
+      fd.append('history', JSON.stringify(history));
+      fd.append('mode', 'deep');
+      const resp = await fetch('/api/vision/chat', { method:'POST', body:fd });
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'token') { if (wasFollowup) appendLastAnswer(ev.content); }
+          else if (ev.type === 'recalled') patchLastAsst({ recalled: ev.corrections || [] });
+          else if (ev.type === 'identification') patchLastAsst({ ident: ev.schema });
+          else if (ev.type === 'done') {
+            if (ev.kind === 'chat') patchLastAsst({ answer: (ev.answer || '') });
+            else patchLastAsst({ ident: ev.identification || null });
+            if (typeof ev.prompt_tokens === 'number') {
+              setUsage({ prompt: ev.prompt_tokens, completion: ev.completion_tokens, ctx: ev.context_window || 4096, estimated: true });
+            }
+          }
+          else if (ev.type === 'error') patchLastAsst({ error: ev.message });
+        }
+      }
+    } catch {
+      patchLastAsst({ error: 'Could not reach the vision service. Ensure Ollama is running with llava:13b.' });
+    }
+    setBusy(false);
+  };
+
+  // Floating top-right button → opens the "Past corrections" panel.
+  const CorrButton = () => (
+    <div style={{position:'absolute',top:12,right:16,zIndex:40}}>
+      <button onClick={() => setCorrOpen(true)} title="See the corrections you've taught BoneGraph"
+        style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{fontSize:18}}>⚙</span> Past corrections
+      </button>
+    </div>
+  );
+
+  // Empty state — centered dropzone (no image attached yet).
+  if (!imageFile && messages.length === 0) return (
+    <div className="ask" style={{position:'relative'}}>
+      <CorrButton/>
+      {corrOpen && <CorrectionsPanel onClose={() => setCorrOpen(false)}/>}
+      <div className="chat-area">
+      <div className="chat-inner" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,minHeight:'72vh'}}>
+        <div className={`dropzone${drag?' drag':''}`}
+          onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
+          onDrop={e=>{e.preventDefault();setDrag(false);startChat(e.dataTransfer.files[0])}}
+          onClick={()=>fileRef.current.click()}>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>startChat(e.target.files[0])}/>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
+            <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="dz-title">Drop a bone image here</div>
+          <div className="dz-sub">X-ray · MRI · micro-CT · or click to select · PNG, JPG</div>
+        </div>
+        <div className="vision-note" style={{marginTop:16,textAlign:'center'}}>BoneGraph identifies the image with a vision-language model (LLaVA 13b), you can chat about it and provide your feedback. For research and educational use only — not a clinical diagnosis.</div>
+      </div>
+      </div>
     </div>
   );
 
   return (
-    <div className="analyse-tab">
-      <div className="analysis-view">
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <img src={imgURL} alt="scan" className="scan-img"/>
-          <button className="reupload" onClick={()=>{setImgURL(null);setReport(null);}}>Upload different image</button>
-        </div>
-        <div className="report-pane">
-          {loading ? (
-            <div className="report-loading"><Dots/><span>Generating radiology report…</span></div>
-          ) : report && !report.error ? (
-            <div>
-              <div className="report-heading">
-                <span>AI Radiology Report</span>
-                {report.confidence && <ConfBadge level={report.confidence}/>}
-              </div>
-              <div className="report-disc">For research and educational use only. Not a clinical diagnosis.</div>
-              {[['Modality',report.modality],['Image Quality',report.quality],['Bone Density',report.density],['Assessment',report.assessment],['Recommendation',report.recommendation]].map(([k,v]) => v && (
-                <div key={k} className="report-row"><div className="report-key">{k}</div><div className="report-val">{v}</div></div>
-              ))}
-              {report.findings?.length > 0 && (
-                <div className="report-row">
-                  <div className="report-key">Findings</div>
-                  <ul className="report-findings">{report.findings.map((f,i)=><li key={i}>{f}</li>)}</ul>
+    <div className="ask" style={{position:'relative'}}>
+      <CorrButton/>
+      {corrOpen && <CorrectionsPanel onClose={() => setCorrOpen(false)}/>}
+      <div className="chat-area">
+        <div className="chat-inner">
+          <div className="messages">
+            {messages.map((m,i) => (
+              <div key={i} className={`msg ${m.role==='user'?'msg-user':'msg-asst'}`}>
+                {m.role==='assistant' && <div className="msg-avatar"><BoneSVG size={34}/></div>}
+                <div className="msg-bubble">
+                  {m.role==='user' ? (
+                    <>
+                      {m.imgURL && <img src={m.imgURL} alt="upload" className="vision-msg-img" style={{marginBottom: m.text?8:0}}/>}
+                      {m.text && <div className="msg-text">{m.text}</div>}
+                    </>
+                  ) : m.error ? (
+                    <div className="msg-text">⚠️ {m.error}</div>
+                  ) : m.ident ? (
+                    <>
+                      {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
+                      <IdentCard ident={m.ident}/>
+                      <VisionFeedbackBar turn={m} imageFile={imageFile}/>
+                    </>
+                  ) : m.answer != null ? (
+                    <>
+                      {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
+                      <div className="msg-text">
+                        {m.answer
+                          ? <>{m.answer}{busy && i===messages.length-1 && <span className="blink">▍</span>}</>
+                          : <Dots/>}
+                      </div>
+                      {m.answer && !(busy && i===messages.length-1) && <VisionFeedbackBar turn={m} imageFile={imageFile}/>}
+                    </>
+                  ) : (
+                    <div className="msg-text"><Dots/></div>
+                  )}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="report-loading">
-              {report?.error ? 'Could not generate report. Ensure Ollama is running with llava:13b.' : 'Upload an image to start.'}
-            </div>
-          )}
+              </div>
+            ))}
+            <div ref={endRef}/>
+          </div>
+        </div>
+      </div>
+      <div className="chat-bar">
+        <div style={{width:'100%',maxWidth:760,display:'flex',flexDirection:'column',gap:8}}>
+          <div className="vision-strip">
+            {imageURL && <img src={imageURL} alt="active"/>}
+            <span>{firstTurn ? 'Image ready — ask a question or just send to identify' : 'Chatting about the uploaded image'}</span>
+            <input ref={addRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ startChat(e.target.files[0]); e.target.value=''; }}/>
+            <button className="reupload" style={{marginLeft:'auto',padding:'4px 10px',fontSize:12}} onClick={()=>addRef.current.click()} title="Start a new chat with a different image">New chat with image</button>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+          {usage && <CtxRing usage={usage}/>}
+          <div className="chat-wrap" style={{maxWidth:'none',flex:1}}>
+            <input className="chat-input"
+              placeholder={firstTurn ? 'Ask about this image (optional) — e.g. cortical or trabecular?' : 'Ask a follow-up…'}
+              value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } }}
+              disabled={busy}/>
+            <button className="send-btn" onClick={send} disabled={busy || !imageFile || (!firstTurn && !input.trim())}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 9h12M9 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1538,7 +1863,7 @@ const TABS = [
   { id:'ask',     label:'Chat', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
   { id:'search',  label:'Search', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { id:'reason',  label:'Reasoning',        icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="2.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="12.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4 7.5h2M9 7.5h2" stroke="currentColor" strokeWidth="1.4"/></svg> },
-  { id:'analyse', label:'Vision', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+  { id:'vision', label:'Vision', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ];
 
 function App() {
@@ -1588,8 +1913,8 @@ function App() {
         <div className={`panel${tab==='reason'?' active':''}`}>
           <ReasonTab/>
         </div>
-        <div className={`panel-scroll${tab==='analyse'?' active':''}`}>
-          <div className="panel-inner"><AnalyseTab/></div>
+        <div className={`panel${tab==='vision'?' active':''}`}>
+          <VisionTab/>
         </div>
       </main>
     </div>

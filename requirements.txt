@@ -14,7 +14,9 @@ fastapi
 uvicorn
 transformers
 torch
+open_clip_torch>=2.24   # BiomedCLIP image embeddings for Vision-tab correction memory
 nltk
 ollama
 openpyxl>=3.1
 python-multipart
+Pillow>=10.0
