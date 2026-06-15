@@ -55,7 +55,7 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
                            │               │
                            │        ┌──────────────────────────────┐
                            │        │ Fetch critic evidence:       │
-                           │        │  • literature (top-3, RAG)   │  A1
+                           │        │  • literature (top-5, RAG)   │  A1
                            │        │  • KG 1-hop edges (ontology) │  A4
                            │        └──────────────┬───────────────┘
                            │                       │
@@ -127,9 +127,9 @@ see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consiste
 | Topic guard | lexical + `llama3.2:3b` | Keep questions in the bone domain. Shared with Chat tab. |
 | Reasoning agent | `huatuogpt-bone` | Produce a 1–4 point reasoning chain. Streamed. Primed with the user's active rules so it complies on the first pass; no retrieval/KG evidence. |
 | Physical grounding | pure Python | Deterministic rule check over the answer text. |
-| Critic | `huatuogpt-bone` (JSON) | Review the answer against violations + evidence; verdict `accept`/`dispute`/`conflicting_evidence`. |
+| Critic | `huatuogpt-bone` (JSON) | Review the answer against violations + evidence; verdict `accept`/`dispute`/`conflicting_evidence`. On conflict, also tags which `[L#]` back each side → a counted confidence score (two bars). |
 | Rule extractor | `llama3.2:3b` (JSON) | Turn a 👎 + free-text correction into a structured rule proposal. |
-| Evidence: literature | `BoneGraphRetriever` | Top-3 corpus passages for the critic (A1). |
+| Evidence: literature | `BoneGraphRetriever` | Top-`LIT_TOP_K` corpus passages for the critic (A1). `LIT_TOP_K` defaults to 5, configurable via `BONEGRAPH_LIT_TOP_K` (raise to ~10 on a 16k-context box); it also sets the conflict-score denominator. |
 | Evidence: knowledge graph | `ontology.db` | 1-hop edges around question concepts for the critic (A4). |
 
 ---
@@ -146,7 +146,7 @@ critic judges. Built from `reason_chat` / `_call_critic` in `api/main.py`.
 | User's learned rules | ✅ **primed into system prompt** | ✅ as a summary |
 | The agent's answer | produces it | ✅ reviews it |
 | Physical-grounding violations | ❌ (only via critic notes on revision) | ✅ tagged `builtin`/`user` |
-| Retrieved literature `[L#]` | ❌ | ✅ top-3 (≤ ~1200 tok) |
+| Retrieved literature `[L#]` | ❌ | ✅ top-`LIT_TOP_K` (default 5, ≤ ~1200 tok) |
 | Knowledge-graph facts | ❌ | ✅ 1-hop edges (≤ ~300 tok) |
 | Critic notes / suggested revision | ✅ only in Round 3 revision | produces them |
 | Majority / minority positions | ✅ only in a conflict revision | produces them |
@@ -273,7 +273,10 @@ literature     {passages:[{rank,title,year,snippet,score}]}      (deep only)
 kg_context     {facts:[{subject,relation,object,weight}], anchors}(deep only)
 token          {content, phase}
 physical_check {round, passed, violations:[{rule,name,detail,source}], rule_count, user_rule_count}
-critic_review  {round, verdict, notes, suggested_revision, majority, minority, user_override}
+critic_review  {round, verdict, notes, suggested_revision, majority, minority, user_override,
+                score}   ← score present only on conflicting_evidence; null otherwise:
+                {majority_pct, minority_pct, n_supporting, n_passages,
+                 majority_support:[L#], minority_support:[L#]}
 done           {answer, rounds, literature, kg, prompt_tokens, completion_tokens,
                 context_window, out_of_scope, critic_resolved, final_physical_check, mode}
 error          {message}

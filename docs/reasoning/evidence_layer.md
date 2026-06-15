@@ -155,7 +155,7 @@ based on the bulk of literature" while letting the user re-weight later.
 | Task | Description | State |
 |------|-------------|-------|
 | 0.1 | Evidence audit (literature + KG) | ✅ done — both pass |
-| A1 | Literature → critic prompt | 🟢 built (`_fetch_literature`, ≤3 passages, ~1200-token cap) |
+| A1 | Literature → critic prompt | 🟢 built (`_fetch_literature`, ≤`LIT_TOP_K` passages — default 5, env-configurable, ~1200-token cap) |
 | A2 | `conflicting_evidence` verdict + caveat revision | 🟢 built (gated on citing both sides) |
 | A4 | KG 1-hop / raw-edge context → critic | 🟢 built (`reasoning/kg_context.py`) |
 

@@ -798,7 +798,7 @@ function ReasonTab() {
           else if (ev.type === 'literature') { literature = ev.passages || []; }
           else if (ev.type === 'kg_context') { kg = {facts: ev.facts || [], anchors: ev.anchors || []}; }
           else if (ev.type === 'physical_check') { physicalCheck = ev; rounds.push({role:'physical_check', round: ev.round, ...ev}); }
-          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority, user_override: ev.user_override}); }
+          else if (ev.type === 'critic_review') { rounds.push({role:'critic', round: ev.round, verdict: ev.verdict, notes: ev.notes, suggested_revision: ev.suggested_revision, majority: ev.majority, minority: ev.minority, score: ev.score, user_override: ev.user_override}); }
           else if (ev.type === 'done')  {
             answer = ev.answer;
             outOfScope = !!ev.out_of_scope;
@@ -1129,6 +1129,7 @@ function ReviewDialogue({ turn }) {
                   <strong style={{color:'#8a5010'}}>Minority:</strong> {r.minority}
                 </div>
               )}
+              {r.score && <ConfidenceBars score={r.score}/>}
               {r.suggested_revision && (
                 <div style={{fontSize:12,color:'var(--text3)',fontStyle:'italic',marginTop:2}}>
                   Suggestion: {r.suggested_revision}
@@ -1353,6 +1354,36 @@ function RuleField({ label, value, onChange }) {
       <input value={value ?? ''} onChange={e => onChange(e.target.value)}
         style={{flex:1,padding:'3px 6px',border:'1px solid var(--border)',borderRadius:4,fontFamily:'var(--sans)',fontSize:12,background:'var(--surface)',color:'var(--text)'}}/>
     </label>
+  );
+}
+
+function ConfidenceBars({ score }) {
+  const maj = score.majority_pct ?? 0;
+  const min = score.minority_pct ?? 0;
+  const n = score.n_supporting ?? 0;
+  const total = score.n_passages ?? n;
+  const Bar = ({ label, pct, color, tags }) => (
+    <div style={{marginTop:4}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--text3)',marginBottom:2}}>
+        <span>{label}{(tags && tags.length > 0) && <span style={{marginLeft:6,color}}>· {tags.join(', ')}</span>}</span>
+        <span style={{fontWeight:600,color}}>{pct}%</span>
+      </div>
+      <div style={{height:8,borderRadius:4,background:'var(--border)',overflow:'hidden'}}>
+        <div style={{width:`${pct}%`,height:'100%',background:color,transition:'width .4s'}}/>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{marginTop:8,padding:'8px 10px',border:'1px solid var(--border)',borderRadius:6,background:'var(--surface)'}}>
+      <div style={{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:.3}}>
+        Confidence from retrieved literature
+      </div>
+      <Bar label="Majority" pct={maj} color="#2e7d32" tags={score.majority_support}/>
+      <Bar label="Minority" pct={min} color="#8a5010" tags={score.minority_support}/>
+      <div style={{fontSize:11,color:'var(--text3)',marginTop:6,fontStyle:'italic'}}>
+        Based on {n} of {total} retrieved passage{total===1?'':'s'} that took a position. A split, not a verdict — the literature genuinely disagrees.
+      </div>
+    </div>
   );
 }
 

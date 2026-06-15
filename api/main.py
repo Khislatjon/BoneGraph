@@ -36,6 +36,7 @@ import base64
 import io
 import json
 import math
+import os
 import re
 import sqlite3
 import time
@@ -540,7 +541,9 @@ Reply with ONE JSON object on a single line. No prose. No markdown fences. Shape
  "notes":["short bullet 1","short bullet 2"],
  "suggested_revision":"<short instruction to the reasoning agent>",
  "majority":"<position supported by most evidence, citing [L#]>",
- "minority":"<the competing position, citing [L#]>"}
+ "minority":"<the competing position, citing [L#]>",
+ "majority_support":["L1","L2"],
+ "minority_support":["L3"]}
 
 Rules:
 - VERDICT must be "accept", "dispute", or "conflicting_evidence".
@@ -551,6 +554,7 @@ Rules:
 - DISPUTE only if there is a factual error, internal contradiction, missing key mechanism, a genuine physical-grounding violation that the agent did not address, or a claim the retrieved literature clearly contradicts.
 - USER RULES ARE NON-NEGOTIABLE. If any violation is tagged "USER RULE — must dispute", you MUST return "dispute". The user explicitly taught that constraint through feedback, and it overrides your own judgement and any literature. Your suggested_revision must tell the agent to comply with that rule.
 - CONFLICTING_EVIDENCE only when the retrieved literature genuinely disagrees — one body of passages supports the answer and another contradicts it, and the question has no single settled answer. You MUST fill both "majority" and "minority", and EACH must cite at least one [L#] tag. If you cannot cite both sides from the passages provided, do NOT use this verdict — use accept or dispute instead. Do not invent a conflict to hedge.
+- For CONFLICTING_EVIDENCE you MUST also fill "majority_support" and "minority_support": the exact list of passage tags ("L1","L2",…) that back each side. Assign every passage that takes a position to exactly one side based on what it actually says — do NOT split them evenly to look balanced. A passage that is off-topic or takes no side is simply omitted from both lists. These lists drive a confidence score shown to the user, so they must reflect the real weight of evidence.
 - NOTES: 1–3 short bullets, each ≤ 15 words. Be specific. Cite [L#] where relevant. No generic praise.
 - SUGGESTED_REVISION: present for "dispute" (what to fix) and "conflicting_evidence" (how to present both positions). Omit for "accept". Do NOT rewrite the answer yourself.
 - "majority" / "minority": fill ONLY for "conflicting_evidence"; leave empty otherwise.
@@ -621,9 +625,15 @@ def _llm_stream(messages, result_out: dict, temperature=0.3):
 # A1 — literature evidence for the critic.
 # The agent stays pure-LLM; only the critic sees retrieved passages so it can
 # dispute with citations. Budget is capped so the critic prompt stays bounded
-# (~1200 tokens ≈ ~4200 chars across all passages).
+# (~1200 tokens ≈ ~4200 chars across all passages, split across LIT_TOP_K).
+#
+# LIT_TOP_K is the configurable retrieval count (A5 / Task 4). It also sets the
+# denominator for the conflict confidence score — more passages → a more
+# credible split. Default 5; raise via env (e.g. BONEGRAPH_LIT_TOP_K=10) on a
+# box with a larger context window (16k). The char budget caps total tokens
+# regardless, so a bigger K just yields more, shorter snippets.
 LIT_CHAR_BUDGET = 4200
-LIT_TOP_K = 3
+LIT_TOP_K = int(os.environ.get("BONEGRAPH_LIT_TOP_K", "5"))
 
 
 def _fetch_literature(question: str) -> list[dict]:
@@ -705,7 +715,7 @@ def _call_critic(question: str, agent_answer: str, violations: list,
                 ],
                 "stream": False,
                 "format": "json",
-                "options": {"temperature": 0.2, "num_predict": 300, "num_ctx": 8192},
+                "options": {"temperature": 0.2, "num_predict": 380, "num_ctx": 8192},
             },
             timeout=120,
         )
@@ -718,7 +728,7 @@ def _call_critic(question: str, agent_answer: str, violations: list,
     parsed = _safe_json(raw)
     if not parsed:
         return {"verdict": "accept", "notes": ["(critic returned unparseable output)"],
-                "suggested_revision": "", "majority": "", "minority": ""}
+                "suggested_revision": "", "majority": "", "minority": "", "score": None}
     verdict = str(parsed.get("verdict", "accept")).strip().lower()
     if verdict not in ("accept", "dispute", "conflicting_evidence"):
         verdict = "accept"
@@ -729,19 +739,41 @@ def _call_critic(question: str, agent_answer: str, violations: list,
     suggestion = str(parsed.get("suggested_revision") or "").strip()
     majority = str(parsed.get("majority") or "").strip()
     minority = str(parsed.get("minority") or "").strip()
+    score = None
 
     # Gate: conflicting_evidence is only valid if BOTH sides are present and
-    # EACH cites at least one [L#] passage. Otherwise the critic is hedging
-    # without grounds — downgrade to a normal review.
+    # EACH is backed by at least one real retrieved [L#] passage. Otherwise the
+    # critic is hedging without grounds — downgrade to a normal review.
     if verdict == "conflicting_evidence":
-        cite = lambda s: bool(re.search(r"\[L\d+\]", s))
-        if not (majority and minority and cite(majority) and cite(minority)):
+        available = {f"L{p['rank']}" for p in (literature or [])}
+        # Prefer the explicit support arrays; fall back to the [L#] cited inside
+        # the majority/minority prose if the arrays are missing/malformed.
+        maj_sup = _support_tags(parsed.get("majority_support"), majority, available)
+        min_sup = _support_tags(parsed.get("minority_support"), minority, available)
+        # A tag cited on both sides discriminates nothing — drop it from both.
+        overlap = set(maj_sup) & set(min_sup)
+        maj_sup = [t for t in maj_sup if t not in overlap]
+        min_sup = [t for t in min_sup if t not in overlap]
+
+        if not (majority and minority and maj_sup and min_sup):
             verdict = "dispute" if suggestion else "accept"
             notes = (notes + ["(conflict claim not substantiated by citations from both sides — downgraded)"])[:3]
             majority = minority = ""
+        else:
+            n_maj, n_min = len(maj_sup), len(min_sup)
+            total = n_maj + n_min
+            maj_pct = round(100 * n_maj / total)
+            score = {
+                "majority_pct": maj_pct,
+                "minority_pct": 100 - maj_pct,
+                "n_supporting": total,
+                "n_passages": len(literature or []),
+                "majority_support": maj_sup,
+                "minority_support": min_sup,
+            }
 
     return {"verdict": verdict, "notes": notes, "suggested_revision": suggestion,
-            "majority": majority, "minority": minority}
+            "majority": majority, "minority": minority, "score": score}
 
 
 def _enforce_user_rules(critic: dict, pc: dict) -> dict:
@@ -763,6 +795,28 @@ def _enforce_user_rules(critic: dict, pc: dict) -> dict:
             or "Revise so the answer complies with the user's rule(s); do not restate the violating value.",
         "user_override": True,
     }
+
+
+def _support_tags(array_val, prose: str, available: set) -> list:
+    """Resolve the passages backing one side of a conflict into canonical
+    "L#" tags. Prefers the critic's explicit support array; if that is empty or
+    malformed, falls back to the [L#] citations inside the side's prose. Keeps
+    only tags that match a real retrieved passage, de-duplicated in order."""
+    raw_tags: list[str] = []
+    if isinstance(array_val, str):
+        array_val = [array_val]
+    if isinstance(array_val, list):
+        for t in array_val:
+            m = re.search(r"(\d+)", str(t))
+            if m:
+                raw_tags.append(f"L{m.group(1)}")
+    if not raw_tags:
+        raw_tags = [f"L{n}" for n in re.findall(r"\[L(\d+)\]", prose or "")]
+    out: list[str] = []
+    for t in raw_tags:
+        if t in available and t not in out:
+            out.append(t)
+    return out
 
 
 def _safe_json(raw: str):
