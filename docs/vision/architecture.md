@@ -1,16 +1,39 @@
 # Vision Tab — Architecture
 
-**Status: 🟡 Designed, not yet built (June 2026).**
+**Status: 🟡 Partially built (June 2026).** Multi-image chat ships; correction
+memory is in progress (`vision/correction_store.py` ✅).
 
-The single authoritative architecture reference for the Vision tab. It is a
-deliberate mirror of the [Reasoning tab](../reasoning/architecture.md): same
-agent → grounding → critic → feedback loop, with the **agent swapped for a
-vision-language model (VLM)** answering *"what am I looking at?"*.
+> ## ⚠️ Scope update — June 2026 (supersedes the full-mirror design below)
+>
+> The Vision tab is **deliberately narrower** than the Reasoning tab. The only
+> learning surface is **correction memory**:
+>
+> - **No critic** and **no predefined grounding rules** in the Vision tab. (The
+>   reasoning tab keeps both; the vision tab does not.)
+> - **Correction memory is the whole feedback story**: a 👎 + a free-text note,
+>   recalled the next time a *similar image* appears.
+> - **Recall is image-embedding cosine match** (was "Option B, a later
+>   upgrade" — now the design). The image is embedded (BiomedCLIP / CLIP / the
+>   VLM's own tower); the original + a few augmented copies are stored so a
+>   rotated / re-windowed copy of the same scan still matches.
+>
+> Everything below describing the critic loop, the bespoke grounding rule set,
+> the correction *extractor*, and the `vision_rules` table is the **original
+> fuller design, now deferred** — kept for context, not the current build
+> target. The live sections are [Vision memory](#vision-memory-the-only-feedback-surface),
+> [Data model](#data-model-datadbvision_feedbackdb), and the
+> [File map](#file-map-planned---reused-from-reasoning).
 
-This document is the design target. For the Phase 0 audit that established how
-much of the reasoning pipeline is reusable, see
-[`phase0_reuse_map.md`](phase0_reuse_map.md). For the original one-shot VLM
-integration, see [`phase3_vlm_plan.md`](phase3_vlm_plan.md).
+The single authoritative architecture reference for the Vision tab. It was
+originally scoped as a deliberate mirror of the
+[Reasoning tab](../reasoning/architecture.md) — same agent → grounding → critic
+→ feedback loop with the **agent swapped for a vision-language model (VLM)**
+answering *"what am I looking at?"* — but has since been narrowed to the scope
+banner above.
+
+For the Phase 0 audit that established how much of the reasoning pipeline is
+reusable, see [`phase0_reuse_map.md`](phase0_reuse_map.md). For the original
+one-shot VLM integration, see [`phase3_vlm_plan.md`](phase3_vlm_plan.md).
 
 ---
 
@@ -173,18 +196,17 @@ literature for the wrong structure.
 
 ---
 
-## Components
+## Components (current scope)
 
 | Component | Type | Role |
 |-----------|------|------|
-| Image guard | size/type + optional VLM | Reject non-bone / non-image uploads before the loop. |
-| Vision agent | `llava:13b` (VLM) | Produce a structured identification from image + prompt. Streamed. |
-| Image grounding | pure Python | Deterministic checks over the structured fields (not free prose). |
-| Critic | `huatuogpt-bone` (JSON) | Review the **description** against violations + evidence. Blind to the image. |
-| Correction memory | SQLite + matcher | Recall a prior correction for a similar image/identification. |
-| Correction extractor | `llama3.2:3b` (JSON) | Turn a 👎 + correction into a stored identification-fix rule. |
-| Evidence: literature | `BoneMindRetriever` | Corpus passages keyed on the identification (A1). |
-| Evidence: knowledge graph | `ontology.db` | 1-hop edges around identified structures (A4). |
+| Vision agent | `llava:13b` (VLM) | Produce a structured identification from image + prompt, with any recalled correction prepended. Streamed. |
+| Image encoder | BiomedCLIP (`vision/encoder.py`) | 512-d image embeddings (original + augments) for correction recall. |
+| Correction memory | SQLite + cosine matcher (`vision/correction_store.py`) | Store a 👎 + note keyed by image embedding; recall it for a similar image. |
+
+Deferred (see scope banner): image guard, image-grounding rules, critic,
+correction extractor, and literature / KG evidence. The component table for that
+fuller design is preserved in the git history of this doc.
 
 ---
 
@@ -226,12 +248,12 @@ scale/aspect bounds, `forbid_pattern` for modality-inconsistent terms) plus one
 
 ---
 
-## Vision memory (the reinforcement pillar)
+## Vision memory (the only feedback surface)
 
-The reasoning tab's "second chat is better" loop, for images. This is the one
-place the storage layer needs more than the reasoning store provides: a
-correction must be recalled for a **similar image**, not just a similar text
-question.
+The reasoning tab's "second chat is better" loop, for images — and the *only*
+learning surface in the Vision tab (no critic, no rules). A correction must be
+recalled for a **similar image**, not just a similar text question, so recall
+is a cosine match on an **image embedding**.
 
 ```
 👍  →  event log (scoreboard; not injected)
@@ -239,33 +261,52 @@ question.
 👎  →  correction ("that's trabecular bone, not cortical")
         │
         ▼
-   correction_extractor (llama3.2 JSON) → identification_fix proposal
+   embed the image  →  original + a few augmented copies
+   (rotations, flips, intensity re-windowings)
         │
         ▼
-   user confirms / edits in the correction card
+   corrections table  +  correction_embeddings (one row per variant)
         │
         ▼
-   corrections table  +  recall key  (see below)
-        │
-        ▼
-   NEXT similar image → recall surfaces the prior correction
-        → agent sees it as context → grounding + critic enforce it
+   NEXT image → embed → cosine vs every stored vector
+        → best score per correction ≥ threshold (~0.9)?
+        → surface the prior correction to the VLM as context
         → "the second time, it gets it right"
 ```
 
-**Recall key — design decision (open):**
+This is honest retrieval-of-corrections, **not** weight updates (principle 5).
 
-| Option | Mechanism | Trade-off |
-|--------|-----------|-----------|
-| **A · text key** (MVP) | Match on the VLM's identification string / context terms | Free — reuses the existing SQLite store. Weaker: only matches images the VLM *describes* similarly. |
-| **B · image embedding** | Store an image embedding column; match by cosine similarity | Stronger, true "similar image" recall. Adds an embedding model + a column. |
+**Why embedding recall, and why augmented copies.** The hard requirement is
+that a 👎 on one scan is recalled for a *rotated / re-windowed* copy of the same
+scan. Vanilla CLIP/BiomedCLIP is **not** rotation-invariant — the embedding
+shifts under rotation, so a single stored vector would miss. The cheap, robust
+fix is to store the original plus a handful of augmented embeddings per
+correction and keep each correction's best-matching variant at recall time.
 
-MVP ships **A**; **B** is a schema-compatible upgrade. Both are honest
-retrieval-of-corrections, not weight updates.
+**Two real risks (storage is not one of them):**
+
+- **Threshold tuning.** Whole-image embeddings of one modality are globally
+  similar (all micro-CT slices look alike to CLIP), so a loose threshold
+  retrieves the *wrong* correction. Start conservative (~0.9 = near-duplicate)
+  and validate against your own rotated copies. Region/patch embeddings are a
+  v2 lever if whole-image proves too blunt for local corrections
+  ("this region is cortical, not trabecular").
+- **Search time, eventually.** Recall is a brute-force NumPy cosine scan —
+  sub-millisecond for thousands of vectors. An ANN index (FAISS / hnswlib) is
+  only worth it past ~100k vectors, which a single-user tool never reaches.
+
+**Memory cost — fixed-size, never the bottleneck.** Embeddings store *vectors,
+not pixels*, so size is independent of image resolution: a 512-d float32 vector
+is ~2 KB. A correction with the original + ~4 augments + the note is ~10 KB.
+1,000 corrections ≈ 10 MB; 10,000 ≈ 100 MB. It grows linearly at a tiny
+constant.
 
 ---
 
-## Modes
+## Modes *(deferred — see scope banner)*
+
+The quick/deep split below belongs to the fuller mirror design. In the current
+scope there is a single path: recall → VLM. Kept for context.
 
 | Mode | Pipeline | Use |
 |------|----------|-----|
@@ -274,7 +315,7 @@ retrieval-of-corrections, not weight updates.
 
 ---
 
-## The critic fork (decided for MVP)
+## The critic fork *(deferred — see scope banner)*
 
 The critic is **text-only and blind to the image**. Two options were weighed in
 Phase 0:
@@ -289,68 +330,78 @@ Phase 0:
 
 ---
 
-## API surface (planned, mirrors `/api/reason/*`)
+## API surface (current scope — no critic, no rules)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/vision/chat` | POST (multipart) | SSE: VLM → grounding → critic loop. Fields: `image`, `prompt`, `history`, `mode`. |
-| `/api/vision/feedback` | POST | Record 👍/👎; on 👎 with text, return a proposed correction. |
-| `/api/vision/corrections/confirm` | POST | Persist a confirmed identification-fix. |
-| `/api/vision/rules` | GET | List vision grounding rules (incl. disabled). |
-| `/api/vision/rules/{id}/enabled` | POST | Enable/disable a rule. |
-| `/api/vision/rules/{id}` | DELETE | Delete a rule. |
+| `/api/vision/chat` | POST (multipart) | SSE: VLM identification, with any recalled correction prepended as context. Fields: `image`, `prompt`, `history`. |
+| `/api/vision/feedback` | POST | Record 👍/👎. On 👎 with text, embed the image (+ augments) and persist via `save_correction`. |
+| `/api/vision/corrections` | GET | List stored corrections (`list_corrections`). |
+| `/api/vision/corrections/{id}` | DELETE | Delete a correction + its embeddings (`delete_correction`). |
 
-The legacy one-shot `/api/analyse` (current LLaVA endpoint) is superseded by
-`/api/vision/chat` but can remain as a "quick analyse" fallback.
+The recall step (`correction_store.recall`) runs inside `/api/vision/chat`
+before the VLM call: embed the incoming image, cosine-match, and if a hit
+clears the threshold, prepend its `feedback_text` to the VLM prompt. The legacy
+one-shot `/api/analyse` (current LLaVA endpoint) can remain as a fallback.
 
-### `/api/vision/chat` SSE events (mirror reasoning, image-flavoured)
+### `/api/vision/chat` SSE events (current scope)
 
 ```
-round_start    {phase, round}
-identification {schema:{identification,modality,morphology,estimated_scale,
-                features,confidence}}                          (after round 1)
-recalled       {corrections:[{prior_id, was, corrected_to}]}  (if memory hit)
-literature     {passages:[{rank,title,year,snippet,score}]}   (deep only)
-kg_context     {facts:[{subject,relation,object,weight}], anchors}(deep only)
-token          {content, phase}
-image_check    {round, passed, violations:[{rule,name,detail,source}]}
-critic_review  {round, verdict, notes, suggested_revision, majority, minority}
-done           {identification, rounds, literature, kg, critic_resolved, mode}
+recalled       {corrections:[{correction_id, score, feedback_text}]}  (if memory hit)
+token          {content}                                              (VLM stream)
+done           {identification}
 error          {message}
 ```
 
+(The deferred fuller design also emitted `round_start`, `image_check`,
+`critic_review`, `literature`, and `kg_context` — none of those apply now.)
+
 ---
 
-## Data model (planned, `data/db/vision_feedback.db`)
+## Data model (`data/db/vision_feedback.db`)
+
+Implemented in `vision/correction_store.py`. **No `vision_rules` table** — the
+Vision tab has no rule layer. Embeddings live in their own table (one row per
+augmented variant) rather than a single column, so a correction can carry the
+original + several augments:
 
 ```sql
-feedback_events (id, user_id, turn_id, polarity, created_at)
-corrections     (id, user_id, turn_id, prompt, identification,
-                 feedback_text, recall_key, image_ref, created_at)
-vision_rules    (id, user_id, rule_id, name, kind, params(JSON),
-                 source_correction_id, origin, enabled, created_at)
+feedback_events       (id, user_id, turn_id, polarity, created_at)
+corrections           (id, user_id, turn_id, prompt, identification,
+                       feedback_text, created_at)
+correction_embeddings (id, correction_id→corrections.id ON DELETE CASCADE,
+                       user_id, variant, dim, vector BLOB, created_at)
 ```
 
-`kind ∈ {range, forbid_pattern, identification_fix}`. `recall_key` is the
-text/identification key for Option A; an `image_embedding BLOB` column is the
-Option B upgrade. KG remains read-only in `data/db/ontology.db`.
+`vector` is an **L2-normalised float32** blob, so cosine similarity at recall is
+a plain dot product. The store is **encoder-agnostic**: it persists and matches
+vectors but never loads an encoder — the API layer turns an image into a vector
+(BiomedCLIP / CLIP / the VLM's own tower) and hands it in.
 
 ---
 
-## File map (planned; ⟲ = reused from `reasoning/`)
+## File map (✅ = built, 🆕 = planned for current scope)
 
 ```
-api/main.py                       all /api/vision/* endpoints, VLM call, critic loop
-                                  (mirrors the /api/reason/* block)
-vision/image_grounding.py    🆕   built-in vision rules + user-rule compiler + check()
-vision/correction_store.py   🆕   SQLite: events, corrections, recall matcher
-vision/correction_extractor.py 🆕 👎 correction → identification_fix proposal
-reasoning/kg_context.py      ⟲    anchor + 1-hop KG edges (re-keyed on identification)
-retrieval/retriever.py       ⟲    literature retrieval (re-keyed on identification)
-reasoning/physical_grounding.py ⟲ grounding engine reused by image_grounding
-frontend/index.html               VisionTab, ImageUpload, ModeToggle, RulesPanel,
-                                  ReviewDialogue, FeedbackBar, CorrectionCard
+api/main.py                 ✅  /api/vision/{chat,feedback,corrections} — recall in
+                                chat, embed-on-👎, list/delete corrections
+vision/__init__.py          ✅  package doc
+vision/correction_store.py  ✅  SQLite: events, corrections, embedding recall matcher
+vision/encoder.py           ✅  BiomedCLIP image embeddings (lazy singleton) + augments
+frontend/index.html         ✅  VisionTab, VisionFeedbackBar, RecalledNote banner
 ```
+
+Dropped from the original mirror design (no longer in scope): `image_grounding.py`,
+`correction_extractor.py`, and the critic / re-keyed-evidence wiring in
+`api/main.py`.
+
+**Recall flow (live):** `/api/vision/chat` cheap-exits if no corrections exist;
+otherwise it embeds the incoming image with BiomedCLIP, cosine-matches via
+`correction_store.recall`, emits a `recalled` SSE event, and prepends the
+matched note to the VLM instruction. A 👎 + text on any turn re-sends the image
+to `/api/vision/feedback`, which embeds the original + 4 augments (rot90/180/270
++ hflip — the rotation-invariance fix) and stores them. Encoder weights download
+once (~400 MB) from the HF hub on first use.
 
 ---
 
@@ -359,10 +410,9 @@ frontend/index.html               VisionTab, ImageUpload, ModeToggle, RulesPanel
 | Phase | Delivers | V-track |
 |-------|----------|---------|
 | **0** ✅ | Reuse audit — confirmed loop is model-agnostic | — |
-| **1** | Image upload + chat shell + VLM agent (structured schema) | V1 |
-| **2** | Critic over description + re-keyed evidence + vision rules | V2 / V3 |
-| **3** | Correction memory (recall + enforce) — the Cephalo payoff | V4 |
+| **1** ✅ | Image upload + multi-turn chat shell + VLM agent (structured schema) | V1 |
+| **2** ~~| Critic over description + re-keyed evidence + vision rules~~ | *dropped — see scope banner* |
+| **3** ✅ | Correction memory (BiomedCLIP embedding recall) — the Cephalo payoff | V4 |
 | **4** | *(deferred, parallel)* fine-tuning audit on corpus image–caption pairs | V5.1 |
 
-Critical path to a demo: **0 → 1 → 3**. Phase 2 hardens it; Phase 4 never gates
-the demo.
+Critical path to a demo: **0 → 1 → 3**, all ✅. Phase 4 never gates the demo.

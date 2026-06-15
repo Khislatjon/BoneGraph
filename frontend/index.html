@@ -1101,6 +1101,83 @@ function RulesPanel({ onClose }) {
   );
 }
 
+// Right-side panel listing the image corrections taught in the Vision tab —
+// mirrors RulesPanel, but corrections have no enable/disable or import (they
+// come only from a 👎 + note, recalled by image similarity).
+function CorrectionsPanel({ onClose }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState({});   // id -> true while a request is in flight
+
+  const load = async () => {
+    try {
+      const r = await fetch('/api/vision/corrections');
+      const d = await r.json();
+      setItems(d.corrections || []);
+    } catch (e) { setError(e.message); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const del = async (it) => {
+    setBusy(b => ({...b, [it.id]: true}));
+    try {
+      await fetch(`/api/vision/corrections/${it.id}`, { method:'DELETE' });
+      setItems(xs => xs.filter(x => x.id !== it.id));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(b => ({...b, [it.id]: false})); }
+  };
+
+  const fmtDate = (s) => { try { return new Date(s).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); } catch { return ''; } };
+
+  return (
+    <div onClick={onClose}
+      style={{position:'absolute',inset:0,zIndex:60,background:'rgba(0,0,0,.18)',display:'flex',justifyContent:'flex-end'}}>
+      <div onClick={e => e.stopPropagation()}
+        style={{width:'min(460px,92%)',height:'100%',background:'var(--surface)',borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',boxShadow:'-4px 0 24px rgba(0,0,0,.08)'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontFamily:'var(--sans)',fontSize:17,fontWeight:600,color:'var(--text)'}}>Past corrections</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>
+              Images you've corrected{items ? ` · ${items.length} stored` : ''}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',fontSize:20,color:'var(--text3)',cursor:'pointer'}}>×</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:'12px 20px'}}>
+          {error && <div style={{color:'#b02020',fontSize:13,marginBottom:8}}>{error}</div>}
+          {items === null && <div style={{color:'var(--text3)',fontSize:13}}>Loading…</div>}
+          {items && items.length === 0 && (
+            <div style={{color:'var(--text3)',fontSize:13,lineHeight:1.6,marginTop:8}}>
+              No corrections yet. When you 👎 an identification and describe what's wrong, BoneGraph
+              stores it against the image and recalls it the next time a similar image comes up.
+            </div>
+          )}
+          {items && items.map(it => (
+            <div key={it.id} style={{border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:10,background:'var(--surface2)'}}>
+              <div style={{fontSize:13.5,color:'var(--text)',lineHeight:1.45}}>“{it.feedback_text}”</div>
+              {it.identification && (
+                <div style={{fontSize:12,color:'var(--text2)',marginTop:4}}>
+                  was identified as <span style={{fontStyle:'italic'}}>{it.identification}</span>
+                </div>
+              )}
+              <div style={{fontSize:10,color:'var(--text3)',marginTop:5,textTransform:'uppercase',letterSpacing:.3,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                {fmtDate(it.created_at) && <span>{fmtDate(it.created_at)}</span>}
+                {it.n_embeddings != null && <span>{it.n_embeddings} image variant{it.n_embeddings===1?'':'s'}</span>}
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button disabled={busy[it.id]} onClick={() => del(it)}
+                  style={{background:'transparent',color:'#b02020',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer'}}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReviewDialogue({ turn }) {
   const [open, setOpen] = useState(false);
   const rounds = (turn.rounds || []).filter(r => r.role === 'critic' || r.role === 'agent');
@@ -1461,6 +1538,94 @@ function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
   );
 }
 
+// Shown when correction memory recalled a prior 👎 for a similar image.
+function RecalledNote({ hits }) {
+  return (
+    <div style={{marginBottom:10,padding:'8px 11px',border:'1px solid #c9b07a',background:'#fbf4e2',borderRadius:8,fontSize:12.5,color:'#7a5c10'}}>
+      <div style={{fontWeight:500,marginBottom:hits.some(h=>h.feedback_text)?4:0}}>Recalled a past correction for a similar image</div>
+      {hits.map((h,i)=> h.feedback_text && (
+        <div key={i} style={{opacity:0.95}}>“{h.feedback_text}” <span style={{opacity:0.6}}>({Math.round((h.score||0)*100)}% match)</span></div>
+      ))}
+    </div>
+  );
+}
+
+// Feedback for a vision turn. 👍 logs an event; 👎 + text stores an
+// image-keyed correction (the image is re-sent so the backend can embed it).
+function VisionFeedbackBar({ turn, imageFile }) {
+  const [polarity, setPolarity] = useState(null);
+  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const sendUp = async () => {
+    if (polarity) return;
+    setPolarity(1);
+    try {
+      const fd = new FormData();
+      fd.append('turn_id', turn.id); fd.append('polarity', '1');
+      await fetch('/api/vision/feedback', { method:'POST', body: fd });
+    } catch(e) { setError(e.message); setPolarity(null); }
+  };
+
+  const submitDown = async () => {
+    if (!text.trim()) { setError('Please describe the correction.'); return; }
+    setSubmitting(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('turn_id', turn.id);
+      fd.append('polarity', '-1');
+      fd.append('prompt', turn.query || '');
+      fd.append('identification', turn.ident?.identification || '');
+      fd.append('feedback_text', text.trim());
+      if (imageFile) fd.append('image', imageFile);
+      const resp = await fetch('/api/vision/feedback', { method:'POST', body: fd });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Could not save correction');
+      setPolarity(-1); setShowInput(false);
+    } catch(e) { setError(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const btn = (selected, color) => ({
+    background: selected ? color : 'transparent',
+    color: selected ? '#fff' : 'var(--text2)',
+    border: '1px solid var(--border)', borderRadius: 6, padding: '3px 9px',
+    fontSize: 13, cursor: polarity ? 'default' : 'pointer',
+    opacity: polarity && !selected ? 0.4 : 1,
+  });
+
+  return (
+    <div style={{marginTop:10}}>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <button style={btn(polarity===1,'#2e7d32')} onClick={sendUp} disabled={!!polarity}>👍</button>
+        <button style={btn(polarity===-1,'#b02020')} onClick={()=>!polarity && setShowInput(true)} disabled={!!polarity}>👎</button>
+        {polarity === -1 && !showInput && <span style={{fontSize:12,color:'var(--text3)'}}>correction saved — I'll remember this next time</span>}
+        {polarity === 1 && <span style={{fontSize:12,color:'var(--text3)'}}>thanks</span>}
+        {error && <span style={{fontSize:12,color:'#b02020'}}>{error}</span>}
+      </div>
+      {showInput && (
+        <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:6}}>
+          <textarea value={text} onChange={e=>setText(e.target.value)}
+            placeholder="What was wrong? Be specific — e.g. 'this is trabecular bone, not cortical'."
+            style={{minHeight:60,padding:8,border:'1px solid var(--border)',borderRadius:6,fontFamily:'var(--sans)',fontSize:13,resize:'vertical',background:'var(--surface2)',color:'var(--text)'}}/>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={submitDown} disabled={submitting}
+              style={{background:'var(--navy)',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              {submitting ? 'Saving…' : 'Save correction'}
+            </button>
+            <button onClick={()=>{setShowInput(false);setText('');setError('');}} disabled={submitting}
+              style={{background:'transparent',color:'var(--text2)',border:'1px solid var(--border)',padding:'6px 14px',borderRadius:6,fontSize:13,cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ANALYSE TAB ───────────────────────────────────────────────────────────────
 function VisionTab() {
   // Multi-turn chat about ONE uploaded image. The image is re-sent on every
@@ -1473,6 +1638,7 @@ function VisionTab() {
   const [busy, setBusy]     = useState(false);
   const [drag, setDrag]     = useState(false);
   const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
+  const [corrOpen, setCorrOpen] = useState(false); // "Past corrections" panel
   const fileRef = useRef(null);
   const addRef  = useRef(null);
   const endRef  = useRef(null);
@@ -1541,9 +1707,10 @@ function VisionTab() {
     }
 
     const wasFollowup = !firstTurn;   // first turn identifies; follow-ups chat
+    const turnId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random();
     setMessages(prev => [...prev,
       { role:'user', text, imgURL: firstTurn ? imageURL : null },
-      { role:'assistant', ident:null, answer:wasFollowup?'':null, error:null },
+      { role:'assistant', id:turnId, query:text, ident:null, answer:wasFollowup?'':null, error:null, recalled:null },
     ]);
     setInput(''); setBusy(true);
 
@@ -1567,6 +1734,7 @@ function VisionTab() {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
           if (ev.type === 'token') { if (wasFollowup) appendLastAnswer(ev.content); }
+          else if (ev.type === 'recalled') patchLastAsst({ recalled: ev.corrections || [] });
           else if (ev.type === 'identification') patchLastAsst({ ident: ev.schema });
           else if (ev.type === 'done') {
             if (ev.kind === 'chat') patchLastAsst({ answer: (ev.answer || '') });
@@ -1584,9 +1752,22 @@ function VisionTab() {
     setBusy(false);
   };
 
+  // Floating top-right button → opens the "Past corrections" panel.
+  const CorrButton = () => (
+    <div style={{position:'absolute',top:12,right:16,zIndex:40}}>
+      <button onClick={() => setCorrOpen(true)} title="See the corrections you've taught BoneGraph"
+        style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:13,color:'var(--text2)',cursor:'pointer',fontFamily:'var(--sans)',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{fontSize:18}}>⚙</span> Past corrections
+      </button>
+    </div>
+  );
+
   // Empty state — centered dropzone (no image attached yet).
   if (!imageFile && messages.length === 0) return (
-    <div className="chat-area">
+    <div className="ask" style={{position:'relative'}}>
+      <CorrButton/>
+      {corrOpen && <CorrectionsPanel onClose={() => setCorrOpen(false)}/>}
+      <div className="chat-area">
       <div className="chat-inner" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,minHeight:'72vh'}}>
         <div className={`dropzone${drag?' drag':''}`}
           onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
@@ -1600,13 +1781,16 @@ function VisionTab() {
           <div className="dz-title">Drop a bone image here</div>
           <div className="dz-sub">X-ray · MRI · micro-CT · or click to select · PNG, JPG</div>
         </div>
-        <div className="vision-note" style={{marginTop:16,textAlign:'center'}}>BoneGraph identifies the image with a vision-language model (LLaVA 13b), then you can chat about it. For research and educational use only — not a clinical diagnosis.</div>
+        <div className="vision-note" style={{marginTop:16,textAlign:'center'}}>BoneGraph identifies the image with a vision-language model (LLaVA 13b), you can chat about it and provide your feedback. For research and educational use only — not a clinical diagnosis.</div>
+      </div>
       </div>
     </div>
   );
 
   return (
-    <>
+    <div className="ask" style={{position:'relative'}}>
+      <CorrButton/>
+      {corrOpen && <CorrectionsPanel onClose={() => setCorrOpen(false)}/>}
       <div className="chat-area">
         <div className="chat-inner">
           <div className="messages">
@@ -1622,13 +1806,21 @@ function VisionTab() {
                   ) : m.error ? (
                     <div className="msg-text">⚠️ {m.error}</div>
                   ) : m.ident ? (
-                    <IdentCard ident={m.ident}/>
+                    <>
+                      {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
+                      <IdentCard ident={m.ident}/>
+                      <VisionFeedbackBar turn={m} imageFile={imageFile}/>
+                    </>
                   ) : m.answer != null ? (
-                    <div className="msg-text">
-                      {m.answer
-                        ? <>{m.answer}{busy && i===messages.length-1 && <span className="blink">▍</span>}</>
-                        : <Dots/>}
-                    </div>
+                    <>
+                      {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
+                      <div className="msg-text">
+                        {m.answer
+                          ? <>{m.answer}{busy && i===messages.length-1 && <span className="blink">▍</span>}</>
+                          : <Dots/>}
+                      </div>
+                      {m.answer && !(busy && i===messages.length-1) && <VisionFeedbackBar turn={m} imageFile={imageFile}/>}
+                    </>
                   ) : (
                     <div className="msg-text"><Dots/></div>
                   )}
@@ -1662,7 +1854,7 @@ function VisionTab() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -1456,6 +1456,27 @@ def _parse_identification(raw: str) -> dict:
     }
 
 
+# Cosine ≥ this means "essentially the same scan" — surface the prior
+# correction. Tuned conservatively; see vision/correction_store.py.
+VISION_RECALL_THRESHOLD = 0.9
+
+
+def _vision_recall(pil_img) -> list[dict]:
+    """Recall prior corrections for a similar image. Embeds the image with
+    BiomedCLIP and cosine-matches against the correction store. Cheap-exits when
+    nothing is stored (avoids loading the encoder on a fresh install), and never
+    raises — a recall failure must not break the chat stream."""
+    try:
+        from vision.correction_store import stats, recall
+        if stats().get("corrections", 0) == 0:
+            return []
+        from vision import encoder
+        q = encoder.embed_image(pil_img)
+        return recall(q, threshold=VISION_RECALL_THRESHOLD, top_k=3)
+    except Exception:
+        return []
+
+
 @app.post("/api/vision/chat")
 async def vision_chat(
     image: UploadFile = File(...),
@@ -1504,6 +1525,21 @@ async def vision_chat(
             yield f"data: {json.dumps({'type':'round_start','phase':'vision','round':1})}\n\n"
             res: dict = {}
             instruction = VISION_CHAT_PROMPT if is_followup else VISION_AGENT_PROMPT
+
+            # Correction memory: recall prior 👎 corrections for a similar image
+            # and surface them to the VLM as context — the one extra input the
+            # agent is allowed (docs/vision/architecture.md, principle 1).
+            recalled = _vision_recall(pil_img)
+            if recalled:
+                yield f"data: {json.dumps({'type':'recalled','corrections':recalled})}\n\n"
+                notes = "\n".join(f"- {h['feedback_text']}" for h in recalled if h.get("feedback_text"))
+                if notes:
+                    instruction += (
+                        "\n\n[Correction memory] A user previously corrected your reading of a "
+                        "very similar image:\n" + notes +
+                        "\nTreat these corrections as authoritative and do not repeat the mistake."
+                    )
+
             for t in _vlm_stream(img_b64, instruction, user_prompt, prior_turns, res):
                 yield f"data: {json.dumps({'type':'token','content':t,'phase':'vision'})}\n\n"
             prompt_tokens = max(1, round(res.get("prompt_chars", 0) / 3.5))
@@ -1524,3 +1560,76 @@ async def vision_chat(
             yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.post("/api/vision/feedback")
+async def vision_feedback(
+    turn_id: str = Form(...),
+    polarity: int = Form(...),
+    prompt: str = Form(""),
+    identification: str = Form(""),
+    feedback_text: str = Form(""),
+    image: UploadFile = File(None),
+):
+    """Record a 👍/👎 and, on 👎 with text, store an image-keyed correction.
+
+    The Vision tab has no critic and no rules — correction memory is the only
+    feedback surface. A 👎 with a free-text note embeds the image (original +
+    augmented copies, via BiomedCLIP) so the correction is recalled the next
+    time a similar image shows up. A 👎 with no text records the event only —
+    there is nothing to recall.
+
+    Response:
+      thumbs-up / empty thumbs-down:
+        {"ok": true, "correction_id": null, "stats": {...}}
+      thumbs-down with text:
+        {"ok": true, "correction_id": N, "n_embeddings": K, "stats": {...}}
+    """
+    from vision.correction_store import save_event, save_correction, stats
+
+    if polarity not in (-1, 1):
+        return {"ok": False, "error": "polarity must be -1 or +1"}
+
+    save_event(turn_id=turn_id, polarity=polarity)
+
+    if polarity == 1 or not feedback_text.strip():
+        return {"ok": True, "correction_id": None, "stats": stats()}
+
+    if image is None:
+        return {"ok": False, "error": "image is required to store a correction"}
+
+    from PIL import Image as PILImage
+    from vision import encoder
+
+    contents = await image.read()
+    try:
+        pil_img = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        return {"ok": False, "error": "could not read image file"}
+
+    vecs, variants = encoder.embed_with_augments(pil_img)
+    res = save_correction(
+        turn_id=turn_id,
+        feedback_text=feedback_text.strip(),
+        embeddings=vecs,
+        prompt=prompt or "",
+        identification=identification or "",
+        variants=variants,
+    )
+    return {"ok": True, "correction_id": res["id"],
+            "n_embeddings": res["n_embeddings"], "stats": stats()}
+
+
+@app.get("/api/vision/corrections")
+async def vision_corrections_list():
+    """List stored corrections (for a management view)."""
+    from vision.correction_store import list_corrections, stats
+    return {"corrections": list_corrections(), "stats": stats()}
+
+
+@app.delete("/api/vision/corrections/{correction_id}")
+async def vision_correction_delete(correction_id: int):
+    """Delete a correction and its embeddings (cascade)."""
+    from vision.correction_store import delete_correction, stats
+    deleted = delete_correction(correction_id)
+    return {"ok": deleted, "stats": stats()}
