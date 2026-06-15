@@ -36,6 +36,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .sb-logo{display:flex;align-items:center;gap:11px;padding:20px 16px 18px;border-bottom:1px solid var(--border)}
 .sb-logo-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
 .sb-logo-text{font-family:var(--sans);font-size:19px;letter-spacing:-.01em}
+.sb-logo-meta{display:flex;flex-direction:column;gap:3px}
+.sb-logo-title{display:flex;align-items:flex-start;gap:5px}
+.sb-beta{font-family:var(--sans);font-size:8px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:#b07820;border-radius:3px;padding:1px 4px;line-height:1.4;position:relative;top:-3px}
+.sb-version{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.02em}
 .sb-nav{display:flex;flex-direction:column;padding:10px 8px;gap:2px;flex:1}
 .sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:none;background:none;cursor:pointer;font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--text2);text-align:left;width:100%;transition:background .12s,color .12s}
 .sb-item:hover{background:var(--surface2);color:var(--text)}
@@ -1881,7 +1885,12 @@ function App() {
       <aside className="sidebar">
         <div className="sb-logo">
           <div className="sb-logo-icon"><BoneSVG size={34}/></div>
-          <span className="sb-logo-text">BoneGraph</span>
+          <div className="sb-logo-meta">
+            <div className="sb-logo-title">
+              <span className="sb-logo-text">BoneGraph</span>
+              <span className="sb-beta">beta</span>
+            </div>
+          </div>
         </div>
         <nav className="sb-nav">
           {TABS.map(t => (

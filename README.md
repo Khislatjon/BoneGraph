@@ -1,230 +1,195 @@
 # BoneGraph
 
-An intelligent reasoning system for bone science — morphology, mechanics, pathology, and biomaterials.
+**An intelligent research assistant for bone science** — morphology, mechanics, pathology, imaging, and biomaterials.
 
-**BoneScholar** is the curated dataset that powers BoneGraph. It contains 54,634 peer-reviewed papers (7,433 with full text) and 16 open-access textbooks, all focused on bone science. Papers were collected via the OpenAlex API across targeted keyword groups, filtered to English, extracted, chunked into 248,629 sentence-aware passages, and embedded with SPECTER2 for semantic retrieval. The Search BoneScholar tab lets you query this dataset directly by concept, method, or author without going through the LLM.
+BoneGraph unifies four research workflows behind a single web UI: conversational question-answering over a curated literature corpus, raw semantic search, knowledge-graph-grounded reasoning with a self-correcting critic, and vision-language analysis of medical images. It runs locally on top of a 248,629-chunk embedding index, a hand-cleaned bone knowledge graph, and open-weight language models served through Ollama.
 
-## Documentation
-
-| Document | Description |
-|---|---|
-| [docs/architecture.md](docs/architecture.md) | System overview, 2-layer architecture, phase summaries, design principles, repo layout |
-| [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Phase 1 — papers ingestion deep-dive: API → SQLite → PDFs |
-| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — textbooks ingestion: 16 curated open-access books |
-| [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — text extraction, chunking, embedding, RAG, LLM, evaluation |
-| [docs/phase3_vlm_plan.md](docs/phase3_vlm_plan.md) | Phase 3 — VLM integration plan: datasets, pipeline, cross-modal retrieval, UI |
-| [docs/phase4_lrm_plan.md](docs/phase4_lrm_plan.md) | Phase 4 — bone knowledge graph build (seed ontology, triple extraction, cleanup) |
-| [docs/reasoning_tab.md](docs/reasoning_tab.md) | Reasoning tab — agent + critic loop, physical grounding, feedback-driven user rules |
-| [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab — full architecture: pipeline, components, rule tiers, modes, API, data model |
-
-## Architecture (summary)
-
-```
-Layer 1  │  LLM (text) + VLM (X-ray / MRI)      ← perception & understanding
-Layer 2  │  Reasoning tab (agent + critic)       ← grounded reasoning over the bone domain
-```
-
-## Progress
-
-| Phase | Status | Key results |
-|---|---|---|
-| Phase 1 — Paper ingestion | ✅ Complete | 54,634 papers · 7,674 PDFs downloaded |
-| Phase 1b — Textbook ingestion | ✅ Complete | 16 textbooks |
-| Phase 2 — Text extraction | ✅ Complete | 7,433 English papers + 16 textbooks extracted |
-| Phase 2 — Language filtering | ✅ Complete | 336 non-English papers flagged |
-| Phase 2 — Chunking | ✅ Complete | 248,629 chunks (sentence-aware · ~400 tokens · 2-sentence overlap) |
-| Phase 2 — Embedding | ✅ Complete | SPECTER2 768-dim · proximity adapter · 248,629 chunks |
-| Phase 2 — RAG retrieval | ✅ Complete | CLI + React web UI (Ask · Search · Analyse Image · Reason tabs) |
-| Phase 2 — LLM integration | ✅ Complete | HuatuoGPT-o1-8B via Ollama (`huatuogpt-bone` — HuatuoGPT-o1-8B with custom bone science system prompt) · streaming RAG answers |
-| Phase 2 — Retrieval evaluation | ✅ Complete | MRR 0.928 · Recall@5 1.000 · 30-question benchmark |
-| Phase 2 — Citation behaviour | ✅ Complete | Few-shot system prompt · inline [N] citations · DOI links · ascending reference sort |
-| Phase 2 — Multi-turn chat | ✅ Complete | Sliding window (last 3 pairs) · thinking block + References stripped from history · bounded context |
-| Phase 3 — VLM integration | 🔶 Partial | LLaVA 1.6 tab implemented · cross-modal retrieval pending |
-| Phase 4 — Knowledge graph | ✅ Complete | Seed ontology · triple extraction · cleanup → 1,597 nodes · 1,699 edges |
-| Phase 4b — Reasoning tab | 🟢 Live | Agent + critic loop · physical grounding · feedback-driven user rules |
+> ⚠️ **For research and educational use only. BoneGraph is not a clinical tool and does not provide medical diagnoses.**
 
 ---
 
-## Phase 1 — Data Ingestion
-
-### Setup
+## Quick start
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-cp .env.example .env
-# Add CROSSREF_EMAIL and WILEY_TDM_TOKEN to .env
+python serve.py          # http://localhost:8000
 ```
 
-### Run paper ingestion
+Pull the models BoneGraph depends on (via [Ollama](https://ollama.com)):
 
 ```bash
-# Collect metadata for all keyword groups
-python -m ingestion.papers.pipeline
-
-# Also download open-access PDFs
-python -m ingestion.papers.pipeline --download
-
-# Specific groups only
-python -m ingestion.papers.pipeline --groups mechanics pathology imaging
-
-# Custom keyword + small cap (useful for testing)
-python -m ingestion.papers.pipeline --keywords "bone fracture toughness" --max 50
+ollama pull huatuogpt-bone   # Chat + Reasoning — HuatuoGPT-o1-8B with a bone-science system prompt
+ollama pull llava:13b        # Vision tab
+ollama pull llama3.2:3b      # bone-relevance classifier + rule extraction
 ```
 
-### Run textbook ingestion
-
-```bash
-# Place PDFs in data/raw/textbooks/<Source Name>/book.pdf
-# Then register them in the database:
-python -m ingestion.textbooks.pipeline
-```
-
-### Inspect the database
-
-```bash
-python scripts/inspect_db.py
-```
+The **Chat**, **Search**, and **Reasoning** tabs are fully offline once the models are pulled and the embedding index is built. The **Vision** tab additionally requires `llava:13b`.
 
 ---
 
-## Phase 2 — Text Processing & RAG
+## The four tabs
 
-### Extract text from PDFs
+BoneGraph's UI is organised into four tabs, each backed by its own API surface in [`api/main.py`](api/main.py).
 
-```bash
-python -m processing.extract_papers       # Extract all paper PDFs (strips reference sections)
-python -m processing.extract_textbooks    # Extract all textbook PDFs
-```
+### 1 · Chat — conversational RAG
 
-### Filter non-English papers
+The default tab (labelled **Chat**) is a retrieval-augmented question-answering interface over the **BoneScholar** corpus.
 
-```bash
-python -m scripts.filter_english --dry-run   # Preview — no changes written
-python -m scripts.filter_english             # Run both passes
-```
+**How it works**
+1. Each question is first screened by a lightweight two-stage **bone-relevance guard** — a fast lexical pass over bone vocabulary, falling back to `llama3.2:3b` for ambiguous wording (and failing open on network errors). Off-topic questions are politely declined so the model stays in domain.
+2. The question is embedded with SPECTER2's ad-hoc query adapter and used to retrieve the top-k most relevant chunks (default `top_k=8`) from the 248,629-chunk index.
+3. The retrieved passages are assembled into a grounded context and streamed through **HuatuoGPT-o1-8B**, a medical reasoning model running under a bone-science system prompt.
+4. The answer streams back token-by-token with inline `[N]` citations that are rewritten into clickable DOI links pointing at the exact source paper.
 
-### Chunk extracted text
+**Multi-turn chat** is supported with a bounded sliding context window (the last 3 question/answer pairs). Thinking blocks and reference sections are stripped from history before re-injection so the context stays small and on-topic across a conversation.
 
-```bash
-python -m processing.chunk_all    # English papers only · sentence-aware · resumable
-```
+### 2 · Search — raw semantic retrieval
 
-### Embed chunks with SPECTER2
+Direct semantic search over the full BoneScholar corpus with **no LLM in the loop** — what you see is exactly what the retriever returns.
 
-```bash
-python -m processing.embed        # Resumes from last embedded chunk if interrupted
-python -m processing.embed --force  # Re-embed everything from scratch
-```
+**Controls**
+- **Source filter** — papers, textbooks, or all.
+- **Year range** — restrict to a publication window (default 1970–2026).
+- **top-k** — how many ranked passages to return (default 10).
 
-### Query BoneScholar
+Each result shows the passage text, paper/textbook metadata, a DOI link where available, and the raw similarity score. This tab is the fastest way to do literature review and to sanity-check retrieval quality without generation overhead — it's effectively a window onto what the Chat and Reasoning tabs are reading from.
 
-```bash
-# CLI — single query
-python -m retrieval.query "cortical bone fracture toughness"
+### 3 · Reasoning — agent + critic, grounded in the knowledge graph
 
-# CLI — interactive mode (embeddings loaded once, fast repeated queries)
-python -m retrieval.query --interactive
+A self-correcting reasoning loop grounded in the **bone knowledge graph** (1,597 nodes · 1,699 edges).
 
-# React web UI (tabs: Ask BoneGraph · Search BoneScholar · Analyse Image · Reason)
-python serve.py    # FastAPI backend + React frontend at http://localhost:8000
-```
+**How it works**
+1. A **reasoning agent** drafts an answer to the question, supported by retrieved literature.
+2. A **critic** independently checks that draft against two grounding sources:
+   - **Tier-1 deterministic rules** — fracture-mechanics relationships encoded in [`reasoning/physical_grounding.py`](reasoning/physical_grounding.py), checked programmatically rather than by an LLM.
+   - **1-hop knowledge-graph facts** — relevant nodes and edges pulled from the graph and fed to the critic as ground truth ([`reasoning/kg_context.py`](reasoning/kg_context.py)).
+3. If the critic flags violations, the agent revises. The loop runs under **Quick** and **Deep** modes, with a hard 2-iteration cap so it always terminates.
 
-**Ask BoneGraph tab** requires Ollama running with the fine-tuned model:
+**It learns from feedback.** When you 👎 an answer and describe what's wrong, `llama3.2:3b` extracts a candidate **user rule** ([`reasoning/rule_extractor.py`](reasoning/rule_extractor.py)). Once you confirm it, the rule is persisted (Tier-2) and applied by the critic on every future request. Rules can be listed, toggled on/off, deleted, and imported/exported as a template — all from the in-app **Rules** manager. 👍/👎 events and corrections are stored in a SQLite feedback store ([`reasoning/feedback_store.py`](reasoning/feedback_store.py)).
 
-```bash
-ollama serve          # start the server (separate terminal if not running as a service)
-ollama run huatuogpt-bone  # HuatuoGPT-o1-8B with custom bone science system prompt
-```
+### 4 · Vision — image analysis with a feedback loop
 
-**Search BoneScholar tab** works without Ollama — pure semantic retrieval only.
+Upload an X-ray, MRI, or histology image and analyse it with a vision-language model.
 
-### Run the retrieval benchmark
+**How it works**
+1. The uploaded image is encoded ([`vision/encoder.py`](vision/encoder.py)) and sent to **LLaVA 13b** via Ollama.
+2. LLaVA produces a structured identification of the visible structures, which is parsed into a clean summary, plus a free-form description.
+3. You can then **chat about the image** in a multi-turn conversation — asking follow-up questions while the model retains the image context.
 
-```bash
-python eval/run_eval.py              # default top_k=10
-python eval/run_eval.py --top-k 20  # custom top_k
-```
+**It learns from corrections.** Submitting a 👎 with a description of what's wrong stores a correction ([`vision/correction_store.py`](vision/correction_store.py)) that is recalled to shape future responses. Corrections can be reviewed and deleted from the in-app corrections manager.
 
-Results are saved to `eval/results.json`. Current scores (top_k=10):
+> The Vision tab is explicitly **research and educational only — not a clinical diagnostic tool.**
+
+---
+
+## BoneScholar corpus
+
+The literature backbone behind the Chat and Search tabs.
+
+| Stat | Value |
+|---|---|
+| Papers collected | 54,634 |
+| Papers with full text | 7,433 |
+| Open-access textbooks | 16 |
+| Chunks (sentence-aware, ~400 tokens, 2-sentence overlap) | 248,629 |
+| Embedding model | SPECTER2 · 768-dim · proximity adapter |
+
+Papers were collected via the **OpenAlex API** across targeted keyword groups spanning bone morphology, mechanics, pathology, imaging, and biomaterials. Non-English papers (336) are flagged and excluded from retrieval. Chunks are sentence-aware (~400 tokens with 2-sentence overlap) to stay safely under SPECTER2's 512-token limit while preserving context across boundaries.
+
+---
+
+## Bone knowledge graph
+
+The reasoning backbone behind the Reasoning tab.
+
+| Stat | Value |
+|---|---|
+| Nodes (unique concepts) | 1,597 |
+| Edges (unique relations) | 1,699 |
+| Source | 16 open-access textbooks · 1,983 chunks |
+
+The graph was built by running LLM triple extraction over the textbook corpus, then cleaning and reclassifying the raw triples down to a high-signal graph. It is read by the Reasoning tab's critic as a 1-hop fact source for grounding agent drafts.
+
+---
+
+## Models
+
+| Role | Model | Used by |
+|---|---|---|
+| Answer generation / reasoning agent | HuatuoGPT-o1-8B (`huatuogpt-bone`) | Chat, Reasoning |
+| Embeddings (documents + queries) | SPECTER2 (`allenai/specter2` + ad-hoc query adapter) | Chat, Search, Reasoning |
+| Vision-language analysis | LLaVA 13b (`llava:13b`) | Vision |
+| Bone-relevance classifier · rule extraction · triple extraction | `llama3.2:3b` / `huatuogpt-bone` | Chat, Reasoning |
+
+Model names, the Ollama base URL (`OLLAMA_URL`), timeouts, and chunking parameters are centralised in [`config/settings.py`](config/settings.py) and overridable via environment variables.
+
+---
+
+## Retrieval benchmark
+
+A 30-question benchmark across 7 bone-science domains (morphology, mechanics, pathology, imaging, biomaterials, remodelling, fracture).
 
 | Metric | Score |
 |---|---|
 | MRR | **0.928** |
-| Recall@1 | **0.867** (26/30) |
-| Recall@3 | **1.000** (30/30) |
-| Recall@5 | **1.000** (30/30) |
+| Recall@1 | **0.867** (26 / 30) |
+| Recall@3 | **1.000** (30 / 30) |
+| Recall@5 | **1.000** (30 / 30) |
+
+```bash
+python eval/run_eval.py           # default top_k=10
+python eval/run_eval.py --top-k 5
+```
+
+Results are saved to `eval/results.json`.
 
 ---
 
-## Phase 4 — Bone Knowledge Graph
+## Building the pipeline from scratch
 
-The knowledge graph is seeded, triple extraction has run over the textbook and
-paper corpus, and the raw graph has been cleaned and reclassified down to a
-high-signal 1,597 nodes / 1,699 edges. The cleaned `ontology.db` is read by the
-live Reasoning tab's critic as a 1-hop fact source (see
-[docs/reasoning/architecture.md](docs/reasoning/architecture.md)).
-
-### Check graph stats
+### 1 — Collect papers
 
 ```bash
-# Quick SQLite inspection
+cp .env.example .env
+# Set CROSSREF_EMAIL and WILEY_TDM_TOKEN
+
+python -m ingestion.papers.pipeline              # metadata only
+python -m ingestion.papers.pipeline --download   # + open-access PDFs
+```
+
+### 2 — Ingest textbooks
+
+```bash
+# Place PDFs in data/raw/textbooks/<Source Name>/book.pdf
+python -m ingestion.textbooks.pipeline
+```
+
+### 3 — Extract, chunk, embed
+
+```bash
+python -m processing.extract_papers
+python -m processing.extract_textbooks
+python -m scripts.filter_english
+python -m processing.chunk_all
+python -m processing.embed        # resumable; use --force to re-embed from scratch
+```
+
+### 4 — Build the knowledge graph
+
+```bash
+# Triple extraction (resumable — picks up from last processed chunk)
+python -m reasoning.extractor --source textbooks
+
+# Check graph stats
 python -c "
-import sqlite3, pathlib
+import sqlite3
 con = sqlite3.connect('data/db/ontology.db')
-nodes = con.execute('SELECT COUNT(*) FROM nodes').fetchone()[0]
-edges = con.execute('SELECT COUNT(*) FROM edges').fetchone()[0]
-print(f'Nodes: {nodes}  Edges: {edges}')
+n = con.execute('SELECT COUNT(*) FROM nodes').fetchone()[0]
+e = con.execute('SELECT COUNT(*) FROM edges').fetchone()[0]
+print(f'Nodes: {n}  Edges: {e}')
 "
 ```
-
-### Run triple extraction (resumable)
-
-```bash
-# Textbooks only (highest quality, ~1,983 chunks, ~7 hours CPU-only)
-.venv/bin/python -m reasoning.extractor --source textbooks
-
-# All chunks including papers (long-running, use caffeinate / nohup on macOS)
-caffeinate -i nohup .venv/bin/python -m reasoning.extractor > logs/extractor.log 2>&1 &
-
-# Tail progress
-tail -f logs/extractor.log
-```
-
-> Extraction is **resumable** — if interrupted, re-run the same command and it picks up from the last processed chunk (tracked in `extraction_progress` table in `ontology.db`).
-
-### Current graph stats (after textbook extraction)
-
-| Metric | Value |
-|---|---|
-| Chunks processed | 1,983 / 1,983 textbook chunks |
-| Non-empty chunks | 727 (37%) |
-| Raw triples extracted | 2,935 |
-| Nodes (unique concepts) | 3,001 |
-| Edges (unique relations) | 2,339 |
-
-### Launch the Reasoning tab
-
-```bash
-python serve.py   # React UI at http://localhost:8000 — Reasoning tab in sidebar
-```
-
-The Reasoning tab runs an agent → physical-grounding → critic loop with bounded
-revision, grows a personal rule layer from your 👍/👎 feedback, and offers a
-Quick / Deep mode toggle. Full design in
-[docs/reasoning_tab.md](docs/reasoning_tab.md) and
-[docs/reasoning/architecture.md](docs/reasoning/architecture.md).
-
-- **Agentic** — a reasoning agent and a critic agent, with a hard 2-iteration cap.
-- **Physical grounding** — deterministic, fracture-scoped rules checked on every answer.
-- **Reinforcement** — confirmed corrections become user rules applied on every future request.
-
-Example queries:
-- `"cortical bone elastic modulus"`
-- `"mechanical loading and bone remodelling"`
-- `"fatigue crack growth in cortical bone"`
-- `"how does a lytic lesion affect fracture risk"`
 
 ---
 
@@ -232,51 +197,57 @@ Example queries:
 
 ```
 BoneGraph/
-├── config/                  # Central settings (paths, model names, constants)
+├── api/                     # FastAPI backend (ask, search, reason, vision, stats)
+│   └── main.py
+├── frontend/                # Single-file React app (Babel in-browser transpilation)
+│   ├── index.html           # Chat · Search · Reasoning · Vision tabs
+│   └── static/
 ├── ingestion/
 │   ├── papers/              # OpenAlex API client, storage, downloader
 │   └── textbooks/           # Textbook scanner and storage
 ├── processing/              # Text extraction, chunking, embedding
-├── retrieval/               # RAG retrieval engine + CLI/web query interface
-├── reasoning/               # Phase 4: bone knowledge graph + the live Reasoning tab
-│   ├── __init__.py
-│   ├── ontology.py          # Node/Edge dataclasses, GraphBuilder, NetworkX wrappers
-│   ├── graph_db.py          # SQLite-backed graph persistence (ontology.db)
+├── retrieval/               # SPECTER2 retrieval engine + CLI query interface
+├── reasoning/               # Knowledge graph + Reasoning tab backend
+│   ├── ontology.py          # Node/Edge dataclasses, GraphBuilder
+│   ├── graph_db.py          # SQLite-backed graph persistence
 │   ├── seed.py              # ~200 seed concepts + hand-curated causal edges
-│   ├── extractor.py         # LLM triple extraction pipeline from chunks.db (resumable)
-│   ├── physical_grounding.py # Fracture-scoped Tier-1 rules + Tier-2 user-rule compiler
-│   ├── feedback_store.py    # SQLite store: feedback events, corrections, user rules
-│   ├── rule_extractor.py    # llama3.2:3b extraction of a structured rule from feedback
-│   ├── rule_import.py       # Bulk CSV/XLSX user-rule import
-│   └── kg_context.py        # 1-hop knowledge-graph facts fed to the critic
-├── scripts/                 # Utilities: DB inspector, language filter
+│   ├── extractor.py         # LLM triple extraction pipeline (resumable)
+│   ├── physical_grounding.py# Fracture-scoped Tier-1 rules + Tier-2 user-rule compiler
+│   ├── feedback_store.py    # Feedback events, corrections, user rules (SQLite)
+│   ├── rule_extractor.py    # Rule extraction from 👎 feedback via llama3.2:3b
+│   └── kg_context.py        # 1-hop KG facts fed to the critic
+├── vision/                  # Vision tab backend
+│   ├── encoder.py           # Image encoding for LLaVA
+│   └── correction_store.py  # Vision feedback and correction storage
+├── config/                  # Central settings (paths, model names, constants)
+├── scripts/                 # Utilities: DB inspector, language filter, rule import
+├── eval/                    # Retrieval benchmark (30 questions, MRR + Recall@k)
 ├── data/
-│   ├── raw/papers/          # Downloaded paper PDFs (gitignored)
-│   ├── raw/textbooks/       # Textbook PDFs by source (gitignored)
-│   ├── processed/text/      # Extracted .txt files (gitignored)
-│   └── db/                  # SQLite databases (gitignored)
+│   └── db/
 │       ├── papers.db        # 54,634 paper metadata rows
-│       ├── textbooks.db     # 16 textbook metadata rows
 │       ├── chunks.db        # 248,629 chunks + SPECTER2 embeddings
-│       └── ontology.db      # Knowledge graph: 1,597 nodes · 1,699 edges (cleaned)
-├── eval/                    # Retrieval quality benchmark
-│   ├── benchmark.json       # 30 questions across 7 domains with expected keywords
-│   ├── run_eval.py          # Eval script — computes MRR and Recall@k
-│   └── results.json         # Latest benchmark results
-├── api/                     # FastAPI backend (endpoints: ask, search, reason, analyse, gaps, stats)
-│   └── main.py
-├── frontend/                # React web UI (sidebar design: Ask · Search · Analyse Image · Reason)
-│   ├── index.html           # Single-file React app (Babel in-browser transpilation)
-│   └── static/              # React, ReactDOM, Babel bundles
-├── serve.py                 # Uvicorn launcher — starts FastAPI at http://localhost:8000
-├── docs/                    # Detailed documentation per phase
-├── mypaper/                 # Paper draft (gitignored)
+│       └── ontology.db      # Knowledge graph: 1,597 nodes · 1,699 edges
+├── docs/                    # Per-phase architecture documentation
+├── serve.py                 # Uvicorn launcher → http://localhost:8000
 └── tests/
 ```
 
 ---
 
-## Run tests
+## Documentation
+
+| Document | Description |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | System overview, 2-layer architecture, design principles |
+| [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Phase 1 — OpenAlex API → SQLite → PDFs |
+| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — 16 curated open-access textbooks |
+| [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — extraction, chunking, embedding, RAG, evaluation |
+| [docs/vision/architecture.md](docs/vision/architecture.md) | Vision tab — LLaVA pipeline, feedback loop, correction store |
+| [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab — agent + critic loop, rule tiers, KG grounding |
+
+---
+
+## Tests
 
 ```bash
 pytest tests/ -v
