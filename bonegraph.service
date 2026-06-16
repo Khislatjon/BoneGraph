@@ -1,0 +1,16 @@
+[Unit]
+Description=BoneGraph API
+After=network-online.target ollama.service
+Wants=network-online.target ollama.service
+
+[Service]
+User=jon
+WorkingDirectory=/home/jon/Documents/PhD/Projects/BoneGraph
+ExecStart=/home/jon/Documents/PhD/Projects/BoneGraph/run_api.sh
+Restart=always
+RestartSec=5
+# FEEDBACK_ADMIN_TOKEN is loaded from .env by config/settings.py
+# LD_PRELOAD / LD_LIBRARY_PATH are set inside run_api.sh
+
+[Install]
+WantedBy=multi-user.target
