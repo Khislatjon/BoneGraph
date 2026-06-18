@@ -43,7 +43,7 @@ import time
 from pathlib import Path
 
 import requests
-from fastapi import FastAPI, Form, UploadFile, File, Query, Request, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File, Query, Request, HTTPException, Header, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -282,6 +282,55 @@ app.add_middleware(
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
+
+
+# ── Auth ───────────────────────────────────────────────────────────────────────
+# Username/password accounts (api/auth_store.py). The username becomes the
+# `user_id` threaded through reasoning/feedback_store.py and
+# vision/correction_store.py so Tier-2 learned rules and Vision corrections are
+# scoped per account instead of all landing in the shared "local" bucket. The
+# 8 built-in Tier-1 physical-grounding rules stay hardcoded and global — they
+# are not touched by this.
+
+def get_current_user(authorization: str = Header(None)) -> str:
+    from api.auth_store import get_user_by_token
+    token = authorization[7:].strip() if authorization and authorization.lower().startswith("bearer ") else ""
+    user = get_user_by_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user["username"]
+
+
+@app.post("/api/auth/register")
+async def auth_register(username: str = Form(...), password: str = Form(...)):
+    from api.auth_store import create_user, create_session
+    try:
+        user = create_user(username, password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"token": create_session(user["id"]), "username": user["username"]}
+
+
+@app.post("/api/auth/login")
+async def auth_login(username: str = Form(...), password: str = Form(...)):
+    from api.auth_store import verify_user, create_session
+    user = verify_user(username, password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {"token": create_session(user["id"]), "username": user["username"]}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(authorization: str = Header(None)):
+    from api.auth_store import delete_session
+    if authorization and authorization.lower().startswith("bearer "):
+        delete_session(authorization[7:].strip())
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+async def auth_me(user_id: str = Depends(get_current_user)):
+    return {"username": user_id}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -868,6 +917,7 @@ async def reason_chat(
     history: str = Form("[]"),
     all_questions: str = Form("[]"),
     mode: str = Form("deep"),
+    user_id: str = Depends(get_current_user),
 ):
     """SSE stream — reasoning agent + critic loop with conditional revision.
 
@@ -901,7 +951,7 @@ async def reason_chat(
     from reasoning.feedback_store import list_user_rules
     prior_turns: list[dict] = json.loads(history) if history else []
     prior_questions_all: list[str] = json.loads(all_questions) if all_questions else []
-    user_rules = list_user_rules()
+    user_rules = list_user_rules(user_id=user_id)
     user_rule_summary = _user_rules_summary(user_rules)
     # B3 — "quick" mode skips the critic loop and the (critic-only) evidence
     # fetch for fast answers; physical grounding + user rules still run.
@@ -1064,6 +1114,7 @@ async def reason_feedback(
     question: str = Form(""),
     answer: str = Form(""),
     feedback_text: str = Form(""),
+    user_id: str = Depends(get_current_user),
 ):
     """Record a thumbs event and (on thumbs-down with text) propose a rule.
 
@@ -1084,10 +1135,10 @@ async def reason_feedback(
     if polarity not in (-1, 1):
         return {"ok": False, "error": "polarity must be -1 or +1"}
 
-    save_event(turn_id=turn_id, polarity=polarity)
+    save_event(turn_id=turn_id, polarity=polarity, user_id=user_id)
 
     if polarity == 1:
-        return {"ok": True, "stats": stats()}
+        return {"ok": True, "stats": stats(user_id=user_id)}
 
     # thumbs-down — persist the correction payload (even if empty text)
     correction_id = save_correction(
@@ -1095,6 +1146,7 @@ async def reason_feedback(
         question=question or "",
         answer=answer or "",
         feedback_text=feedback_text or "",
+        user_id=user_id,
     )
 
     proposed = None
@@ -1104,7 +1156,7 @@ async def reason_feedback(
         "ok": True,
         "correction_id": correction_id,
         "proposed_rule": proposed,
-        "stats": stats(),
+        "stats": stats(user_id=user_id),
     }
 
 
@@ -1114,6 +1166,7 @@ async def reason_rule_confirm(
     kind: str = Form(...),
     params: str = Form(...),                          # JSON-encoded
     source_correction_id: int = Form(None),
+    user_id: str = Depends(get_current_user),
 ):
     """Persist a confirmed (possibly user-edited) rule."""
     from reasoning.feedback_store import save_user_rule, stats
@@ -1124,30 +1177,30 @@ async def reason_rule_confirm(
     if kind not in ("range", "forbid_pattern", "comparative"):
         return {"ok": False, "error": f"unknown kind: {kind}"}
     rule = save_user_rule(name=name, kind=kind, params=params_obj,
-                          source_correction_id=source_correction_id)
-    return {"ok": True, "rule": rule, "stats": stats()}
+                          source_correction_id=source_correction_id, user_id=user_id)
+    return {"ok": True, "rule": rule, "stats": stats(user_id=user_id)}
 
 
 @app.get("/api/reason/rules")
-async def reason_rules_list():
+async def reason_rules_list(user_id: str = Depends(get_current_user)):
     # The management view needs ALL rules (incl. disabled). The grounding check
     # itself uses list_user_rules(enabled_only=True) — unchanged.
     from reasoning.feedback_store import list_user_rules, stats
-    return {"rules": list_user_rules(enabled_only=False), "stats": stats()}
+    return {"rules": list_user_rules(user_id=user_id, enabled_only=False), "stats": stats(user_id=user_id)}
 
 
 @app.post("/api/reason/rules/{rule_db_id}/enabled")
-async def reason_rule_set_enabled(rule_db_id: int, enabled: bool = Form(...)):
+async def reason_rule_set_enabled(rule_db_id: int, enabled: bool = Form(...), user_id: str = Depends(get_current_user)):
     from reasoning.feedback_store import set_rule_enabled, stats
-    ok = set_rule_enabled(rule_db_id, enabled)
-    return {"ok": ok, "stats": stats()}
+    ok = set_rule_enabled(rule_db_id, enabled, user_id=user_id)
+    return {"ok": ok, "stats": stats(user_id=user_id)}
 
 
 @app.delete("/api/reason/rules/{rule_db_id}")
-async def reason_rule_delete(rule_db_id: int):
+async def reason_rule_delete(rule_db_id: int, user_id: str = Depends(get_current_user)):
     from reasoning.feedback_store import delete_user_rule, stats
-    deleted = delete_user_rule(rule_db_id)
-    return {"ok": deleted, "stats": stats()}
+    deleted = delete_user_rule(rule_db_id, user_id=user_id)
+    return {"ok": deleted, "stats": stats(user_id=user_id)}
 
 
 @app.get("/api/reason/rules/template")
@@ -1160,7 +1213,7 @@ async def reason_rules_template():
 
 
 @app.post("/api/reason/rules/import")
-async def reason_rules_import(file: UploadFile = File(...)):
+async def reason_rules_import(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     """Bulk-import rules from a CSV or XLSX file (A5).
 
     Validates every row, dedupes against the file and the existing store, and
@@ -1180,7 +1233,7 @@ async def reason_rules_import(file: UploadFile = File(...)):
     except Exception as e:
         return {"imported": 0, "skipped": [], "total_now": None, "error": str(e)}
 
-    existing = list_user_rules(enabled_only=False)
+    existing = list_user_rules(user_id=user_id, enabled_only=False)
     existing_sigs = set()
     for r in existing:
         try:
@@ -1207,7 +1260,7 @@ async def reason_rules_import(file: UploadFile = File(...)):
                             "reason": f"rule cap reached ({MAX_IMPORT_RULES}) — not imported"})
             continue
         save_user_rule(rule["name"], rule["kind"], rule["params"],
-                       source_correction_id=None, origin="imported")
+                       source_correction_id=None, origin="imported", user_id=user_id)
         seen_in_file.add(sig)
         imported += 1
 
@@ -1215,7 +1268,7 @@ async def reason_rules_import(file: UploadFile = File(...)):
         "imported": imported,
         "skipped": skipped,
         "total_now": current_count + imported,
-        "stats": stats(),
+        "stats": stats(user_id=user_id),
     }
 
 
@@ -1461,18 +1514,18 @@ def _parse_identification(raw: str) -> dict:
 VISION_RECALL_THRESHOLD = 0.9
 
 
-def _vision_recall(pil_img) -> list[dict]:
+def _vision_recall(pil_img, user_id: str) -> list[dict]:
     """Recall prior corrections for a similar image. Embeds the image with
     BiomedCLIP and cosine-matches against the correction store. Cheap-exits when
     nothing is stored (avoids loading the encoder on a fresh install), and never
     raises — a recall failure must not break the chat stream."""
     try:
         from vision.correction_store import stats, recall
-        if stats().get("corrections", 0) == 0:
+        if stats(user_id=user_id).get("corrections", 0) == 0:
             return []
         from vision import encoder
         q = encoder.embed_image(pil_img)
-        return recall(q, threshold=VISION_RECALL_THRESHOLD, top_k=3)
+        return recall(q, threshold=VISION_RECALL_THRESHOLD, top_k=3, user_id=user_id)
     except Exception:
         return []
 
@@ -1483,6 +1536,7 @@ async def vision_chat(
     prompt: str = Form(""),
     history: str = Form("[]"),
     mode: str = Form("deep"),
+    user_id: str = Depends(get_current_user),
 ):
     """SSE stream — vision agent (VLM) over an uploaded image.
 
@@ -1529,7 +1583,7 @@ async def vision_chat(
             # Correction memory: recall prior 👎 corrections for a similar image
             # and surface them to the VLM as context — the one extra input the
             # agent is allowed (docs/vision/architecture.md, principle 1).
-            recalled = _vision_recall(pil_img)
+            recalled = _vision_recall(pil_img, user_id)
             if recalled:
                 yield f"data: {json.dumps({'type':'recalled','corrections':recalled})}\n\n"
                 notes = "\n".join(f"- {h['feedback_text']}" for h in recalled if h.get("feedback_text"))
@@ -1570,6 +1624,7 @@ async def vision_feedback(
     identification: str = Form(""),
     feedback_text: str = Form(""),
     image: UploadFile = File(None),
+    user_id: str = Depends(get_current_user),
 ):
     """Record a 👍/👎 and, on 👎 with text, store an image-keyed correction.
 
@@ -1590,10 +1645,10 @@ async def vision_feedback(
     if polarity not in (-1, 1):
         return {"ok": False, "error": "polarity must be -1 or +1"}
 
-    save_event(turn_id=turn_id, polarity=polarity)
+    save_event(turn_id=turn_id, polarity=polarity, user_id=user_id)
 
     if polarity == 1 or not feedback_text.strip():
-        return {"ok": True, "correction_id": None, "stats": stats()}
+        return {"ok": True, "correction_id": None, "stats": stats(user_id=user_id)}
 
     if image is None:
         return {"ok": False, "error": "image is required to store a correction"}
@@ -1615,24 +1670,25 @@ async def vision_feedback(
         prompt=prompt or "",
         identification=identification or "",
         variants=variants,
+        user_id=user_id,
     )
     return {"ok": True, "correction_id": res["id"],
-            "n_embeddings": res["n_embeddings"], "stats": stats()}
+            "n_embeddings": res["n_embeddings"], "stats": stats(user_id=user_id)}
 
 
 @app.get("/api/vision/corrections")
-async def vision_corrections_list():
+async def vision_corrections_list(user_id: str = Depends(get_current_user)):
     """List stored corrections (for a management view)."""
     from vision.correction_store import list_corrections, stats
-    return {"corrections": list_corrections(), "stats": stats()}
+    return {"corrections": list_corrections(user_id=user_id), "stats": stats(user_id=user_id)}
 
 
 @app.delete("/api/vision/corrections/{correction_id}")
-async def vision_correction_delete(correction_id: int):
+async def vision_correction_delete(correction_id: int, user_id: str = Depends(get_current_user)):
     """Delete a correction and its embeddings (cascade)."""
     from vision.correction_store import delete_correction, stats
-    deleted = delete_correction(correction_id)
-    return {"ok": deleted, "stats": stats()}
+    deleted = delete_correction(correction_id, user_id=user_id)
+    return {"ok": deleted, "stats": stats(user_id=user_id)}
 
 
 # ── Public-beta feedback ──────────────────────────────────────────────────────
