@@ -48,6 +48,11 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .sb-item.active .sb-item-icon{opacity:1}
 .sb-feedback-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
 .sb-feedback-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
+.sb-profile-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;font-family:var(--sans);font-size:13px;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
+.sb-profile-row:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
+.sb-profile-name{display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.sb-logout-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--sans);flex-shrink:0;transition:background .12s,color .12s,border-color .12s}
+.sb-logout-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
 .sb-foot{padding:14px 16px;border-top:1px solid var(--border);min-height:73px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 .corpus-badge{font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:6px}
 .corpus-dot{width:6px;height:6px;border-radius:50%;background:#1a7a4e;flex-shrink:0}
@@ -228,7 +233,8 @@ async function apiFetch(url, opts = {}) {
   const resp = await _rawFetch(url, { ...opts, headers });
   if (resp.status === 401 && !url.startsWith('/api/auth/')) {
     localStorage.removeItem('bg_token');
-    localStorage.removeItem('bg_username');
+    localStorage.removeItem('bg_fullname');
+    localStorage.removeItem('bg_email');
     window.location.reload();
   }
   return resp;
@@ -2009,11 +2015,12 @@ function FeedbackModal({ tab, onClose }) {
 
 function AuthScreen({ onAuth }) {
   const [mode, setMode]         = useState('login'); // 'login' | 'register'
-  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [busy, setBusy]         = useState(false);
-  const canSubmit = username.trim() && password && !busy;
+  const canSubmit = email.trim() && password && !busy && (mode === 'login' || fullName.trim());
 
   const submit = async e => {
     e.preventDefault();
@@ -2021,12 +2028,13 @@ function AuthScreen({ onAuth }) {
     setBusy(true); setError('');
     try {
       const fd = new FormData();
-      fd.append('username', username.trim());
+      if (mode === 'register') fd.append('full_name', fullName.trim());
+      fd.append('email', email.trim());
       fd.append('password', password);
       const r = await apiFetch(`/api/auth/${mode}`, { method: 'POST', body: fd });
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || 'Something went wrong');
-      onAuth(data.token, data.username);
+      onAuth(data.token, data.full_name, data.email);
     } catch (err) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -2045,8 +2053,13 @@ function AuthScreen({ onAuth }) {
         <div style={{fontSize:13,color:'var(--text3)',marginBottom:4}}>
           {mode === 'login' ? 'Log in to continue.' : 'Create an account to get started.'}
         </div>
-        <input value={username} onChange={e => setUsername(e.target.value)} autoFocus
-          placeholder="Username"
+        {mode === 'register' && (
+          <input value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
+            placeholder="Full Name"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+        )}
+        <input value={email} onChange={e => setEmail(e.target.value)} autoFocus={mode === 'login'}
+          type="email" placeholder="Email"
           style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
         <input value={password} onChange={e => setPassword(e.target.value)} type="password"
           placeholder="Password"
@@ -2071,7 +2084,7 @@ function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('bg_token'));
-  const [username, setUsername]   = useState(() => localStorage.getItem('bg_username'));
+  const [fullName, setFullName]   = useState(() => localStorage.getItem('bg_fullname'));
 
   useEffect(() => {
     if (!authToken) return;
@@ -2081,18 +2094,20 @@ function App() {
   const switchTab = id => { setTab(id); localStorage.setItem('bl-tab', id); setSidebarOpen(false); };
   const activeLabel = (TABS.find(t => t.id === tab) || {}).label || 'BoneGraph';
 
-  const handleAuth = (token, user) => {
+  const handleAuth = (token, name, userEmail) => {
     localStorage.setItem('bg_token', token);
-    localStorage.setItem('bg_username', user);
+    localStorage.setItem('bg_fullname', name);
+    localStorage.setItem('bg_email', userEmail);
     setAuthToken(token);
-    setUsername(user);
+    setFullName(name);
   };
   const logout = async () => {
     try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
     localStorage.removeItem('bg_token');
-    localStorage.removeItem('bg_username');
+    localStorage.removeItem('bg_fullname');
+    localStorage.removeItem('bg_email');
     setAuthToken(null);
-    setUsername(null);
+    setFullName(null);
   };
 
   if (!authToken) return <AuthScreen onAuth={handleAuth}/>;
@@ -2123,12 +2138,16 @@ function App() {
             </button>
           ))}
         </nav>
-        <div style={{padding:'0 8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-          <span style={{fontSize:12,color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>👤 {username}</span>
-          <button onClick={logout} title="Log out"
-            style={{background:'transparent',border:'none',color:'var(--text3)',fontSize:12,cursor:'pointer',flexShrink:0}}>Log out</button>
+        <div style={{padding:'0 8px 8px'}}>
+          <div className="sb-profile-row">
+            <span className="sb-profile-name" title={fullName}>
+              <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2.5 13c0-2.76 2.24-4.5 5-4.5s5 1.74 5 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              {fullName}
+            </span>
+            <button onClick={logout} className="sb-logout-btn" title="Log out">Log out</button>
+          </div>
         </div>
-        <div style={{padding:'8px 8px 8px'}}>
+        <div style={{padding:'0 8px 8px'}}>
           <button onClick={() => setFeedbackOpen(true)} className="sb-feedback-btn"
             title="Send feedback about the beta">
             <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>

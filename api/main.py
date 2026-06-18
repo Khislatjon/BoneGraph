@@ -285,7 +285,7 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
-# Username/password accounts (api/auth_store.py). The username becomes the
+# Email/password accounts (api/auth_store.py). The email becomes the
 # `user_id` threaded through reasoning/feedback_store.py and
 # vision/correction_store.py so Tier-2 learned rules and Vision corrections are
 # scoped per account instead of all landing in the shared "local" bucket. The
@@ -298,26 +298,26 @@ def get_current_user(authorization: str = Header(None)) -> str:
     user = get_user_by_token(token)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return user["username"]
+    return user["email"]
 
 
 @app.post("/api/auth/register")
-async def auth_register(username: str = Form(...), password: str = Form(...)):
+async def auth_register(full_name: str = Form(...), email: str = Form(...), password: str = Form(...)):
     from api.auth_store import create_user, create_session
     try:
-        user = create_user(username, password)
+        user = create_user(full_name, email, password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"token": create_session(user["id"]), "username": user["username"]}
+    return {"token": create_session(user["id"]), "full_name": user["full_name"], "email": user["email"]}
 
 
 @app.post("/api/auth/login")
-async def auth_login(username: str = Form(...), password: str = Form(...)):
+async def auth_login(email: str = Form(...), password: str = Form(...)):
     from api.auth_store import verify_user, create_session
-    user = verify_user(username, password)
+    user = verify_user(email, password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    return {"token": create_session(user["id"]), "username": user["username"]}
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {"token": create_session(user["id"]), "full_name": user["full_name"], "email": user["email"]}
 
 
 @app.post("/api/auth/logout")
@@ -330,7 +330,7 @@ async def auth_logout(authorization: str = Header(None)):
 
 @app.get("/api/auth/me")
 async def auth_me(user_id: str = Depends(get_current_user)):
-    return {"username": user_id}
+    return {"email": user_id}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
