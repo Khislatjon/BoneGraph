@@ -48,6 +48,11 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .sb-item.active .sb-item-icon{opacity:1}
 .sb-feedback-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
 .sb-feedback-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
+.sb-profile-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;font-family:var(--sans);font-size:13px;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
+.sb-profile-row:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
+.sb-profile-name{display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.sb-logout-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--sans);flex-shrink:0;transition:background .12s,color .12s,border-color .12s}
+.sb-logout-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
 .sb-foot{padding:14px 16px;border-top:1px solid var(--border);min-height:73px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 .corpus-badge{font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:6px}
 .corpus-dot{width:6px;height:6px;border-radius:50%;background:#1a7a4e;flex-shrink:0}
@@ -211,6 +216,29 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 
 <script type="text/babel">
 const { useState, useEffect, useRef, Fragment } = React;
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+// Wraps window.fetch so every request carries the bearer token. A 401 from any
+// endpoint except /api/auth/* means the session expired — clear it and force
+// back to the login screen. /api/auth/* is excluded so a wrong-password login
+// attempt's 401 reaches the caller (AuthScreen) to display, instead of reloading
+// the page before the error message can be shown.
+const _rawFetch = window.fetch.bind(window);
+function authHeaders() {
+  const token = localStorage.getItem('bg_token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+}
+async function apiFetch(url, opts = {}) {
+  const headers = { ...(opts.headers || {}), ...authHeaders() };
+  const resp = await _rawFetch(url, { ...opts, headers });
+  if (resp.status === 401 && !url.startsWith('/api/auth/')) {
+    localStorage.removeItem('bg_token');
+    localStorage.removeItem('bg_fullname');
+    localStorage.removeItem('bg_email');
+    window.location.reload();
+  }
+  return resp;
+}
 
 // ── Bone SVG ──────────────────────────────────────────────────────────────────
 function BoneSVG({ size = 28 }) {
@@ -480,7 +508,7 @@ function AskTab({ totalChunks }) {
       fd.append('top_k', '8');
       fd.append('history', JSON.stringify(history));
       fd.append('all_questions', JSON.stringify(allQuestions));
-      const resp = await fetch('/api/ask', { method:'POST', body:fd });
+      const resp = await apiFetch('/api/ask', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
@@ -614,7 +642,7 @@ function SearchTab({ totalChunks }) {
       const fd = new FormData();
       fd.append('query', term); fd.append('top_k', String(tk)); fd.append('source_filter', sf);
       fd.append('year_min', String(ym)); fd.append('year_max', String(yx));
-      const r = await fetch('/api/search', { method:'POST', body:fd });
+      const r = await apiFetch('/api/search', { method:'POST', body:fd });
       const d = await r.json();
       setResults(d.results || []); setElapsed(d.elapsed_ms || 0);
     } catch { setResults([]); }
@@ -821,7 +849,7 @@ function ReasonTab() {
       fd.append('history', JSON.stringify(history));
       fd.append('all_questions', JSON.stringify(allQuestions));
       fd.append('mode', mode);
-      const resp = await fetch('/api/reason/chat', { method:'POST', body:fd });
+      const resp = await apiFetch('/api/reason/chat', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
@@ -1015,7 +1043,7 @@ function RulesPanel({ onClose }) {
 
   const load = async () => {
     try {
-      const r = await fetch('/api/reason/rules');
+      const r = await apiFetch('/api/reason/rules');
       const d = await r.json();
       setRules(d.rules || []);
     } catch (e) { setError(e.message); }
@@ -1028,7 +1056,7 @@ function RulesPanel({ onClose }) {
     setImporting(true); setImportMsg(null); setError('');
     try {
       const fd = new FormData(); fd.append('file', f);
-      const r = await fetch('/api/reason/rules/import', { method:'POST', body: fd });
+      const r = await apiFetch('/api/reason/rules/import', { method:'POST', body: fd });
       const d = await r.json();
       if (d.error) { setError(d.error); }
       else { setImportMsg(d); await load(); }
@@ -1040,7 +1068,7 @@ function RulesPanel({ onClose }) {
     setBusy(b => ({...b, [rule.id]: true}));
     try {
       const fd = new FormData(); fd.append('enabled', enabled ? 'true' : 'false');
-      await fetch(`/api/reason/rules/${rule.id}/enabled`, { method:'POST', body: fd });
+      await apiFetch(`/api/reason/rules/${rule.id}/enabled`, { method:'POST', body: fd });
       setRules(rs => rs.map(x => x.id === rule.id ? {...x, enabled} : x));
     } catch (e) { setError(e.message); }
     finally { setBusy(b => ({...b, [rule.id]: false})); }
@@ -1049,7 +1077,7 @@ function RulesPanel({ onClose }) {
   const del = async (rule) => {
     setBusy(b => ({...b, [rule.id]: true}));
     try {
-      await fetch(`/api/reason/rules/${rule.id}`, { method:'DELETE' });
+      await apiFetch(`/api/reason/rules/${rule.id}`, { method:'DELETE' });
       setRules(rs => rs.filter(x => x.id !== rule.id));
     } catch (e) { setError(e.message); }
     finally { setBusy(b => ({...b, [rule.id]: false})); }
@@ -1145,7 +1173,7 @@ function CorrectionsPanel({ onClose }) {
 
   const load = async () => {
     try {
-      const r = await fetch('/api/vision/corrections');
+      const r = await apiFetch('/api/vision/corrections');
       const d = await r.json();
       setItems(d.corrections || []);
     } catch (e) { setError(e.message); }
@@ -1155,7 +1183,7 @@ function CorrectionsPanel({ onClose }) {
   const del = async (it) => {
     setBusy(b => ({...b, [it.id]: true}));
     try {
-      await fetch(`/api/vision/corrections/${it.id}`, { method:'DELETE' });
+      await apiFetch(`/api/vision/corrections/${it.id}`, { method:'DELETE' });
       setItems(xs => xs.filter(x => x.id !== it.id));
     } catch (e) { setError(e.message); }
     finally { setBusy(b => ({...b, [it.id]: false})); }
@@ -1311,7 +1339,7 @@ function FeedbackBar({ turn, onFeedback }) {
     if (polarity) return;
     setPolarity(1);
     try {
-      await fetch('/api/reason/feedback', {
+      await apiFetch('/api/reason/feedback', {
         method:'POST',
         body: (() => { const fd = new FormData(); fd.append('turn_id', turn.id); fd.append('polarity','1'); return fd; })(),
       });
@@ -1333,7 +1361,7 @@ function FeedbackBar({ turn, onFeedback }) {
       fd.append('question', turn.query);
       fd.append('answer', stripThinking(turn.answer || ''));
       fd.append('feedback_text', text);
-      const resp = await fetch('/api/reason/feedback', { method:'POST', body: fd });
+      const resp = await apiFetch('/api/reason/feedback', { method:'POST', body: fd });
       const data = await resp.json();
       setPolarity(-1);
       setShowInput(false);
@@ -1421,7 +1449,7 @@ function ProposedRuleCard({ proposal, onConfirm, onDismiss, correctionId }) {
       fd.append('kind', kind);
       fd.append('params', JSON.stringify(editable.params));
       if (correctionId) fd.append('source_correction_id', String(correctionId));
-      const resp = await fetch('/api/reason/rules/confirm', { method:'POST', body: fd });
+      const resp = await apiFetch('/api/reason/rules/confirm', { method:'POST', body: fd });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || 'Failed to save');
       onConfirm && onConfirm(data.rule);
@@ -1599,7 +1627,7 @@ function VisionFeedbackBar({ turn, imageFile }) {
     try {
       const fd = new FormData();
       fd.append('turn_id', turn.id); fd.append('polarity', '1');
-      await fetch('/api/vision/feedback', { method:'POST', body: fd });
+      await apiFetch('/api/vision/feedback', { method:'POST', body: fd });
     } catch(e) { setError(e.message); setPolarity(null); }
   };
 
@@ -1614,7 +1642,7 @@ function VisionFeedbackBar({ turn, imageFile }) {
       fd.append('identification', turn.ident?.identification || '');
       fd.append('feedback_text', text.trim());
       if (imageFile) fd.append('image', imageFile);
-      const resp = await fetch('/api/vision/feedback', { method:'POST', body: fd });
+      const resp = await apiFetch('/api/vision/feedback', { method:'POST', body: fd });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || 'Could not save correction');
       setPolarity(-1); setShowInput(false);
@@ -1754,7 +1782,7 @@ function VisionTab() {
       fd.append('prompt', text);
       fd.append('history', JSON.stringify(history));
       fd.append('mode', 'deep');
-      const resp = await fetch('/api/vision/chat', { method:'POST', body:fd });
+      const resp = await apiFetch('/api/vision/chat', { method:'POST', body:fd });
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
@@ -1900,11 +1928,11 @@ const TABS = [
   { id:'vision', label:'Vision', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ];
 
-function FeedbackModal({ tab, onClose }) {
+function FeedbackModal({ tab, onClose, userFullName, userEmail }) {
   const [category, setCategory] = useState('idea');
-  const [name, setName]         = useState('');
+  const [name, setName]         = useState(userFullName || '');
   const [message, setMessage]   = useState('');
-  const [email, setEmail]       = useState('');
+  const [email, setEmail]       = useState(userEmail || '');
   const [status, setStatus]     = useState('idle'); // idle | sending | done | error
   const canSend = name.trim() && message.trim();
   const cats = [
@@ -1922,7 +1950,7 @@ function FeedbackModal({ tab, onClose }) {
       fd.append('email', email.trim());
       fd.append('tab', tab || '');
       fd.append('page', window.location.pathname);
-      const r = await fetch('/api/feedback', { method:'POST', body: fd });
+      const r = await apiFetch('/api/feedback', { method:'POST', body: fd });
       if (!r.ok) throw new Error('bad status');
       setStatus('done');
     } catch (e) { setStatus('error'); }
@@ -1985,18 +2013,107 @@ function FeedbackModal({ tab, onClose }) {
   );
 }
 
+function AuthScreen({ onAuth }) {
+  const [mode, setMode]         = useState('login'); // 'login' | 'register'
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+  const [busy, setBusy]         = useState(false);
+  const canSubmit = email.trim() && password && !busy && (mode === 'login' || fullName.trim());
+
+  const submit = async e => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setBusy(true); setError('');
+    try {
+      const fd = new FormData();
+      if (mode === 'register') fd.append('full_name', fullName.trim());
+      fd.append('email', email.trim());
+      fd.append('password', password);
+      const r = await apiFetch(`/api/auth/${mode}`, { method: 'POST', body: fd });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Something went wrong');
+      onAuth(data.token, data.full_name, data.email);
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',width:'100%',background:'var(--bg)'}}>
+      <form onSubmit={submit}
+        style={{width:'min(380px,90%)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,.1)',padding:'28px 26px',display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+          <BoneSVG size={30}/>
+          <span style={{fontFamily:'var(--sans)',fontSize:19,fontWeight:600,color:'var(--text)'}}>BoneGraph</span>
+        </div>
+        <div style={{fontSize:13,color:'var(--text3)',marginBottom:4}}>
+          {mode === 'login' ? 'Log in to continue.' : 'Create an account to get started.'}
+        </div>
+        {mode === 'register' && (
+          <input value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
+            placeholder="Full Name"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+        )}
+        <input value={email} onChange={e => setEmail(e.target.value)} autoFocus={mode === 'login'}
+          type="email" placeholder="Email"
+          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+        <input value={password} onChange={e => setPassword(e.target.value)} type="password"
+          placeholder="Password"
+          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+        {error && <div style={{color:'#b02020',fontSize:13}}>{error}</div>}
+        <button type="submit" disabled={!canSubmit}
+          style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,cursor:canSubmit?'pointer':'not-allowed',opacity:canSubmit?1:.5}}>
+          {busy ? 'Please wait…' : (mode === 'login' ? 'Log in' : 'Register')}
+        </button>
+        <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
+          style={{background:'transparent',border:'none',color:'var(--text3)',fontSize:12.5,cursor:'pointer',textAlign:'center'}}>
+          {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Log in'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function App() {
   const [tab, setTab]     = useState(() => localStorage.getItem('bl-tab') || 'ask');
   const [stats, setStats] = useState(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('bg_token'));
+  const [fullName, setFullName]   = useState(() => localStorage.getItem('bg_fullname'));
+  const [email, setEmail]         = useState(() => localStorage.getItem('bg_email'));
 
   useEffect(() => {
-    fetch('/api/stats').then(r => r.json()).then(setStats).catch(() => {});
-  }, []);
+    if (!authToken) return;
+    apiFetch('/api/stats').then(r => r.json()).then(setStats).catch(() => {});
+  }, [authToken]);
 
   const switchTab = id => { setTab(id); localStorage.setItem('bl-tab', id); setSidebarOpen(false); };
   const activeLabel = (TABS.find(t => t.id === tab) || {}).label || 'BoneGraph';
+
+  const handleAuth = (token, name, userEmail) => {
+    localStorage.setItem('bg_token', token);
+    localStorage.setItem('bg_fullname', name);
+    localStorage.setItem('bg_email', userEmail);
+    setAuthToken(token);
+    setFullName(name);
+    setEmail(userEmail);
+  };
+  const logout = async () => {
+    try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+    localStorage.removeItem('bg_token');
+    localStorage.removeItem('bg_fullname');
+    localStorage.removeItem('bg_email');
+    setAuthToken(null);
+    setFullName(null);
+    setEmail(null);
+  };
+
+  if (!authToken) return <AuthScreen onAuth={handleAuth}/>;
 
   return (
     <div className="app-shell" style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
@@ -2024,6 +2141,15 @@ function App() {
             </button>
           ))}
         </nav>
+        <div style={{padding:'0 8px 8px'}}>
+          <div className="sb-profile-row">
+            <span className="sb-profile-name" title={fullName}>
+              <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2.5 13c0-2.76 2.24-4.5 5-4.5s5 1.74 5 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+              {fullName}
+            </span>
+            <button onClick={logout} className="sb-logout-btn" title="Log out">Log out</button>
+          </div>
+        </div>
         <div style={{padding:'0 8px 8px'}}>
           <button onClick={() => setFeedbackOpen(true)} className="sb-feedback-btn"
             title="Send feedback about the beta">
@@ -2058,7 +2184,7 @@ function App() {
           <VisionTab/>
         </div>
       </main>
-      {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)}/>}
+      {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)} userFullName={fullName} userEmail={email}/>}
     </div>
   );
 }
