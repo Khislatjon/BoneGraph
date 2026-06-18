@@ -431,7 +431,7 @@ def serve_test():
 
 
 @app.get("/api/stats")
-def get_stats():
+def get_stats(user_id: str = Depends(get_current_user)):
     return {
         "papers_total":    STATS["papers_total"],
         "pdfs_downloaded": STATS["pdfs_downloaded"],
@@ -443,7 +443,8 @@ def get_stats():
 
 
 @app.post("/api/ask")
-async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Form("[]"), all_questions: str = Form("[]")):
+async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Form("[]"), all_questions: str = Form("[]"),
+              user_id: str = Depends(get_current_user)):
     """
     Server-Sent Events stream.
     Events:
@@ -1273,7 +1274,8 @@ async def reason_rules_import(file: UploadFile = File(...), user_id: str = Depen
 
 
 @app.post("/api/search")
-def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = Form("All"), year_min: int = Form(1970), year_max: int = Form(2026)):
+def search(query: str = Form(...), top_k: int = Form(10), source_filter: str = Form("All"), year_min: int = Form(1970), year_max: int = Form(2026),
+           user_id: str = Depends(get_current_user)):
     q = query.strip()
     if not q:
         return {"query": q, "elapsed_ms": 0, "results": []}
