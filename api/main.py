@@ -1755,3 +1755,15 @@ async def admin_overview(token: str = Query("")):
         "users": {"count": count_users(), "items": list_users()},
         "feedback": {"count": count_feedback(), "items": list_feedback()},
     }
+
+
+@app.delete("/api/admin/feedback/{feedback_id}")
+async def admin_delete_feedback(feedback_id: int, token: str = Query("")):
+    """Delete one feedback item from the /admin dashboard. Same gate as the overview."""
+    from api.beta_feedback import delete_feedback
+    admin_token = os.getenv("FEEDBACK_ADMIN_TOKEN", "")
+    if admin_token and token != admin_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not delete_feedback(feedback_id):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True, "deleted": feedback_id}

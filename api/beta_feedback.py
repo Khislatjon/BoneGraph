@@ -134,3 +134,10 @@ def list_feedback(limit: int = 200) -> list[dict]:
 def count() -> int:
     with _conn() as con:
         return int(con.execute("SELECT COUNT(*) FROM feedback").fetchone()[0])
+
+
+def delete_feedback(feedback_id: int) -> bool:
+    """Delete one feedback row by id. Returns True if a row was removed."""
+    with _conn() as con:
+        cur = con.execute("DELETE FROM feedback WHERE id = ?", (feedback_id,))
+        return cur.rowcount > 0

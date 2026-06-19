@@ -69,6 +69,8 @@ tr:last-child td{border-bottom:none}
 .fb-msg{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap}
 .fb-by{margin-top:9px;font-size:12.5px;color:var(--text2)}
 .fb-by a{color:var(--amber);text-decoration:none}
+.fb-del{margin-left:auto;border:1px solid var(--border);background:var(--surface);color:var(--text3);border-radius:7px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer}
+.fb-del:hover{border-color:#d98a8a;color:#b02020;background:#fdf3f3}
 .dot{color:var(--text3)}
 @media (max-width:560px){
   .mono.created{display:block}
@@ -153,16 +155,16 @@ function feedbackList(items){
   if(!items.length) return `<div class="empty">No feedback matches.</div>`;
   return items.map(f => {
     const icon = CAT_ICON[f.category] || CAT_ICON.other;
-    const ctx = [f.tab, f.page].filter(Boolean).map(esc).join(' <span class="dot">·</span> ');
     const mail = f.email ? ` <span class="dot">·</span> <a href="mailto:${esc(f.email)}">${esc(f.email)}</a>` : '';
     return `<div class="fb">
         <div class="fb-top">
           <span class="fb-cat">${icon} ${esc((f.category||'other'))}</span>
           ${f.tab ? `<span class="fb-chip">${esc(f.tab)}</span>` : ''}
           <span class="dot">·</span><span class="mono">${fmtDate(f.created_at)}</span>
+          <button class="fb-del" data-id="${esc(f.id)}" title="Delete feedback">Delete</button>
         </div>
         <div class="fb-msg">${esc(f.message)}</div>
-        <div class="fb-by">${esc(f.name || 'Anonymous')}${mail}${ctx ? (' <span class="dot">·</span> ' + ctx) : ''}</div>
+        <div class="fb-by">${esc(f.name || 'Anonymous')}${mail}</div>
       </div>`;
   }).join('');
 }
@@ -177,6 +179,21 @@ function applyFilter(){
   const items = DATA.feedback.items.filter(f => !q ||
     [f.message,f.name,f.email,f.category,f.tab].some(v => (v||'').toLowerCase().includes(q)));
   return feedbackList(items);
+}
+
+async function deleteFeedback(id){
+  if(!Number.isFinite(id)) return;
+  if(!confirm('Delete this feedback? This cannot be undone.')) return;
+  const token = localStorage.getItem(TOKEN_KEY) || '';
+  const url = '/api/admin/feedback/' + id + (token ? ('?token=' + encodeURIComponent(token)) : '');
+  try {
+    const r = await fetch(url, { method: 'DELETE' });
+    if(r.status === 403){ localStorage.removeItem(TOKEN_KEY); renderGate('Token rejected — sign in again.'); return; }
+    if(!r.ok && r.status !== 404) throw new Error('Delete failed (' + r.status + ')');
+    DATA.feedback.items = DATA.feedback.items.filter(f => f.id !== id);
+    DATA.feedback.count = DATA.feedback.items.length;
+    renderDash();
+  } catch(e){ alert(e.message); }
 }
 
 function renderDash(){
@@ -197,6 +214,10 @@ function renderDash(){
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => { view = b.dataset.v; filter=''; renderDash(); });
   const s = $('#search');
   s.oninput = () => { filter = s.value; $('#list').innerHTML = applyFilter(); };
+  $('#list').onclick = e => {
+    const btn = e.target.closest('.fb-del');
+    if(btn) deleteFeedback(parseInt(btn.dataset.id, 10));
+  };
   $('#refresh').onclick = async () => {
     try { DATA = await load(localStorage.getItem(TOKEN_KEY) || ''); renderDash(); }
     catch(e){ if(e.code===403){ localStorage.removeItem(TOKEN_KEY); renderGate('Token rejected — sign in again.'); } }
