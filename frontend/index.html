@@ -1988,10 +1988,10 @@ function FeedbackModal({ tab, onClose, userFullName, userEmail }) {
                 </button>
               ))}
             </div>
-            <input value={name} onChange={e => setName(e.target.value)} autoFocus
+            <input value={name} onChange={e => setName(e.target.value)}
               placeholder="Full name *"
               style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
-            <textarea value={message} onChange={e => setMessage(e.target.value)}
+            <textarea value={message} onChange={e => setMessage(e.target.value)} autoFocus
               placeholder="What's on your mind? Bugs, ideas, anything…" rows={5}
               style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',fontSize:14,fontFamily:'var(--sans)',resize:'vertical',background:'var(--surface)',color:'var(--text)'}}/>
             <input value={email} onChange={e => setEmail(e.target.value)} type="email"
