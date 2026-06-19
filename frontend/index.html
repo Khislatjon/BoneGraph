@@ -17,7 +17,8 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
-#root{display:flex;height:100vh}
+#root{display:flex;height:100vh;height:100dvh}
+.app-shell{height:100vh}
 :root{
   --bg:#f3f1ec;--surface:#fff;--surface2:#f8f7f3;
   --border:#e3dfd7;--border2:#ccc8be;
@@ -32,7 +33,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 }
 
 /* Sidebar */
-.sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow-y:auto}
+.sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow-y:auto}
 .sb-logo{display:flex;align-items:center;gap:11px;padding:20px 16px 18px;border-bottom:1px solid var(--border)}
 .sb-logo-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
 .sb-logo-text{font-family:var(--sans);font-size:19px;letter-spacing:-.01em}
@@ -58,7 +59,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
 .corpus-dot{width:6px;height:6px;border-radius:50%;background:#1a7a4e;flex-shrink:0}
 
 /* Main */
-.main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
+.main{flex:1;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;min-width:0}
 .panel{display:none;flex:1;flex-direction:column;overflow:hidden}
 .panel.active{display:flex}
 .panel-scroll{display:none;overflow-y:auto;height:100%}
@@ -195,7 +196,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
   .mobile-title{font-family:var(--sans);font-size:16px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px}
 
   /* Sidebar becomes a slide-in drawer */
-  .sidebar{position:fixed;top:0;left:0;z-index:70;width:264px;max-width:84%;height:100vh;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 24px rgba(0,0,0,.14)}
+  .sidebar{position:fixed;top:0;left:0;z-index:70;width:264px;max-width:84%;height:100vh;height:100dvh;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 24px rgba(0,0,0,.14)}
   .sidebar.open{transform:translateX(0)}
   .sb-backdrop{display:block;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,.32)}
 
@@ -2116,7 +2117,7 @@ function App() {
   if (!authToken) return <AuthScreen onAuth={handleAuth}/>;
 
   return (
-    <div className="app-shell" style={{display:'flex',height:'100vh',width:'100%',overflow:'hidden'}}>
+    <div className="app-shell" style={{display:'flex',height:'100dvh',width:'100%',overflow:'hidden'}}>
       <div className="mobile-bar">
         <button className="hamb" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
