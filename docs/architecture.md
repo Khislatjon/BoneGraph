@@ -77,7 +77,7 @@ BoneGraph is intentionally restricted to bone science. This is not a limitation 
 | Phase | Status | Detail |
 |---|---|---|
 | Phase 1 — Paper ingestion | ✅ Complete (March 2026) | [papers_ingestion_pipeline.md](papers_ingestion_pipeline.md) |
-| Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](textbooks_ingestion_pipeline.md) |
+| Phase 1b — Textbook ingestion | ✅ Complete (April 2026) | [textbooks_ingestion_pipeline.md](chat/textbooks_ingestion_pipeline.md) |
 | Phase 2 — Text processing & RAG | ✅ Complete (April 2026) | [phase2_rag_pipeline.md](phase2_rag_pipeline.md) |
 | Phase 3 — VLM integration | 🔶 Partial (April 2026) | LLaVA 1.6 tab live · cross-modal retrieval pending · [phase3_vlm_plan.md](vision/phase3_vlm_plan.md) |
 | Phase 4 — Bone knowledge graph | ✅ Complete (May 2026) | Seed ontology · triple extraction · cleanup → 1,597 / 1,699 · [phase4_lrm_plan.md](reasoning/phase4_lrm_plan.md) |

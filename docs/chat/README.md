@@ -11,6 +11,6 @@ with the Search tab and documented at the top level:
 
 - [`../architecture.md`](../architecture.md) — system-wide overview
 - [`../phase2_rag_pipeline.md`](../phase2_rag_pipeline.md) — chunking, embeddings, RAG, retrieval benchmark
-- [`../papers_ingestion_pipeline.md`](../papers_ingestion_pipeline.md) · [`../textbooks_ingestion_pipeline.md`](../textbooks_ingestion_pipeline.md) — the corpus behind it
+- [`../papers_ingestion_pipeline.md`](../papers_ingestion_pipeline.md) · [`../textbooks_ingestion_pipeline.md`](textbooks_ingestion_pipeline.md) — the corpus behind it
 
 Add Chat-tab–specific design notes here as they arise.

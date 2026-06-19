@@ -240,7 +240,7 @@ BoneGraph/
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | System overview, 2-layer architecture, design principles |
 | [docs/papers_ingestion_pipeline.md](docs/papers_ingestion_pipeline.md) | Phase 1 — OpenAlex API → SQLite → PDFs |
-| [docs/textbooks_ingestion_pipeline.md](docs/textbooks_ingestion_pipeline.md) | Phase 1b — 16 curated open-access textbooks |
+| [docs/textbooks_ingestion_pipeline.md](docs/chat/textbooks_ingestion_pipeline.md) | Phase 1b — 16 curated open-access textbooks |
 | [docs/phase2_rag_pipeline.md](docs/phase2_rag_pipeline.md) | Phase 2 — extraction, chunking, embedding, RAG, evaluation |
 | [docs/vision/architecture.md](docs/vision/architecture.md) | Vision tab — LLaVA pipeline, feedback loop, correction store |
 | [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab — agent + critic loop, rule tiers, KG grounding |
