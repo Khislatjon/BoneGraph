@@ -1734,3 +1734,24 @@ async def list_feedback_admin(token: str = Query("")):
     if admin_token and token != admin_token:
         raise HTTPException(status_code=403, detail="Forbidden")
     return {"count": count(), "feedback": list_feedback()}
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def serve_admin():
+    """Server-rendered admin dashboard (signups + beta feedback)."""
+    return (FRONTEND_DIR / "admin.html").read_text(encoding="utf-8")
+
+
+@app.get("/api/admin/overview")
+async def admin_overview(token: str = Query("")):
+    """Users + feedback for the /admin dashboard. Gated by FEEDBACK_ADMIN_TOKEN
+    when that env var is set (recommended in production); open locally when unset."""
+    from api.beta_feedback import list_feedback, count as count_feedback
+    from api.auth_store import list_users, count_users
+    admin_token = os.getenv("FEEDBACK_ADMIN_TOKEN", "")
+    if admin_token and token != admin_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return {
+        "users": {"count": count_users(), "items": list_users()},
+        "feedback": {"count": count_feedback(), "items": list_feedback()},
+    }

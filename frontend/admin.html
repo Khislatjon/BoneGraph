@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoneGraph · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/bonegraph-icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f3f1ec;--surface:#fff;--surface2:#f8f7f3;
+  --border:#e3dfd7;--border2:#ccc8be;
+  --text:#1c1b18;--text2:#52514a;--text3:#928f82;
+  --amber:#b07820;--amber-light:#fef5e4;--amber-border:#edd590;
+  --navy:#1a2540;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --mono:'SF Mono','Fira Code',monospace;
+  --radius:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100dvh}
+.wrap{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+.hdr{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.hdr-icon{width:34px;height:34px;border-radius:10px;overflow:hidden;flex-shrink:0}
+.hdr h1{font-size:20px;font-weight:600}
+.hdr .beta{font-family:var(--sans);font-size:8px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:var(--amber);border-radius:3px;padding:2px 4px;line-height:1.2;position:relative;top:-7px}
+.sub{color:var(--text3);font-size:13px;margin-bottom:22px}
+
+/* Token gate */
+.gate{max-width:380px;margin:60px auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.06)}
+.gate h2{font-size:16px;font-weight:600;margin-bottom:4px}
+.gate p{font-size:13px;color:var(--text3);margin-bottom:16px}
+.gate input{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;font-family:var(--sans);background:var(--surface2);color:var(--text);outline:none}
+.gate input:focus{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
+.gate button{width:100%;margin-top:12px;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-family:var(--sans);cursor:pointer}
+.gate .err{color:#b02020;font-size:13px;margin-top:10px;display:none}
+
+/* Tabs + cards */
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.tab{border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:999px;padding:7px 16px;font-size:13.5px;font-family:var(--sans);cursor:pointer;display:flex;align-items:center;gap:7px}
+.tab.active{border-color:var(--amber);background:var(--amber-light);color:var(--amber);font-weight:500}
+.tab .pill{font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.06);border-radius:999px;padding:1px 7px}
+.tab.active .pill{background:rgba(176,120,32,.15)}
+
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:180px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13.5px;font-family:var(--sans);background:var(--surface);color:var(--text);outline:none}
+.search:focus{border-color:var(--amber-border);box-shadow:0 0 0 3px rgba(176,120,32,.1)}
+.ghost-btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;padding:8px 12px;font-size:13px;font-family:var(--sans);cursor:pointer}
+
+.empty{text-align:center;color:var(--text3);font-size:13.5px;padding:48px 0}
+
+/* Users table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
+td{padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.u-name{font-weight:500}
+.u-email{color:var(--text2)}
+.mono{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap}
+
+/* Feedback cards */
+.fb{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.fb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px;color:var(--text3)}
+.fb-cat{font-weight:600;color:var(--text);font-size:13px}
+.fb-chip{border:1px solid var(--border);border-radius:999px;padding:1px 9px;font-size:11.5px}
+.fb-msg{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap}
+.fb-by{margin-top:9px;font-size:12.5px;color:var(--text2)}
+.fb-by a{color:var(--amber);text-decoration:none}
+.dot{color:var(--text3)}
+@media (max-width:560px){
+  .mono.created{display:block}
+  th.col-when,td.col-when{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const $ = sel => document.querySelector(sel);
+const app = $('#app');
+const TOKEN_KEY = 'bg_admin_token';
+let DATA = null;
+let view = 'users';
+let filter = '';
+
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return esc(iso);
+  return d.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+const CAT_ICON = {bug:'🐞',idea:'💡',question:'❓',praise:'🎉',other:'📝'};
+
+async function load(token){
+  const url = '/api/admin/overview' + (token ? ('?token=' + encodeURIComponent(token)) : '');
+  const r = await fetch(url);
+  if(r.status === 403) { const e = new Error('forbidden'); e.code = 403; throw e; }
+  if(!r.ok) throw new Error('Request failed (' + r.status + ')');
+  return r.json();
+}
+
+function renderGate(msg){
+  app.innerHTML = `
+    <div class="gate">
+      <h2>Admin access</h2>
+      <p>Enter the dashboard token (FEEDBACK_ADMIN_TOKEN).</p>
+      <input id="tok" type="password" placeholder="Admin token" autofocus />
+      <button id="go">View dashboard</button>
+      <div class="err" id="err">${esc(msg||'')}</div>
+    </div>`;
+  if(msg) $('#err').style.display = 'block';
+  const submit = async () => {
+    const t = $('#tok').value.trim();
+    try {
+      DATA = await load(t);
+      localStorage.setItem(TOKEN_KEY, t);
+      renderDash();
+    } catch(e){
+      $('#err').textContent = e.code === 403 ? 'Wrong token.' : ('Error: ' + e.message);
+      $('#err').style.display = 'block';
+    }
+  };
+  $('#go').onclick = submit;
+  $('#tok').onkeydown = e => { if(e.key === 'Enter') submit(); };
+}
+
+function header(){
+  return `<div class="hdr">
+      <img class="hdr-icon" src="/static/bonegraph-icon.svg" alt="">
+      <h1>BoneGraph</h1><span class="beta">Admin</span>
+    </div>
+    <div class="sub">Signups and beta feedback. ${DATA.users.count} user(s) · ${DATA.feedback.count} feedback item(s).</div>`;
+}
+
+function usersTable(items){
+  if(!items.length) return `<div class="empty">No users match.</div>`;
+  const rows = items.map(u => `
+    <tr>
+      <td class="u-name">${esc(u.full_name)}</td>
+      <td class="u-email">${esc(u.email)}</td>
+      <td class="mono col-when">${fmtDate(u.created_at)}</td>
+    </tr>`).join('');
+  return `<div class="card"><table>
+      <thead><tr><th>Name</th><th>Email</th><th class="col-when">Joined</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+
+function feedbackList(items){
+  if(!items.length) return `<div class="empty">No feedback matches.</div>`;
+  return items.map(f => {
+    const icon = CAT_ICON[f.category] || CAT_ICON.other;
+    const ctx = [f.tab, f.page].filter(Boolean).map(esc).join(' <span class="dot">·</span> ');
+    const mail = f.email ? ` <span class="dot">·</span> <a href="mailto:${esc(f.email)}">${esc(f.email)}</a>` : '';
+    return `<div class="fb">
+        <div class="fb-top">
+          <span class="fb-cat">${icon} ${esc((f.category||'other'))}</span>
+          ${f.tab ? `<span class="fb-chip">${esc(f.tab)}</span>` : ''}
+          <span class="dot">·</span><span class="mono">${fmtDate(f.created_at)}</span>
+        </div>
+        <div class="fb-msg">${esc(f.message)}</div>
+        <div class="fb-by">${esc(f.name || 'Anonymous')}${mail}${ctx ? (' <span class="dot">·</span> ' + ctx) : ''}</div>
+      </div>`;
+  }).join('');
+}
+
+function applyFilter(){
+  const q = filter.trim().toLowerCase();
+  if(view === 'users'){
+    const items = DATA.users.items.filter(u => !q ||
+      (u.full_name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
+    return usersTable(items);
+  }
+  const items = DATA.feedback.items.filter(f => !q ||
+    [f.message,f.name,f.email,f.category,f.tab].some(v => (v||'').toLowerCase().includes(q)));
+  return feedbackList(items);
+}
+
+function renderDash(){
+  app.innerHTML = `
+    <div class="wrap">
+      ${header()}
+      <div class="tabs">
+        <button class="tab ${view==='users'?'active':''}" data-v="users">Users <span class="pill">${DATA.users.count}</span></button>
+        <button class="tab ${view==='feedback'?'active':''}" data-v="feedback">Feedback <span class="pill">${DATA.feedback.count}</span></button>
+      </div>
+      <div class="toolbar">
+        <input class="search" id="search" placeholder="Filter…" value="${esc(filter)}">
+        <button class="ghost-btn" id="refresh">Refresh</button>
+        <button class="ghost-btn" id="logout">Sign out</button>
+      </div>
+      <div id="list">${applyFilter()}</div>
+    </div>`;
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { view = b.dataset.v; filter=''; renderDash(); });
+  const s = $('#search');
+  s.oninput = () => { filter = s.value; $('#list').innerHTML = applyFilter(); };
+  $('#refresh').onclick = async () => {
+    try { DATA = await load(localStorage.getItem(TOKEN_KEY) || ''); renderDash(); }
+    catch(e){ if(e.code===403){ localStorage.removeItem(TOKEN_KEY); renderGate('Token rejected — sign in again.'); } }
+  };
+  $('#logout').onclick = () => { localStorage.removeItem(TOKEN_KEY); renderGate(); };
+}
+
+(async function init(){
+  const saved = localStorage.getItem(TOKEN_KEY) || '';
+  try {
+    DATA = await load(saved);   // works with no token when FEEDBACK_ADMIN_TOKEN is unset
+    renderDash();
+  } catch(e){
+    renderGate(e.code === 403 ? '' : ('Error: ' + e.message));
+  }
+})();
+</script>
+</body>
+</html>

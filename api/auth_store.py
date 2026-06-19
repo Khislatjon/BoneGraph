@@ -109,6 +109,23 @@ def create_user(full_name: str, email: str, password: str) -> dict:
         return {"id": int(cur.lastrowid), "full_name": full_name, "email": email}
 
 
+def list_users() -> list[dict]:
+    """Return all accounts (newest first) for the admin dashboard.
+
+    Only display-safe columns — never the password hash or salt.
+    """
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT id, full_name, email, created_at FROM users ORDER BY id DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def count_users() -> int:
+    with _conn() as con:
+        return int(con.execute("SELECT COUNT(*) FROM users").fetchone()[0])
+
+
 def verify_user(email: str, password: str) -> dict | None:
     """Return {"id", "full_name", "email"} if the password matches, else None."""
     email = email.strip().lower()
