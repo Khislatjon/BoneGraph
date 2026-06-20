@@ -16,7 +16,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
 #root{display:flex;height:100vh;height:100dvh}
 .app-shell{height:100vh}
 :root{
@@ -31,6 +31,17 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#f3f1ec;color:#1c1b18
   --radius:10px;
   --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 8px rgba(0,0,0,.04);
 }
+
+:root[data-theme="dark"]{
+  --bg:#1a1916;--surface:#232220;--surface2:#2b2a27;
+  --border:#36342f;--border2:#45423b;
+  --text:#ece9e2;--text2:#b0ada3;--text3:#807d73;
+  --amber:#d49a4a;--amber-light:#2e2515;--amber-border:#5a4620;
+  --navy:#3a4d7a;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 1px 10px rgba(0,0,0,.3);
+}
+:root[data-theme="dark"] .send-btn:hover,
+:root[data-theme="dark"] .search-btn:hover{background:#4a5f93}
 
 /* Sidebar */
 .sidebar{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow-y:auto}
@@ -2019,6 +2030,7 @@ function AuthScreen({ onAuth }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError]       = useState('');
   const [busy, setBusy]         = useState(false);
   const canSubmit = email.trim() && password && !busy && (mode === 'login' || fullName.trim());
@@ -2062,9 +2074,21 @@ function AuthScreen({ onAuth }) {
         <input value={email} onChange={e => setEmail(e.target.value)} autoFocus={mode === 'login'}
           type="email" placeholder="Email"
           style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
-        <input value={password} onChange={e => setPassword(e.target.value)} type="password"
-          placeholder="Password"
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+        <div style={{position:'relative',display:'flex'}}>
+          <input value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 38px 9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
+          <button type="button" onClick={() => setShowPassword(s => !s)}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            style={{position:'absolute',right:1,top:1,bottom:1,width:34,display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'none',cursor:'pointer',color:'var(--text3)',padding:0}}>
+            {showPassword ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.5 6.5a2 2 0 0 0 2.8 2.8M3.2 3.2C1.9 4.1 1 5.4 1 6.5c0 1.5 2.7 4 6.5 4 1 0 2-.2 2.8-.5M5.5 2.7c.6-.1 1.1-.2 1.5-.2 3.8 0 6.5 2.5 6.5 4 0 .7-.6 1.6-1.6 2.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M1.5 1.5l11 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 7.5C1 6 3.7 3.5 7.5 3.5S14 6 14 7.5 11.3 11.5 7.5 11.5 1 9 1 7.5z" stroke="currentColor" strokeWidth="1.3"/><circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.3"/></svg>
+            )}
+          </button>
+        </div>
         {error && <div style={{color:'#b02020',fontSize:13}}>{error}</div>}
         <button type="submit" disabled={!canSubmit}
           style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,cursor:canSubmit?'pointer':'not-allowed',opacity:canSubmit?1:.5}}>
@@ -2087,6 +2111,13 @@ function App() {
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('bg_token'));
   const [fullName, setFullName]   = useState(() => localStorage.getItem('bg_fullname'));
   const [email, setEmail]         = useState(() => localStorage.getItem('bg_email'));
+  const [theme, setTheme]         = useState(() => localStorage.getItem('bg_theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('bg_theme', theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
     if (!authToken) return;
@@ -2158,16 +2189,16 @@ function App() {
             Send feedback
           </button>
         </div>
-        <div className="sb-foot">
-          <div className="corpus-badge">
-            <div className="corpus-dot"/>
-            {stats ? `${stats.chunks.toLocaleString()} embeddings indexed` : 'Loading…'}
-          </div>
-          {stats && (
-            <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>
-              Graph · {stats.graph_nodes?.toLocaleString()} nodes · {stats.graph_edges?.toLocaleString()} edges
-            </div>
-          )}
+        <div style={{padding:'0 8px 14px'}}>
+          <button onClick={toggleTheme} className="sb-feedback-btn"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme === 'dark' ? (
+              <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="3" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 1v1.6M7.5 12.4V14M14 7.5h-1.6M2.6 7.5H1M12.1 12.1l-1.1-1.1M4 4L2.9 2.9M12.1 2.9L11 4M4 11l-1.1 1.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M13 9.3A5.5 5.5 0 1 1 5.7 2 4.5 4.5 0 0 0 13 9.3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+            )}
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
         </div>
       </aside>
 
