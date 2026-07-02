@@ -20,7 +20,7 @@ with no third-party API calls at inference time.
 
 > ⚠️ **For research and educational use only. BoneGraph is not a clinical tool and does not provide medical diagnoses.**
 
-<!-- Tip: drop a screenshot or short GIF of the four tabs here, e.g. ![BoneGraph UI](docs/assets/ui.png) -->
+<!-- Tip: drop a screenshot or short GIF of the five tabs here, e.g. ![BoneGraph UI](docs/assets/ui.png) -->
 
 ---
 
@@ -275,7 +275,7 @@ BoneGraph/
 │   ├── auth_store.py        #   email/password accounts + sessions (auth.db)
 │   └── beta_feedback.py     #   "Send feedback" store (beta_feedback.db)
 ├── frontend/                # Single-file React app (in-browser Babel)
-│   ├── index.html           #   Chat · Search · Reasoning · Vision tabs + login
+│   ├── index.html           #   Chat · Search · Reasoning · Vision · Mechanics tabs + login
 │   ├── admin.html           #   server-rendered admin dashboard (/admin)
 │   └── static/
 ├── ingestion/
