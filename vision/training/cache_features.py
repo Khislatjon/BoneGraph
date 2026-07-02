@@ -68,12 +68,16 @@ def _flush(npz_path: Path, prog_path: Path, feats, region_idx, abnormal,
     npz_path.parent.mkdir(parents=True, exist_ok=True)
     X = (np.vstack(feats).astype(np.float32) if feats
          else np.empty((0, 512), np.float32))
-    tmp = npz_path.with_suffix(".npz.tmp")
-    np.savez(tmp, X=X,
-             region_idx=np.asarray(region_idx, dtype=np.int64),
-             abnormal=np.asarray(abnormal, dtype=np.int64),
-             patient=np.asarray(patient, dtype=object),
-             path=np.asarray(path, dtype=object))
+    # Write via a file handle: np.savez appends ".npz" to a *path* that doesn't
+    # already end in .npz, which would break the rename below. A handle is saved
+    # to verbatim.
+    tmp = npz_path.with_name(npz_path.name + ".tmp")
+    with open(tmp, "wb") as fh:
+        np.savez(fh, X=X,
+                 region_idx=np.asarray(region_idx, dtype=np.int64),
+                 abnormal=np.asarray(abnormal, dtype=np.int64),
+                 patient=np.asarray(patient, dtype=object),
+                 path=np.asarray(path, dtype=object))
     tmp.replace(npz_path)
     prog_path.write_text(json.dumps({"n_processed": n_processed}))
 
