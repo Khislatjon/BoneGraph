@@ -49,9 +49,14 @@ PROCESSED_DIR = DATA_DIR / "processed"
 # DB_DIR — the SQLite database file lives here.
 DB_DIR = DATA_DIR / "db"
 
+# MODELS_DIR — local model weights that are too large for git live here
+# (gitignored), e.g. the D2IM .h5 used by the Mechanics tab. Downloaded on
+# demand by scripts/download_d2im.py.
+MODELS_DIR = DATA_DIR / "models"
+
 # Create all directories on import so downstream code never has to check.
 # exist_ok=True means no error if the directory already exists.
-for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR):
+for _dir in (RAW_PAPERS_DIR, RAW_TEXTBOOKS_DIR, PROCESSED_DIR, DB_DIR, MODELS_DIR):
     _dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -196,3 +201,34 @@ CHUNK_OVERLAP_SENTENCES = 2
 # here is deliberately conservative — it slightly overestimates token count,
 # ensuring chunks stay safely under SPECTER's 512-token limit.
 CHARS_PER_TOKEN = 4
+
+
+# ── D2IM mechanics model (Mechanics tab) ──────────────────────────────────────
+#
+# D2IM (Soar, Palanca, Dall'Ara & Tozzi, J. Orthop. Translat. 2024) is a
+# TensorFlow/Keras CNN that predicts displacement (u, v, w) and — by
+# differentiation — strain fields from a single undeformed micro-CT (XCT) slice
+# of bone. The Mechanics tab wraps it as a swap-point behind mechanics/d2im.py.
+#
+# The trained weights (~tens of MB) are NOT in git. Fetch them once with
+# `python -m scripts.download_d2im`; they land in MODELS_DIR. Source of truth:
+# University of Greenwich GALA repository (see models/MODELS.md upstream).
+
+# Path to the trained D2IM Keras model. Override with D2IM_WEIGHTS_PATH to point
+# at the data-augmentation variant or a retrained model.
+D2IM_WEIGHTS_PATH = os.getenv("D2IM_WEIGHTS_PATH", str(MODELS_DIR / "D2IM_trained.h5"))
+
+# Public download URL for the default weights (GALA). The data-augmentation
+# variant lives at the same prefix as D2IM_trained_data_augmentation.h5.
+D2IM_WEIGHTS_URL = os.getenv(
+    "D2IM_WEIGHTS_URL",
+    "https://gala.gre.ac.uk/id/eprint/50955/3/D2IM_trained.h5",
+)
+
+# Physical calibration from the D2IM paper, used to turn the network's unit
+# outputs into real quantities:
+#   - voxel size of the source XCT scans (µm); displacement = output × this
+#   - DVC node spacing (voxels) between strain grid points; the strain step is
+#     D2IM_NODE_SPACING × D2IM_VOXEL_SIZE_UM µm.
+D2IM_VOXEL_SIZE_UM = float(os.getenv("D2IM_VOXEL_SIZE_UM", "39"))
+D2IM_NODE_SPACING = int(os.getenv("D2IM_NODE_SPACING", "50"))

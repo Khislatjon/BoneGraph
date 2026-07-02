@@ -20,3 +20,12 @@ ollama
 openpyxl>=3.1
 python-multipart
 Pillow>=10.0
+scipy                  # D2IM pre/post-processing (zoom, dilation, gradient)
+matplotlib             # D2IM displacement/strain field rendering (Agg backend)
+tifffile               # read 8/16-bit micro-CT TIFF slices for the Mechanics tab
+tensorflow             # D2IM CNN (Mechanics tab); lazy-imported, optional — the
+                       # other four tabs run without it. On Python 3.12 / TF≥2.16
+                       # also install tf-keras (below): the weights are a legacy
+                       # Keras-2 .h5 that Keras 3 can't load. Pin to a numpy<2
+                       # build (e.g. tensorflow==2.16.2) to keep the repo's numpy.
+tf-keras               # Keras-2 shim used to load the legacy D2IM .h5 on TF≥2.16

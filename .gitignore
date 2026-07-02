@@ -22,6 +22,9 @@ data/processed/
 # Database (regenerable)
 data/db/
 
+# Model weights (large; downloaded on demand, e.g. scripts/download_d2im.py)
+data/models/
+
 # macOS
 .DS_Store
 

@@ -1932,12 +1932,214 @@ function VisionTab() {
   );
 }
 
+// ── MECHANICS TAB ─────────────────────────────────────────────────────────────
+// Quantitative counterpart to Vision: upload one undeformed micro-CT slice, run
+// the D2IM CNN, and show predicted axial displacement (µm) + axial strain (µε).
+// One forward pass → one JSON response (no streaming). Degrades gracefully when
+// TensorFlow / the weights are absent (status endpoint drives the UI).
+function MechanicsTab() {
+  const [avail, setAvail]       = useState(null);   // status object, or null while loading
+  const [imageFile, setImageFile] = useState(null);
+  const [imageURL, setImageURL]   = useState(null);
+  const [maskFile, setMaskFile]   = useState(null);
+  const [busy, setBusy]   = useState(false);
+  const [drag, setDrag]   = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError]   = useState(null);
+  const fileRef = useRef(null);
+  const maskRef = useRef(null);
+
+  useEffect(() => {
+    apiFetch('/api/mechanics/status').then(r => r.json()).then(setAvail)
+      .catch(() => setAvail({ available:false, reason:'Could not reach the mechanics service.' }));
+  }, []);
+
+  const pick = (f) => {
+    if (!f || !f.type.startsWith('image/') && !/\.(tif|tiff)$/i.test(f.name)) return;
+    setResult(null); setError(null);
+    setImageFile(f); setImageURL(URL.createObjectURL(f));
+  };
+
+  // Built-in vertebrae slices (scan + matching bone mask) from our own dataset,
+  // so a user can try the tab without hunting for a micro-CT slice. Loading one
+  // fetches the real TIFFs (sent to D2IM) and shows the PNG preview.
+  const SAMPLES = [
+    { id:'s3', label:'Vertebra · AP · intact',
+      scan:'/static/samples/S3_INT_UL_AP_50_0003.tif',
+      mask:'/static/samples/S3_INT_UL_AP_50_0003_mask.tif',
+      preview:'/static/samples/S3_INT_UL_AP_50_0003.png' },
+    { id:'s8', label:'Vertebra · ML · lesion',
+      scan:'/static/samples/S8_LES_UL_ML_50_0012.tif',
+      mask:'/static/samples/S8_LES_UL_ML_50_0012_mask.tif',
+      preview:'/static/samples/S8_LES_UL_ML_50_0012.png' },
+  ];
+
+  const [loadingSample, setLoadingSample] = useState(null);  // sample id being fetched
+  const loadSample = async (s) => {
+    if (busy || loadingSample) return;
+    setResult(null); setError(null); setLoadingSample(s.id);
+    try {
+      const [scanBlob, maskBlob] = await Promise.all([
+        fetch(s.scan).then(r => r.blob()),
+        fetch(s.mask).then(r => r.blob()),
+      ]);
+      setImageFile(new File([scanBlob], s.scan.split('/').pop(), { type:'image/tiff' }));
+      setMaskFile(new File([maskBlob], s.mask.split('/').pop(), { type:'image/tiff' }));
+      setImageURL(s.preview);
+    } catch { setError('Could not load the sample image.'); }
+    setLoadingSample(null);
+  };
+
+  const predict = async () => {
+    if (!imageFile || busy) return;
+    setBusy(true); setError(null); setResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('image', imageFile);
+      if (maskFile) fd.append('mask', maskFile);
+      const resp = await apiFetch('/api/mechanics/predict', { method:'POST', body:fd });
+      const data = await resp.json();
+      if (data.ok) setResult(data);
+      else setError(data.error || 'Prediction failed.');
+    } catch { setError('Could not reach the mechanics service.'); }
+    setBusy(false);
+  };
+
+  const fmt = (x, d=1) => (x == null || isNaN(x)) ? '—'
+    : Number(x).toLocaleString(undefined, { maximumFractionDigits:d });
+
+  const StatRow = ({ k, v }) => (
+    <div className="id-row"><div className="id-k">{k}</div><div>{v}</div></div>
+  );
+
+  // Setup gate — TF or weights missing.
+  if (avail && !avail.available) return (
+    <div style={{maxWidth:720, margin:'0 auto', padding:'48px 20px'}}>
+      <div style={{fontFamily:'var(--sans)', fontSize:24, marginBottom:16, color:'var(--text)', textAlign:'center'}}>Mechanics</div>
+      <div className="id-card">
+        <div className="id-head"><span className="id-name">Setup needed</span></div>
+        <div className="id-rows">
+          <StatRow k="Status" v={avail.reason}/>
+          {!avail.tensorflow && <StatRow k="Install" v={<code>pip install tensorflow</code>}/>}
+          {avail.tensorflow && !avail.weights && <StatRow k="Get weights" v={<code>python -m scripts.download_d2im</code>}/>}
+        </div>
+      </div>
+      <div className="vision-note" style={{margin:'16px auto 0', textAlign:'center'}}>
+        The Mechanics tab runs D2IM (Soar, Palanca, Dall'Ara &amp; Tozzi, 2024) to predict displacement and strain fields from a bone image. Research and educational use only — not a clinical tool.
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:920, margin:'0 auto', padding:'32px 20px 64px'}}>
+      <div style={{fontFamily:'var(--sans)', fontSize:24, marginBottom:6, color:'var(--text)', textAlign:'center'}}>Mechanics</div>
+      <div className="vision-note" style={{textAlign:'center', margin:'0 auto 8px'}}>
+        Predict displacement &amp; axial strain fields from one undeformed micro-CT slice with D2IM. Research and educational use only — not a clinical tool.
+      </div>
+      <div className="vision-note" style={{textAlign:'center', margin:'0 auto 22px', fontSize:12}}>
+        The bundled D2IM model was trained on our own vertebrae dataset, so it works best on similar micro-CT slices. A CLI to train D2IM on your own dataset is coming in a future release.
+      </div>
+
+      {!imageFile ? (
+        <div className={`dropzone${drag?' drag':''}`} style={{maxWidth:560, margin:'0 auto'}}
+          onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)}
+          onDrop={e=>{e.preventDefault();setDrag(false);pick(e.dataTransfer.files[0])}}
+          onClick={()=>fileRef.current.click()}>
+          <input ref={fileRef} type="file" accept="image/*,.tif,.tiff" style={{display:'none'}} onChange={e=>pick(e.target.files[0])}/>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="dz-icon">
+            <rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" strokeWidth="1.8"/>
+            <path d="M24 18v12M18 24l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="dz-title">Drop an undeformed micro-CT slice</div>
+          <div className="dz-sub">TIFF · PNG · JPG · or click to select</div>
+        </div>
+      ) : null}
+
+      {!imageFile && (
+        <div style={{maxWidth:560, margin:'18px auto 0'}}>
+          <div className="vision-note" style={{textAlign:'center', marginBottom:10}}>
+            Or try a sample vertebra slice from our dataset:
+          </div>
+          <div style={{display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap'}}>
+            {SAMPLES.map(s => (
+              <button key={s.id} onClick={()=>loadSample(s)} disabled={!!loadingSample}
+                style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                  padding:8, borderRadius:10, border:'1px solid var(--border)',
+                  background:'var(--surface2)', opacity:loadingSample && loadingSample!==s.id ? .5 : 1,
+                  cursor:loadingSample?'default':'pointer', width:150}}>
+                <img src={s.preview} alt={s.label}
+                  style={{width:'100%', height:110, objectFit:'cover', borderRadius:6, background:'#111'}}/>
+                <span style={{fontSize:12, color:'var(--text2)', fontFamily:'var(--sans)'}}>
+                  {loadingSample===s.id ? 'Loading…' : s.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {imageFile && (
+        <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:14}}>
+          <div className="vision-strip" style={{maxWidth:560}}>
+            {imageURL && <img src={imageURL} alt="scan"/>}
+            <span>{imageFile.name}</span>
+            <input ref={fileRef} type="file" accept="image/*,.tif,.tiff" style={{display:'none'}} onChange={e=>{pick(e.target.files[0]); e.target.value='';}}/>
+            <button className="reupload" style={{marginLeft:'auto', padding:'4px 10px', fontSize:12}} onClick={()=>fileRef.current.click()}>Change image</button>
+          </div>
+
+          <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', justifyContent:'center'}}>
+            <input ref={maskRef} type="file" accept="image/*,.tif,.tiff" style={{display:'none'}} onChange={e=>{ setMaskFile(e.target.files[0]||null); }}/>
+            <button className="reupload" style={{padding:'5px 12px', fontSize:12.5}} onClick={()=>maskRef.current.click()}>
+              {maskFile ? `Mask: ${maskFile.name}` : 'Add bone mask (optional)'}
+            </button>
+            {maskFile && <button className="reupload" style={{padding:'5px 10px', fontSize:12}} onClick={()=>{setMaskFile(null); if(maskRef.current) maskRef.current.value='';}}>Clear mask</button>}
+          </div>
+          <button className="send-btn" style={{position:'static', right:'auto', width:'auto', height:'auto', padding:'8px 20px', borderRadius:9, fontFamily:'var(--sans)', fontSize:14}}
+            onClick={predict} disabled={busy || (avail && !avail.available)}>
+            {busy ? <Spinner/> : 'Predict fields'}
+          </button>
+          {!maskFile && <div className="vision-note" style={{textAlign:'center', fontSize:12}}>No mask supplied — an approximate bone region will be derived from the scan.</div>}
+        </div>
+      )}
+
+      {busy && <div className="loading-row" style={{justifyContent:'center', marginTop:24}}><Dots/><span>Running D2IM…</span></div>}
+      {error && <div className="id-card" style={{marginTop:24}}><div className="msg-text">⚠️ {error}</div></div>}
+
+      {result && (
+        <div style={{marginTop:28, display:'flex', flexDirection:'column', gap:18}}>
+          <img src={`data:image/png;base64,${result.figure}`} alt="D2IM prediction"
+            style={{width:'100%', borderRadius:10, border:'1px solid var(--border)'}}/>
+          <div className="id-card">
+            <div className="id-head">
+              <span className="id-name">Predicted mechanics</span>
+              <span className="badge" style={{display:'inline-block', padding:'2px 9px', borderRadius:7, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text2)', fontSize:11.5}}>
+                Mask: {result.mask_source === 'uploaded' ? 'supplied' : 'auto (approx.)'}
+              </span>
+            </div>
+            <div className="id-rows">
+              <StatRow k="Peak compressive strain" v={`${fmt(result.stats.peak_compressive_strain_ue)} µε`}/>
+              <StatRow k="Peak tensile strain" v={`${fmt(result.stats.peak_tensile_strain_ue)} µε`}/>
+              <StatRow k="Mean |strain|" v={`${fmt(result.stats.mean_abs_strain_ue)} µε`}/>
+              <StatRow k="Axial displacement w" v={`${fmt(result.stats.w_min_um)} … ${fmt(result.stats.w_max_um)} µm`}/>
+              <StatRow k="Mean w" v={`${fmt(result.stats.w_mean_um)} µm`}/>
+              <StatRow k="Calibration" v={`voxel ${fmt(result.params.voxel_size_um)} µm · node spacing ${result.params.node_spacing}`}/>
+              <StatRow k="Model" v={<code>{result.model}</code>}/>
+            </div>
+          </div>
+          <div className="vision-note" style={{textAlign:'center', margin:'0 auto'}}>{result.disclaimer}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 const TABS = [
   { id:'ask',     label:'Chat', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2h11v8H8.5L5 13v-3H2V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
   { id:'search',  label:'Search', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
   { id:'reason',  label:'Reasoning',        icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="2.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="12.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4 7.5h2M9 7.5h2" stroke="currentColor" strokeWidth="1.4"/></svg> },
   { id:'vision', label:'Vision', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="5.5" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10.5l4-3.5 3 2.5 2-2 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+  { id:'mechanics', label:'Mechanics', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 12.5h11M4 12.5V6M7.5 12.5V3.5M11 12.5V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2.5 6l5-2.5L12.5 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ];
 
 function FeedbackModal({ tab, onClose, userFullName, userEmail }) {
@@ -2214,6 +2416,9 @@ function App() {
         </div>
         <div className={`panel${tab==='vision'?' active':''}`}>
           <VisionTab/>
+        </div>
+        <div className={`panel-scroll${tab==='mechanics'?' active':''}`}>
+          <div className="panel-inner"><MechanicsTab/></div>
         </div>
       </main>
       {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)} userFullName={fullName} userEmail={email}/>}

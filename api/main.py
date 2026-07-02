@@ -50,7 +50,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneGraphRetriever
 from reasoning.graph_db import OntologyStore
-from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH
+from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH, D2IM_WEIGHTS_PATH
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
 OLLAMA_URL   = "http://localhost:11434/api/chat"
@@ -1691,6 +1691,78 @@ async def vision_correction_delete(correction_id: int, user_id: str = Depends(ge
     from vision.correction_store import delete_correction, stats
     deleted = delete_correction(correction_id, user_id=user_id)
     return {"ok": deleted, "stats": stats(user_id=user_id)}
+
+
+# ── Mechanics tab — D2IM displacement & strain prediction ─────────────────────
+#
+# The quantitative counterpart to Vision: where Vision says *what* a slice is,
+# Mechanics predicts *how it deforms*. A single forward pass through the D2IM CNN
+# (mechanics/d2im.py) turns one undeformed micro-CT slice into displacement and
+# axial-strain fields. Unlike the LLM tabs there is nothing to stream — it is one
+# compute — so this returns plain JSON.
+#
+# D2IM is an isolated, swappable adapter: this endpoint depends only on the
+# predict/render contract, never on TensorFlow. If TF or the weights are absent,
+# /status reports it and /predict returns a clear, actionable error rather than
+# crashing — the other three tabs are unaffected.
+
+MECHANICS_DISCLAIMER = (
+    "D2IM predictions are a research model's estimate from image content alone, "
+    "not a measurement. The bundled model was trained on our own vertebrae dataset, "
+    "so it generalises best to similar micro-CT slices. For research and educational "
+    "use only — not a clinical tool."
+)
+
+
+@app.get("/api/mechanics/status")
+async def mechanics_status(user_id: str = Depends(get_current_user)):
+    """Report whether the Mechanics tab can run (TF installed + weights present),
+    so the UI can enable the tab or show setup instructions."""
+    from mechanics import d2im
+    return d2im.status()
+
+
+@app.post("/api/mechanics/predict")
+async def mechanics_predict(
+    image: UploadFile = File(...),
+    mask: UploadFile = File(None),
+    user_id: str = Depends(get_current_user),
+):
+    """Predict displacement (u, v, w) and axial strain ε_zz for one bone slice.
+
+    `image` is an undeformed micro-CT slice (TIFF/PNG/JPG). `mask` is an optional
+    bone-region mask; when omitted, an approximate mask is derived from the scan
+    (Otsu) and `mask_source` is reported as 'auto'. Returns a labelled figure
+    (base64 PNG) plus summary statistics in physical units.
+    """
+    from mechanics import d2im
+
+    if not d2im.available():
+        st = d2im.status()
+        return {"ok": False, "error": st["reason"], "status": st}
+
+    img_bytes = await image.read()
+    mask_bytes = await mask.read() if mask is not None else None
+    try:
+        result = d2im.predict(
+            img_bytes, scan_name=image.filename or "",
+            mask_bytes=mask_bytes, mask_name=(mask.filename if mask else "") or "",
+        )
+        figure = d2im.render_figure(result)
+    except FileNotFoundError as e:
+        return {"ok": False, "error": str(e), "status": d2im.status()}
+    except Exception as e:
+        return {"ok": False, "error": f"Prediction failed: {e}"}
+
+    return {
+        "ok": True,
+        "figure": figure,
+        "stats": result["stats"],
+        "params": result["params"],
+        "mask_source": result["mask_source"],
+        "model": Path(D2IM_WEIGHTS_PATH).name,
+        "disclaimer": MECHANICS_DISCLAIMER,
+    }
 
 
 # ── Public-beta feedback ──────────────────────────────────────────────────────

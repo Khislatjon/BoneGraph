@@ -6,10 +6,12 @@
 [![Status](https://img.shields.io/badge/status-public%20beta-blue)]()
 [![Python](https://img.shields.io/badge/python-3.12-3776ab)]()
 
-BoneGraph unifies four research workflows behind one web app: **conversational
+BoneGraph unifies five research workflows behind one web app: **conversational
 question-answering** over a curated literature corpus, **raw semantic search**,
-**knowledge-graph-grounded reasoning** with a self-correcting critic, and
-**vision-language analysis** of medical images that learns from your corrections.
+**knowledge-graph-grounded reasoning** with a self-correcting critic,
+**vision-language analysis** of medical images that learns from your corrections,
+and **deep-learning image mechanics** that predicts bone displacement and strain
+fields from a single scan.
 It runs on a 248,629-chunk embedding index, a hand-cleaned bone knowledge graph,
 and open-weight models served through [Ollama](https://ollama.com) — fully local,
 with no third-party API calls at inference time.
@@ -40,7 +42,7 @@ The whole system is deliberately scoped to **bone science** — depth over bread
 
 ---
 
-## The four tabs
+## The five tabs
 
 Each tab is a distinct pipeline over a shared corpus + knowledge graph, exposed by [`api/main.py`](api/main.py).
 
@@ -84,6 +86,25 @@ and fed to the model — *don't make the same misidentification twice*. Unlike
 Reasoning, the Vision tab has **no critic and no grounding rules** by design.
 
 > The Vision tab is explicitly **research and educational only — not a clinical diagnostic tool.**
+
+### 5 · Mechanics — deep-learning displacement & strain prediction
+The quantitative counterpart to Vision. Upload one **undeformed micro-CT slice**
+and **D2IM** (Soar, Palanca, Dall'Ara & Tozzi, *J. Orthop. Translat.* 2024 —
+[paper](https://www.sciencedirect.com/science/article/pii/S2352431624000828),
+[code](https://github.com/PeterSoar/D2IM_Prototype)) predicts the **displacement
+field** (u, v, w) and, by differentiating the axial component, the **axial strain
+field** ε_zz — from the greyscale image alone, no FE model or DVC at inference.
+The tab returns a labelled figure (input · displacement · strain) plus summary
+statistics in physical units (peak strain, displacement range). A bone mask can
+be supplied; otherwise an approximate one is derived from the scan.
+
+D2IM is a fully isolated, swappable adapter ([`mechanics/d2im.py`](mechanics/d2im.py)) —
+TensorFlow is lazy-imported and optional, so the other four tabs run without it,
+and the [**D2IM-Strain**](https://www.biorxiv.org/content/10.64898/2026.03.31.715417v2)
+follow-up drops in by changing the weights path. Architecture:
+[`docs/mechanics/architecture.md`](docs/mechanics/architecture.md).
+
+> The Mechanics tab is **research and educational only — not a clinical tool.**
 
 ---
 
@@ -139,6 +160,7 @@ Vision additionally needs `llava:13b`.
 | Vision-language analysis | LLaVA 13B (`llava:13b`) | Vision |
 | Bone-relevance guard · feedback → rule extraction | `llama3.2:3b` | Chat, Reasoning |
 | Image embeddings for correction recall | BiomedCLIP (`microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224`) | Vision |
+| Displacement & strain field prediction | D2IM (TensorFlow/Keras CNN, `D2IM_trained.h5`) | Mechanics |
 
 Model names, the Ollama base URL (`OLLAMA_URL`), timeouts, and chunking
 parameters are centralised in [`config/settings.py`](config/settings.py) and
@@ -270,6 +292,8 @@ BoneGraph/
 ├── vision/                  # Vision tab backend
 │   ├── encoder.py           # BiomedCLIP image embeddings (+ augments)
 │   └── correction_store.py  # image-embedding correction memory (SQLite)
+├── mechanics/               # Mechanics tab backend
+│   └── d2im.py              # D2IM adapter: preprocess → predict → strain → render
 ├── config/settings.py       # central settings (paths, model names, constants)
 ├── scripts/                 # pipeline utilities + graph cleanup/reclassify
 ├── eval/                    # retrieval + reasoning benchmarks
