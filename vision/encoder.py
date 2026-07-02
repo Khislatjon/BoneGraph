@@ -108,3 +108,17 @@ def embed_with_augments(pil_img) -> tuple[np.ndarray, list[str]]:
     rgb = pil_img.convert("RGB")
     names, images = zip(*_augment(rgb))
     return _encode_batch(list(images)), list(names)
+
+
+def embed_batch(pil_images: list) -> np.ndarray:
+    """Embed a list of images into an ``(N, EMBED_DIM)`` L2-normalised array.
+
+    The batched entry point for bulk feature extraction (e.g. caching the whole
+    MURA set before training a classifier head). Same contract as
+    ``embed_image`` but amortises the model call over many images at once —
+    encode in batches of a few dozen and the ViT forward pass dominates, not
+    Python overhead.
+    """
+    if not pil_images:
+        return np.empty((0, EMBED_DIM), dtype=np.float32)
+    return _encode_batch(pil_images)
