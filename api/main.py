@@ -1634,14 +1634,17 @@ async def vision_chat(
                         )
                     else:
                         # Out-of-distribution: the image is unlike the head's training
-                        # data, so its label is unreliable — don't ground on it, and
-                        # warn the VLM off assuming an upper-limb radiograph (avoids
-                        # the "confident wrong answer" failure on e.g. a spine micro-CT).
+                        # data, so its label is withheld (not injected). Keep this note
+                        # SCOPE-NEUTRAL — the old "do NOT assume upper-limb radiograph"
+                        # wording pushed the VLM toward dismissing bone micro-CT as "not
+                        # a bone image". We only need to say the classifier doesn't apply;
+                        # the confident-wrong failure came from the injected label, which
+                        # is already withheld here.
                         instruction += (
-                            "\n\n[Region classifier] This image does not resemble the "
-                            "classifier's training data (upper-limb X-rays), so no reliable "
-                            "region prediction is available. Identify it from the image alone "
-                            "and do NOT assume it is an upper-limb radiograph."
+                            "\n\n[Region classifier] No region prediction applies to this "
+                            "image — it is outside the classifier's scope (upper-limb "
+                            "X-rays), so it was not used. Assess the image on its own merits "
+                            "and describe what you actually see."
                         )
 
             for t in _vlm_stream(img_b64, instruction, user_prompt, prior_turns, res):
