@@ -35,11 +35,20 @@ import numpy as np
 from config.settings import MODELS_DIR
 
 MODEL_PATH = MODELS_DIR / "vision_region_head.pt"
+# Out-of-distribution reference: a stratified subsample of the training features
+# + a nearest-neighbour-cosine threshold, calibrated so ~99% of legitimate MURA
+# images pass. Softmax confidence is NOT an OOD detector (the head is forced to
+# pick one of seven classes, so it is confident even on a spine micro-CT); this
+# reference set answers the real question — "does this image look like anything
+# the head was trained on?" — by distance in BiomedCLIP space.
+REFSET_PATH = MODELS_DIR / "vision_region_refset.npz"
 
 _lock = threading.Lock()
 _model = None
 _classes: list[str] | None = None
 _target: str | None = None
+_refset = None            # (N, 512) float32, L2-normalised
+_ood_threshold: float | None = None
 
 
 def is_available() -> bool:
@@ -82,24 +91,54 @@ def _load():
     return _model, _classes
 
 
-def predict(pil_img, top_k: int = 3) -> dict | None:
-    """Predict the body region for a PIL image.
+def _load_refset():
+    """Lazily load the OOD reference set + threshold. Returns (ref, threshold) or
+    (None, None) if the file is absent (guard then treated as always in-scope)."""
+    global _refset, _ood_threshold
+    if _refset is not None:
+        return _refset, _ood_threshold
+    with _lock:
+        if _refset is None and REFSET_PATH.exists():
+            d = np.load(REFSET_PATH)
+            _refset = d["ref"].astype(np.float32)  # (N, 512), already L2-normalised
+            _ood_threshold = float(d["threshold"])
+    return _refset, _ood_threshold
 
-    Returns ``{"label", "confidence", "topk": [(label, prob), ...], "target"}``
-    or ``None`` if the model is unavailable. Never raises on inference errors —
-    a classifier hiccup must not break the Vision chat stream.
+
+def _ood_check(vec: np.ndarray) -> tuple[float | None, bool]:
+    """Nearest-neighbour cosine of ``vec`` to the reference set. Returns
+    ``(score, in_scope)``. If no reference set is installed, treats everything as
+    in-scope (score None) so the guard degrades gracefully."""
+    ref, thr = _load_refset()
+    if ref is None:
+        return None, True
+    score = float((ref @ vec).max())  # both L2-normalised → cosine
+    return score, (score >= thr)
+
+
+def predict(pil_img, top_k: int = 3) -> dict | None:
+    """Predict the body region for a PIL image, with an out-of-scope guard.
+
+    Returns ``{"label", "confidence", "topk": [(label, prob), ...], "target",
+    "ood_score", "in_scope"}`` or ``None`` if the model is unavailable. When
+    ``in_scope`` is False the image does not resemble the head's training data
+    (upper-limb X-rays); callers should NOT ground the VLM on ``label`` in that
+    case. Never raises on inference errors — a classifier hiccup must not break
+    the Vision chat stream.
     """
     try:
         import torch
         from vision import encoder
 
         model, classes = _load()
-        vec = encoder.embed_image(pil_img)  # (512,) L2-normalised float32
+        vec = np.asarray(encoder.embed_image(pil_img), dtype=np.float32)  # (512,) L2-normalised
         with torch.no_grad():
-            logits = model(torch.tensor(np.asarray(vec, dtype=np.float32)).unsqueeze(0))
+            logits = model(torch.tensor(vec).unsqueeze(0))
             probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
         order = np.argsort(probs)[::-1][:top_k]
         topk = [(classes[int(i)], float(probs[int(i)])) for i in order]
-        return {"label": topk[0][0], "confidence": topk[0][1], "topk": topk, "target": _target}
+        ood_score, in_scope = _ood_check(vec)
+        return {"label": topk[0][0], "confidence": topk[0][1], "topk": topk,
+                "target": _target, "ood_score": ood_score, "in_scope": in_scope}
     except Exception:
         return None

@@ -168,6 +168,17 @@ guide (transfer, aarch64 env workarounds).
   injects the prediction into the VLM prompt on the first (identification) turn.
   The hint is framed as upper-limb-X-ray-only so the VLM discounts it on
   out-of-scope images.
+  - **Out-of-distribution guard.** The 7-way head is forced to pick a class, so
+    softmax confidence is *not* an OOD detector (a spine micro-CT was labelled
+    "shoulder, 91%", and the grounding then made the VLM hallucinate a shoulder
+    joint). The guard instead measures the **nearest-neighbour cosine of the
+    query's BiomedCLIP embedding to a reference subsample of the training
+    features** (`data/models/vision_region_refset.npz`, ~4,900 vectors). MURA
+    validation images score 0.83–0.99 (1st-pct threshold **0.827**); clearly
+    off-scope images score ~0.47–0.50. Below threshold → `in_scope=False`: the
+    prediction is withheld, no grounding is injected, and the VLM is told not to
+    assume an upper-limb radiograph. This is a standard kNN-OOD signal and is
+    reported as such.
 
 ## 8. Results
 
