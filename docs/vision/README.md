@@ -30,6 +30,7 @@ full-mirror design, now deferred.
 Docs:
 
 - [`training.md`](training.md) — **the trained classifier**: hybrid design, MURA data, method, compute, and results (for the paper)
+- [`roadmap.md`](roadmap.md) — **data & model roadmap**: scope decision, PathChat as reference architecture, the two-path data plan (labeled datasets now vs paper-figure scraping for later fine-tuning), chat/abnormality/eval direction
 - [`architecture.md`](architecture.md) — VLM + correction-memory design (read the scope banner first)
 - [`phase0_reuse_map.md`](phase0_reuse_map.md) — audit of what the reasoning pipeline lends to vision
 - [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original one-shot VLM integration plan
