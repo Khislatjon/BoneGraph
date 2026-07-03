@@ -35,5 +35,7 @@ Docs:
 - [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original one-shot VLM integration plan
 - [`../reasoning/architecture.md`](../reasoning/architecture.md) — the pipeline this tab mirrors
 
-Training result (MURA, 7-way region, BiomedCLIP frozen + linear head): _pending
-first run — see [`training.md` §Results](training.md#8-results)._
+Training result (MURA, 7-way region, BiomedCLIP frozen): linear probe **89.6%**
+test accuracy (macro-F1 0.886); small MLP head **92.6%** (macro-F1 0.918) on
+MURA's unseen valid split. Clear go signal. Full breakdown:
+[`training.md` §Results](training.md#8-results).

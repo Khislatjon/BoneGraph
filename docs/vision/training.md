@@ -167,19 +167,65 @@ guide (transfer, aarch64 env workarounds).
 
 ## 8. Results
 
-> Filled from the first MURA run once `train_head` completes. Setup: BiomedCLIP
-> (frozen) features, linear head, 7-way region, MURA official valid as the unseen
-> test set.
+First MURA run, 3 July 2026. Feature cache: 36,808 train + 3,197 valid vectors
+(0 skipped) via frozen BiomedCLIP on the Jetson CPU (train 177 min, valid 15 min
+at ~3.5 img/s). Splits: 33,192 train / 3,616 patient-held-out val / 3,197 test
+(MURA's official valid, unseen during training). Optimiser: Adam, lr 1e-3,
+inverse-frequency class weights.
 
-_(pending — completion of the feature cache + `train_head`)_
+**Headline — linear probe (BiomedCLIP frozen + `Linear(512→7)`, 30 epochs):**
 
-<!-- RESULTS TABLE TO BE INSERTED:
-overall accuracy: __
-macro-F1: __
-per-region accuracy:
-  elbow __  finger __  forearm __  hand __  humerus __  shoulder __  wrist __
-head type / epochs / date:
--->
+- **Overall test accuracy: 0.896** (n = 3,197, MURA valid, unseen)
+- **Macro-F1: 0.886**
+- Best patient-held-out val accuracy: 0.907
+
+Per-region accuracy (test):
+
+| region | accuracy | n |
+|---|---|---|
+| shoulder | 0.947 | 563 |
+| hand | 0.920 | 460 |
+| elbow | 0.903 | 465 |
+| wrist | 0.886 | 659 |
+| forearm | 0.877 | 301 |
+| humerus | 0.861 | 288 |
+| finger | 0.848 | 461 |
+
+**Comparison — MLP head (`Linear(512→256)→ReLU→Dropout(0.2)→Linear(256→7)`, 40 epochs):**
+
+- **Overall test accuracy: 0.926** (n = 3,197)
+- **Macro-F1: 0.918**
+- Best patient-held-out val accuracy: 0.939
+
+Per-region accuracy (test):
+
+| region | accuracy | n |
+|---|---|---|
+| shoulder | 0.972 | 563 |
+| hand | 0.952 | 460 |
+| elbow | 0.933 | 465 |
+| wrist | 0.917 | 659 |
+| finger | 0.905 | 461 |
+| humerus | 0.889 | 288 |
+| forearm | 0.880 | 301 |
+
+**Summary:**
+
+| head | test accuracy | macro-F1 | val accuracy |
+|---|---|---|---|
+| linear probe (30 ep) | 0.896 | 0.886 | 0.907 |
+| MLP, hidden 256 (40 ep) | **0.926** | **0.918** | **0.939** |
+
+The MLP is the saved/deployed head (`data/models/vision_region_head.pt`); the
+linear probe is reported as the standard baseline.
+
+**Interpretation (go/no-go):** a classifier on *frozen* BiomedCLIP features
+separates the 7 upper-limb bone regions at ~90% (linear) to ~93% (MLP) on unseen
+patients, with no region below 85%. This is a clear **go** — the features carry
+strong bone-region signal, so the trained component is worth shipping (behind a
+beta tag) and a full fine-tune is worth pursuing on the GPU server. The weakest
+classes (forearm, humerus, finger) are among the smallest by sample count,
+consistent with the class imbalance.
 
 ## References
 
