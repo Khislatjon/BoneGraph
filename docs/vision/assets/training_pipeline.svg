@@ -1,0 +1,52 @@
+<svg width="100%" viewBox="0 0 680 664" role="img" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<title>How the bone-image classifier head is trained</title>
+<desc>Top-to-bottom pipeline: prepare MURA data, split it, then a repeating training loop (encode with frozen BiomedCLIP, classifier head guesses, measure loss, backprop nudges the head weights), then validate, then test and deploy.</desc>
+<defs>
+<marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#94a3b8"/></marker>
+</defs>
+
+<rect x="175" y="40" width="330" height="48" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="340" y="62" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">1 · prepare the data</text>
+<text x="340" y="79" text-anchor="middle" font-size="12" fill="#2f5c94">MURA: ~40k labeled X-rays</text>
+<path d="M340,88 L340,108" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="175" y="110" width="330" height="48" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="340" y="132" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">2 · split into three sets</text>
+<text x="340" y="149" text-anchor="middle" font-size="12" fill="#2f5c94">train · validation · test (test stays hidden)</text>
+<path d="M340,158 L340,180" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="94" y="180" width="496" height="300" rx="12" fill="none" stroke="#d9a441" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="340" y="200" text-anchor="middle" font-size="12" fill="#8a5a12">the training loop — repeats over many passes (epochs)</text>
+
+<rect x="175" y="212" width="330" height="48" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="340" y="234" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">3 · encode with BiomedCLIP</text>
+<text x="340" y="251" text-anchor="middle" font-size="12" fill="#96631a">frozen tower turns a scan into 512 numbers</text>
+<path d="M340,260 L340,280" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="175" y="282" width="330" height="48" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="340" y="304" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">4 · classifier head makes a guess</text>
+<text x="340" y="321" text-anchor="middle" font-size="12" fill="#96631a">this small head is the part being trained</text>
+<path d="M340,330 L340,350" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="175" y="352" width="330" height="48" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="340" y="374" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">5 · compare guess to truth = loss</text>
+<text x="340" y="391" text-anchor="middle" font-size="12" fill="#96631a">one number: how wrong the guess was</text>
+<path d="M340,400 L340,420" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="175" y="422" width="330" height="48" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="340" y="444" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">6 · backprop nudges the weights</text>
+<text x="340" y="461" text-anchor="middle" font-size="12" fill="#96631a">so the next guess is a little less wrong</text>
+
+<path d="M505,446 L556,446 L556,236 L508,236" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+<text x="551" y="344" text-anchor="end" font-size="12" fill="#8a5a12">repeat</text>
+
+<path d="M340,480 L340,502" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+<rect x="175" y="504" width="330" height="48" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="340" y="526" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">7 · validate on held-out data</text>
+<text x="340" y="543" text-anchor="middle" font-size="12" fill="#2f5c94">catch overfitting; keep the best model</text>
+<path d="M340,552 L340,574" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+
+<rect x="175" y="576" width="330" height="48" rx="8" fill="#f1f3f5" stroke="#adb5bd"/>
+<text x="340" y="598" text-anchor="middle" font-size="14" font-weight="500" fill="#495057">8 · test, then deploy to the Vision tab</text>
+<text x="340" y="615" text-anchor="middle" font-size="12" fill="#6c757d">final test accuracy = the number for the paper</text>
+</svg>

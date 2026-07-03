@@ -15,15 +15,25 @@ next time a *similar image* appears, so a rotated/re-windowed copy still
 matches. Fine-tuning the VLM on corpus image–caption pairs remains a separate,
 deferred research track.
 
+**Update (2 July 2026) — add a trained component.** The supervisor review judged
+a bare VLM plus correction memory insufficient as a research contribution: the
+tab needs a component **trained on real bone images**. The chosen approach is a
+*hybrid* — a small classifier trained on frozen BiomedCLIP features (from the
+MURA dataset) whose prediction **grounds** the VLM's answer. Correction memory is
+kept; the trained classifier is added in front of the VLM. Full design, data,
+method, and results: [`training.md`](training.md).
+
 See the ⚠️ scope banner at the top of [`architecture.md`](architecture.md): the
 critic / rules / evidence machinery described there is the original
 full-mirror design, now deferred.
 
 Docs:
 
-- [`architecture.md`](architecture.md) — **the authoritative design** (read the scope banner first — correction memory only)
+- [`training.md`](training.md) — **the trained classifier**: hybrid design, MURA data, method, compute, and results (for the paper)
+- [`architecture.md`](architecture.md) — VLM + correction-memory design (read the scope banner first)
 - [`phase0_reuse_map.md`](phase0_reuse_map.md) — audit of what the reasoning pipeline lends to vision
 - [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original one-shot VLM integration plan
 - [`../reasoning/architecture.md`](../reasoning/architecture.md) — the pipeline this tab mirrors
 
-Add Vision-tab design notes and the rebuild plan here as they take shape.
+Training result (MURA, 7-way region, BiomedCLIP frozen + linear head): _pending
+first run — see [`training.md` §Results](training.md#8-results)._

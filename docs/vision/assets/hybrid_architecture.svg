@@ -1,0 +1,52 @@
+<svg width="100%" viewBox="0 0 680 356" role="img" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<title>Hybrid Vision tab: a small trained classifier grounds the LLaVA chat model</title>
+<desc>Top row, done once: MURA images through frozen BiomedCLIP train a small classifier head into a trained model. Bottom row, done live on every upload: the trained model predicts a label, which is fed into LLaVA so it answers grounded by that label. Amber boxes are what you train; blue boxes already exist in the repo.</desc>
+<defs>
+<marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#94a3b8"/></marker>
+<marker id="ahA" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d9a441"/></marker>
+</defs>
+
+<text x="40" y="50" font-size="12" fill="#8a5a12">build once — training, offline</text>
+
+<rect x="40" y="60" width="138" height="52" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="109" y="84" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">MURA</text>
+<text x="109" y="101" text-anchor="middle" font-size="12" fill="#2f5c94">~40k labeled X-rays</text>
+<path d="M178,86 L194,86" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="194" y="60" width="138" height="52" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="263" y="84" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">BiomedCLIP</text>
+<text x="263" y="101" text-anchor="middle" font-size="12" fill="#2f5c94">frozen · 512 numbers</text>
+<path d="M332,86 L348,86" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="348" y="60" width="138" height="52" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="417" y="84" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">train small head</text>
+<text x="417" y="101" text-anchor="middle" font-size="12" fill="#96631a">the only new part</text>
+<path d="M486,86 L502,86" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="502" y="60" width="138" height="52" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="571" y="84" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">trained model</text>
+<text x="571" y="101" text-anchor="middle" font-size="12" fill="#96631a">outputs a label</text>
+
+<path d="M571,112 L571,224 L263,224 L263,250" stroke="#d9a441" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#ahA)"/>
+<text x="417" y="218" text-anchor="middle" font-size="12" fill="#8a5a12">the model you built plugs in here</text>
+
+<text x="40" y="242" font-size="12" fill="#495057">every upload — live</text>
+
+<rect x="40" y="250" width="138" height="54" rx="8" fill="#f1f3f5" stroke="#adb5bd"/>
+<text x="109" y="275" text-anchor="middle" font-size="14" font-weight="500" fill="#495057">user uploads scan</text>
+<text x="109" y="292" text-anchor="middle" font-size="12" fill="#6c757d">X-ray / MRI / CT</text>
+<path d="M178,277 L194,277" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="194" y="250" width="138" height="54" rx="8" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="263" y="275" text-anchor="middle" font-size="14" font-weight="500" fill="#7a5010">model predicts</text>
+<text x="263" y="292" text-anchor="middle" font-size="12" fill="#96631a">forearm · 92%</text>
+<path d="M332,277 L348,277" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="348" y="250" width="138" height="54" rx="8" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="417" y="275" text-anchor="middle" font-size="14" font-weight="500" fill="#0c447c">LLaVA answers</text>
+<text x="417" y="292" text-anchor="middle" font-size="12" fill="#2f5c94">grounded by the label</text>
+<path d="M486,277 L502,277" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+<rect x="502" y="250" width="138" height="54" rx="8" fill="#f1f3f5" stroke="#adb5bd"/>
+<text x="571" y="275" text-anchor="middle" font-size="14" font-weight="500" fill="#495057">user sees reply</text>
+<text x="571" y="292" text-anchor="middle" font-size="12" fill="#6c757d">conversational</text>
+
+<rect x="40" y="322" width="12" height="12" rx="3" fill="#fdf3e0" stroke="#d9a441"/>
+<text x="58" y="332" font-size="12" fill="#495057">what you train</text>
+<rect x="188" y="322" width="12" height="12" rx="3" fill="#e6f1fb" stroke="#2563eb"/>
+<text x="206" y="332" font-size="12" fill="#495057">already in your repo</text>
+</svg>
