@@ -162,8 +162,12 @@ guide (transfer, aarch64 env workarounds).
   (MURA-only) vs augmented accuracy.
 - **Full LLaVA fine-tuning** on the university GPU server as a separate
   experiment, with the un-tuned model as the documented baseline.
-- **Wire the trained head into the live `/api/vision/chat`** as prompt grounding
-  (the hybrid inference path in §2).
+- ~~Wire the trained head into the live `/api/vision/chat` as prompt grounding~~
+  **Done** — [`vision/classifier.py`](../../vision/classifier.py) loads the head
+  and predicts a region; `/api/vision/chat` emits a `classifier` SSE event and
+  injects the prediction into the VLM prompt on the first (identification) turn.
+  The hint is framed as upper-limb-X-ray-only so the VLM discounts it on
+  out-of-scope images.
 
 ## 8. Results
 

@@ -1532,6 +1532,20 @@ def _vision_recall(pil_img, user_id: str) -> list[dict]:
         return []
 
 
+def _vision_classify(pil_img) -> dict | None:
+    """Predict the bone region with the trained BiomedCLIP head — the hybrid's
+    grounding signal (docs/vision/training.md). Cheap-exits when the head isn't
+    installed (so a fresh install still works), and never raises — a classifier
+    failure must not break the chat stream."""
+    try:
+        from vision import classifier
+        if not classifier.is_available():
+            return None
+        return classifier.predict(pil_img)
+    except Exception:
+        return None
+
+
 @app.post("/api/vision/chat")
 async def vision_chat(
     image: UploadFile = File(...),
@@ -1594,6 +1608,28 @@ async def vision_chat(
                         "\n\n[Correction memory] A user previously corrected your reading of a "
                         "very similar image:\n" + notes +
                         "\nTreat these corrections as authoritative and do not repeat the mistake."
+                    )
+
+            # Trained-classifier grounding: a MURA-trained head predicts the bone
+            # region and the prediction is fed to the VLM as a hint (the hybrid,
+            # docs/vision/training.md). First turn only — it anchors the initial
+            # identification; follow-up turns already have that context.
+            if not is_followup:
+                prediction = _vision_classify(pil_img)
+                if prediction:
+                    yield f"data: {json.dumps({'type':'classifier','prediction':prediction})}\n\n"
+                    conf = round(prediction["confidence"] * 100)
+                    topk = prediction.get("topk") or []
+                    runner = topk[1] if len(topk) > 1 else None
+                    runner_txt = f" Runner-up: {runner[0]} ({round(runner[1]*100)}%)." if runner else ""
+                    instruction += (
+                        f"\n\n[Region classifier] A classifier trained on MURA upper-limb "
+                        f"radiographs predicts this image is: {prediction['label']} "
+                        f"({conf}% confidence).{runner_txt} It was trained ONLY on upper-limb "
+                        f"X-rays (elbow, finger, forearm, hand, humerus, shoulder, wrist); use "
+                        f"it to inform your identification when consistent with the image, but "
+                        f"rely on what you actually see — if this is not an upper-limb "
+                        f"radiograph, disregard it."
                     )
 
             for t in _vlm_stream(img_b64, instruction, user_prompt, prior_turns, res):
