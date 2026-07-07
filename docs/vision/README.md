@@ -36,7 +36,8 @@ Docs:
 - [`phase3_vlm_plan.md`](phase3_vlm_plan.md) — the original one-shot VLM integration plan
 - [`../reasoning/architecture.md`](../reasoning/architecture.md) — the pipeline this tab mirrors
 
-Training result (MURA, 7-way region, BiomedCLIP frozen): linear probe **89.6%**
-test accuracy (macro-F1 0.886); small MLP head **92.6%** (macro-F1 0.918) on
-MURA's unseen valid split. Clear go signal. Full breakdown:
-[`training.md` §Results](training.md#8-results).
+Training results (MURA, BiomedCLIP frozen, unseen valid split):
+**region** 89.6% linear / **92.6%** MLP (macro-F1 0.92) — strong, the headline
+contribution; **abnormal/normal** 71.3% linear / 74.2% MLP (macro-F1 0.71–0.74,
+abnormal recall ~0.60) — preliminary/limitation, not a clinical flag. Full
+breakdown: [`training.md` §Results](training.md#8-results).

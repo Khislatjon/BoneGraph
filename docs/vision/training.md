@@ -242,6 +242,28 @@ beta tag) and a full fine-tune is worth pursuing on the GPU server. The weakest
 classes (forearm, humerus, finger) are among the smallest by sample count,
 consistent with the class imbalance.
 
+### Abnormality (normal / abnormal) — preliminary
+
+Same frozen-BiomedCLIP features, `--target abnormal` — MURA's *native*
+study-level labels (21,935 normal / 14,873 abnormal in train; no new data or
+re-encoding needed). MURA is a well-known *hard* abnormality benchmark, and a
+frozen-feature probe sits at the low end of it:
+
+| head | test accuracy | macro-F1 | normal recall | abnormal recall |
+|---|---|---|---|---|
+| linear probe (30 ep) | 0.713 | 0.707 | 0.819 | 0.597 |
+| MLP, hidden 256 (40 ep) | 0.742 | 0.735 | 0.862 | 0.610 |
+
+**Interpretation:** abnormality is far harder than region (0.74 vs 0.93), and
+crucially **abnormal recall is only ~0.60** — the probe misses ~40% of abnormal
+studies. This is expected: "is something wrong" lumps fractures, hardware, and
+degenerative change into one subtle binary, and frozen features + a shallow head
+are not enough. **Reported as a preliminary result / limitation, not a working
+clinical flag.** A usable abnormality detector needs fine-tuning or dedicated
+fracture-labelled data (future work). The Vision tab's contribution is the
+region-grounded VLM + OOD guard; abnormality is exploratory and must not be
+framed as diagnosis.
+
 ## References
 
 - Rajpurkar et al., *MURA: Large Dataset for Abnormality Detection in

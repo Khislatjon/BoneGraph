@@ -110,8 +110,10 @@ prediction is withheld and chat falls back to the bare VLM (honest fallback).
 ## 6. Evaluation (for the paper)
 
 Follow PathChat's template:
-- **Quantitative:** classifier accuracy / AUC on held-out data (region done:
-  89.6%/92.6%; abnormality: to measure).
+- **Quantitative:** classifier accuracy / AUC on held-out data (region: 89.6%
+  linear / 92.6% MLP; abnormality preliminary: 71.3% linear / 74.2% MLP, macro-F1
+  0.71–0.74, abnormal recall only ~0.60 — report as a limitation, not a clinical
+  flag).
 - **Qualitative reader study:** a small bone-expert blinded ranking of grounded
   vs bare-VLM answers. The humerus-called-"femur" case (fixed by grounding) is a
   ready-made example — and this is exactly the Cephalo-style screenshot evidence
