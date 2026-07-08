@@ -44,5 +44,8 @@ mypaper/
 # Presentations
 presentation/
 
+# Book summary (for paper)
+book-notes/
+
 # Claude Code local config (machine-specific permissions)
 .claude/
