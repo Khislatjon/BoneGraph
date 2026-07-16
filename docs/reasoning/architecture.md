@@ -5,8 +5,8 @@
 The single authoritative architecture reference for the Reasoning tab. For the
 phased build log, API field-by-field detail, and demo flow see
 [`reasoning_tab.md`](reasoning_tab.md). For the critic evidence channels
-see [`evidence_layer.md`](evidence_layer.md); for the feedback/eval harnesses
-see [`feedback_demo.md`](feedback_demo.md) and [`consistency_bench.md`](consistency_bench.md).
+see [`evidence_layer.md`](evidence_layer.md); for the feedback/eval harness
+see [`feedback_demo.md`](feedback_demo.md).
 
 ---
 
@@ -311,6 +311,5 @@ reasoning/kg_context.py         anchor + 1-hop KG edges for the critic
 frontend/index.html             ReasonTab, ModeToggle, RulesPanel, ReviewDialogue,
                                 FeedbackBar, ProposedRuleCard, PhysicalCheckBadge
 eval/evidence_audit.py          Phase 0.1 audit of literature + KG quality
-eval/reasoning_consistency.py   A3 opposite-question consistency bench
 eval/feedback_demo.py           B1 "second chat is better" demo harness
 ```

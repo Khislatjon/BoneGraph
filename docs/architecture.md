@@ -361,7 +361,6 @@ BoneGraph/
 ├── eval/                       Benchmarks
 │   ├── benchmark.json · run_eval.py · results.json   (retrieval: MRR / Recall@k)
 │   ├── evidence_audit.py       Reasoning: literature + KG quality
-│   ├── reasoning_consistency.py opposite-question consistency bench
 │   └── feedback_demo.py        "second chat is better" demo harness
 │
 ├── api/                        FastAPI backend
@@ -390,7 +389,7 @@ BoneGraph/
 │   ├── search/README.md         Search tab
 │   ├── reasoning/               Reasoning tab (authoritative architecture + build log + evals)
 │   │   ├── architecture.md · reasoning_tab.md
-│   │   ├── evidence_layer.md · consistency_bench.md · feedback_demo.md
+│   │   ├── evidence_layer.md · feedback_demo.md
 │   │   ├── phase4_lrm_plan.md · graph_cleanup.md · graph_concept_reclassification.md
 │   └── vision/                  Vision tab
 │       ├── README.md · architecture.md
