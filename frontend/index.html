@@ -804,6 +804,7 @@ function ReasonTab() {
   const [streaming, setStreaming] = useState('');
   const [usage, setUsage]   = useState(null); // {prompt, completion, ctx}
   const [proposedFor, setProposedFor] = useState({}); // turn_id -> {proposal, correction_id}
+  const [fbNonce, setFbNonce] = useState({}); // turn_id -> remount counter; bumped on Discard so the 👎 bar re-enables for a retry
   const [status, setStatus] = useState('');             // pipeline status pill while loading
   const [mode, setMode]     = useState('deep');         // 'deep' (agent+critic) | 'quick' (agent only)
   const endRef     = useRef(null);
@@ -965,6 +966,7 @@ function ReasonTab() {
               {turns.map(turn => (
                 <ReasonTurn key={turn.id} turn={turn}
                   proposed={proposedFor[turn.id]}
+                  fbNonce={fbNonce[turn.id] || 0}
                   onFeedback={ev => {
                     if (ev.polarity === -1 && ev.proposed_rule) {
                       setProposedFor(prev => ({...prev, [turn.id]: {proposal: ev.proposed_rule, correction_id: ev.correction_id}}));
@@ -972,6 +974,10 @@ function ReasonTab() {
                   }}
                   onProposalDone={() => {
                     setProposedFor(prev => { const cp = {...prev}; delete cp[turn.id]; return cp; });
+                  }}
+                  onDiscard={() => {
+                    setProposedFor(prev => { const cp = {...prev}; delete cp[turn.id]; return cp; });
+                    setFbNonce(prev => ({...prev, [turn.id]: (prev[turn.id] || 0) + 1}));
                   }}
                 />
               ))}
@@ -1585,7 +1591,7 @@ function PhysicalCheckBadge({ check }) {
   );
 }
 
-function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
+function ReasonTurn({ turn, proposed, fbNonce, onFeedback, onProposalDone, onDiscard }) {
   return (
     <>
       <div className="msg msg-user">
@@ -1597,13 +1603,13 @@ function ReasonTurn({ turn, proposed, onFeedback, onProposalDone }) {
           <div className="msg-text">{parseCit(fixBasis(stripThinking(turn.answer)))}</div>
           {!turn.out_of_scope && turn.physical_check && <PhysicalCheckBadge check={turn.physical_check}/>}
           {!turn.out_of_scope && <ReviewDialogue turn={turn}/>}
-          {!turn.out_of_scope && <FeedbackBar turn={turn} onFeedback={onFeedback}/>}
+          {!turn.out_of_scope && <FeedbackBar key={`fb-${turn.id}-${fbNonce}`} turn={turn} onFeedback={onFeedback}/>}
           {!turn.out_of_scope && proposed && (
             <ProposedRuleCard
               proposal={proposed.proposal}
               correctionId={proposed.correction_id}
               onConfirm={onProposalDone}
-              onDismiss={onProposalDone}
+              onDismiss={onDiscard}
             />
           )}
         </div>
@@ -1910,7 +1916,7 @@ function VisionTab() {
                   ) : m.ident ? (
                     <>
                       {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
-                      {m.classifier && <ClassifierBadge pred={m.classifier}/>}
+                      {m.classifier && !(m.recalled?.length > 0) && <ClassifierBadge pred={m.classifier}/>}
                       <IdentCard ident={m.ident}/>
                       <VisionFeedbackBar turn={m} imageFile={imageFile}/>
                     </>
@@ -2155,7 +2161,6 @@ function MechanicsTab() {
               <StatRow k="Model" v={<code>{result.model}</code>}/>
             </div>
           </div>
-          <div className="vision-note" style={{textAlign:'center', margin:'0 auto'}}>{result.disclaimer}</div>
         </div>
       )}
     </div>

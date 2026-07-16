@@ -985,10 +985,17 @@ async def reason_chat(
         if user_rule_summary:
             agent_system += (
                 "\n\nLEARNED CONSTRAINTS — the user has explicitly taught you the "
-                "following. Treat them as authoritative: they override your own "
-                "priors and any assumption implied by the question. If the question "
-                "presupposes something a constraint contradicts, correct the premise "
-                "instead of going along with it.\n" + user_rule_summary
+                "following. They are AUTHORITATIVE: they override your own priors, the "
+                "retrieved literature, and any assumption baked into the question.\n"
+                + user_rule_summary +
+                "\n\nHow to apply a constraint when it bears on the question:\n"
+                "- If the question's premise contradicts a constraint, your **Point 1** "
+                "must state the constraint-correct fact and say plainly that the premise "
+                "is false. Do NOT restate or justify the false premise, and do NOT hedge "
+                "with qualifiers like 'can appear to', 'under certain conditions', or "
+                "'may actually'.\n"
+                "- Treat the constraint as settled fact. Never present the premise and the "
+                "constraint as two competing possibilities — commit to the constraint."
             )
         base_messages = [
             {"role": "system", "content": agent_system},
@@ -1600,10 +1607,12 @@ async def vision_chat(
             # and surface them to the VLM as context — the one extra input the
             # agent is allowed (docs/vision/architecture.md, principle 1).
             recalled = _vision_recall(pil_img, user_id)
+            had_correction = False
             if recalled:
                 yield f"data: {json.dumps({'type':'recalled','corrections':recalled})}\n\n"
                 notes = "\n".join(f"- {h['feedback_text']}" for h in recalled if h.get("feedback_text"))
                 if notes:
+                    had_correction = True
                     instruction += (
                         "\n\n[Correction memory] A user previously corrected your reading of a "
                         "very similar image:\n" + notes +
@@ -1614,7 +1623,14 @@ async def vision_chat(
             # region and the prediction is fed to the VLM as a hint (the hybrid,
             # docs/vision/training.md). First turn only — it anchors the initial
             # identification; follow-up turns already have that context.
-            if not is_followup:
+            #
+            # Suppressed when an authoritative correction was recalled: the user
+            # correction takes precedence (design principle: corrections override
+            # the model), and a contradicting region hint — e.g. a MURA "humerus"
+            # guess on a recalled femur — would both mislead the VLM and clash with
+            # the recall note shown to the user. No classifier event is emitted, so
+            # the UI shows only the correction.
+            if not is_followup and not had_correction:
                 prediction = _vision_classify(pil_img)
                 if prediction:
                     yield f"data: {json.dumps({'type':'classifier','prediction':prediction})}\n\n"

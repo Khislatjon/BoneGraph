@@ -350,15 +350,24 @@ def _compile_user_rule(user_rule: dict) -> Rule | None:
         # correct answer.
         _NEG = (" not ", "n't", "never", "rather than", "instead of", "instead,",
                 "contrary to", "as opposed to", "not before", "does not", "do not")
+        # Concessive / contrast clauses ("While cortical is denser, trabecular fails
+        # first"; "Although A …, B …") name one operand in the subordinate clause and
+        # the other in the main clause, so their left-to-right position does NOT
+        # reflect the asserted order. The operand-position heuristic mis-reads these
+        # as a reverse claim, so we skip any sentence carrying a concessive cue —
+        # consistent with preferring a missed flag over a false one.
+        _CONTRAST = re.compile(r"\b(while|whilst|although|though|whereas|despite|however)\b")
 
         def fn(text: str, _first=first, _second=second, _gate=gate_tokens,
-               _exp=explanation, _name=name, _neg=_NEG) -> list[str]:
+               _exp=explanation, _name=name, _neg=_NEG, _contrast=_CONTRAST) -> list[str]:
             bad = []
             for sentence in re.split(r"(?<=[.!?])\s+", text):
                 low = sentence.lower()
                 if not any(c in low for c in _gate):
                     continue
                 if any(neg in low for neg in _neg):
+                    continue
+                if _contrast.search(low):
                     continue
                 a_pos = min((low.find(t) for t in _first if t in low), default=-1)
                 b_pos = min((low.find(t) for t in _second if t in low), default=-1)
