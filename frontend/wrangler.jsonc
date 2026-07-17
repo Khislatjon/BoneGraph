@@ -1,0 +1,17 @@
+{
+  // Lives in frontend/ rather than the repo root on purpose: the Cloudflare build
+  // is configured with root directory = frontend, so it never sees the repo's
+  // requirements.txt. At the root the build auto-detected that file and tried to
+  // pip install torch/tensorflow/CUDA in order to publish 18 static files.
+  //
+  // Serves the static shell from Cloudflare's edge. There is no "main" script:
+  // this is an assets-only Worker, so every request is answered from this
+  // directory and nothing runs on the Jetson. The API is separate -- index.html
+  // points /api/* at api.bonegraph.org (see API_BASE there). No build step: the
+  // app transpiles JSX in the browser via babel.min.js.
+  "name": "bonegraph",
+  "compatibility_date": "2026-07-17",
+  "assets": {
+    "directory": "./"
+  }
+}
