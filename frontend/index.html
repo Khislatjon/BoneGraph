@@ -253,14 +253,47 @@ function authHeaders() {
   const token = localStorage.getItem('bg_token');
   return token ? { Authorization: 'Bearer ' + token } : {};
 }
+// Shown whenever the API can't be reached — the frontend is on Cloudflare's edge
+// but the API lives on the Jetson behind the tunnel, so a WiFi drop there makes
+// every call fail. One friendly line for that case, across every tab.
+const SERVER_DOWN_MSG = 'The server seems to be down, please try after a while.';
+function serverDownError() {
+  const e = new Error(SERVER_DOWN_MSG);
+  e.serverDown = true;
+  return e;
+}
+// A caught failure means the server was unreachable (not a real app error) when
+// apiFetch tagged it, or when fetch itself rejected (network/CORS: "Load failed"
+// on WebKit, "Failed to fetch" on Chromium).
+function isServerDown(e) {
+  if (e && e.serverDown) return true;
+  const m = e && e.message ? String(e.message) : '';
+  return /load failed|failed to fetch|networkerror/i.test(m);
+}
+// The message to show a user: the friendly line for an unreachable server,
+// otherwise the real error text. Callers render it as "⚠️ Error: " + errText(e).
+function errText(e) {
+  return isServerDown(e) ? SERVER_DOWN_MSG : ((e && e.message) || SERVER_DOWN_MSG);
+}
 async function apiFetch(url, opts = {}) {
   const headers = { ...(opts.headers || {}), ...authHeaders() };
-  const resp = await _rawFetch(API_BASE + url, { ...opts, headers });
+  let resp;
+  try {
+    resp = await _rawFetch(API_BASE + url, { ...opts, headers });
+  } catch (e) {
+    throw serverDownError();  // fetch rejects only when no response arrived at all
+  }
   if (resp.status === 401 && !url.startsWith('/api/auth/')) {
     localStorage.removeItem('bg_token');
     localStorage.removeItem('bg_fullname');
     localStorage.removeItem('bg_email');
     window.location.reload();
+  }
+  // 502/503/504 are Cloudflare telling us the tunnel has no origin — i.e. the
+  // Jetson is offline. No caller handles these, and on a streaming endpoint they'd
+  // otherwise read as an empty answer, so normalise them to the server-down error.
+  if (resp.status === 502 || resp.status === 503 || resp.status === 504) {
+    throw serverDownError();
   }
   return resp;
 }
@@ -557,7 +590,7 @@ function AskTab({ totalChunks }) {
           else if (ev.type === 'error') { finalAnswer = '⚠️ ' + ev.message; }
         }
       }
-    } catch(e) { finalAnswer = '⚠️ Error: ' + e.message; }
+    } catch(e) { finalAnswer = '⚠️ Error: ' + errText(e); }
     setStreaming('');
     setLiveSource(null);
     setMessages(prev => [...prev, { role:'assistant', content:finalAnswer, sources }]);
@@ -638,6 +671,7 @@ function SearchTab({ totalChunks }) {
   const [searched, setSearched] = useState(false);
   const [current, setCurrent] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [searchError, setSearchError] = useState('');
   const [filter, setFilter]   = useState('All');
   const [topK, setTopK]       = useState(10);
   const [yearMin, setYearMin] = useState(1970);
@@ -662,7 +696,7 @@ function SearchTab({ totalChunks }) {
     const ym   = yMin ?? yearMin;
     const yx   = yMax ?? yearMax;
     if (!term || loading) return;
-    setQuery(term); setLoading(true); setSearched(true); setCurrent(term); setResults([]);
+    setQuery(term); setLoading(true); setSearched(true); setCurrent(term); setResults([]); setSearchError('');
     try {
       const fd = new FormData();
       fd.append('query', term); fd.append('top_k', String(tk)); fd.append('source_filter', sf);
@@ -670,7 +704,7 @@ function SearchTab({ totalChunks }) {
       const r = await apiFetch('/api/search', { method:'POST', body:fd });
       const d = await r.json();
       setResults(d.results || []); setElapsed(d.elapsed_ms || 0);
-    } catch { setResults([]); }
+    } catch(e) { setResults([]); setSearchError(errText(e)); }
     setLoading(false);
   };
 
@@ -780,7 +814,8 @@ function SearchTab({ totalChunks }) {
             </>
           );
         })()}
-        {!loading && searched && results.length === 0 && <div className="loading-row">No results. Try a different query.</div>}
+        {!loading && searchError && <div className="loading-row">⚠️ Error: {searchError}</div>}
+        {!loading && searched && !searchError && results.length === 0 && <div className="loading-row">No results. Try a different query.</div>}
       </div>
     </div>
   );
@@ -921,7 +956,7 @@ function ReasonTab() {
           else if (ev.type === 'error') { answer = '⚠️ ' + ev.message; }
         }
       }
-    } catch(e) { answer = '⚠️ Error: ' + e.message; }
+    } catch(e) { answer = '⚠️ Error: ' + errText(e); }
     const turn = {
       id: Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       query: t,
@@ -1867,8 +1902,8 @@ function VisionTab() {
           else if (ev.type === 'error') patchLastAsst({ error: ev.message });
         }
       }
-    } catch {
-      patchLastAsst({ error: 'Could not reach the vision service. Ensure Ollama is running with llava:13b.' });
+    } catch (e) {
+      patchLastAsst({ error: errText(e) });
     }
     setBusy(false);
   };
@@ -1925,7 +1960,7 @@ function VisionTab() {
                       {m.text && <div className="msg-text">{m.text}</div>}
                     </>
                   ) : m.error ? (
-                    <div className="msg-text">⚠️ {m.error}</div>
+                    <div className="msg-text">⚠️ Error: {m.error}</div>
                   ) : m.ident ? (
                     <>
                       {m.recalled?.length > 0 && <RecalledNote hits={m.recalled}/>}
@@ -1999,7 +2034,9 @@ function MechanicsTab() {
 
   useEffect(() => {
     apiFetch('/api/mechanics/status').then(r => r.json()).then(setAvail)
-      .catch(() => setAvail({ available:false, reason:'Could not reach the mechanics service.' }));
+      .catch(e => setAvail(isServerDown(e)
+        ? { available:false, serverDown:true, reason: errText(e) }
+        : { available:false, reason: errText(e) }));
   }, []);
 
   const pick = (f) => {
@@ -2049,7 +2086,7 @@ function MechanicsTab() {
       const data = await resp.json();
       if (data.ok) setResult(data);
       else setError(data.error || 'Prediction failed.');
-    } catch { setError('Could not reach the mechanics service.'); }
+    } catch(e) { setError(errText(e)); }
     setBusy(false);
   };
 
@@ -2064,14 +2101,18 @@ function MechanicsTab() {
   if (avail && !avail.available) return (
     <div style={{maxWidth:720, margin:'0 auto', padding:'48px 20px'}}>
       <div style={{fontFamily:'var(--sans)', fontSize:24, marginBottom:16, color:'var(--text)', textAlign:'center'}}>Mechanics</div>
-      <div className="id-card">
-        <div className="id-head"><span className="id-name">Setup needed</span></div>
-        <div className="id-rows">
-          <StatRow k="Status" v={avail.reason}/>
-          {!avail.tensorflow && <StatRow k="Install" v={<code>pip install tensorflow</code>}/>}
-          {avail.tensorflow && !avail.weights && <StatRow k="Get weights" v={<code>python -m scripts.download_d2im</code>}/>}
+      {avail.serverDown ? (
+        <div className="id-card"><div className="msg-text">⚠️ Error: {avail.reason}</div></div>
+      ) : (
+        <div className="id-card">
+          <div className="id-head"><span className="id-name">Setup needed</span></div>
+          <div className="id-rows">
+            <StatRow k="Status" v={avail.reason}/>
+            {!avail.tensorflow && <StatRow k="Install" v={<code>pip install tensorflow</code>}/>}
+            {avail.tensorflow && !avail.weights && <StatRow k="Get weights" v={<code>python -m scripts.download_d2im</code>}/>}
+          </div>
         </div>
-      </div>
+      )}
       <div className="vision-note" style={{margin:'16px auto 0', textAlign:'center'}}>
         The Mechanics tab runs D2IM (Soar, Palanca, Dall'Ara &amp; Tozzi, 2024) to predict displacement and strain fields from a bone image. Research and educational use only — not a clinical tool.
       </div>
@@ -2151,7 +2192,7 @@ function MechanicsTab() {
       )}
 
       {busy && <div className="loading-row" style={{justifyContent:'center', marginTop:24}}><Dots/><span>Running D2IM…</span></div>}
-      {error && <div className="id-card" style={{marginTop:24}}><div className="msg-text">⚠️ {error}</div></div>}
+      {error && <div className="id-card" style={{marginTop:24}}><div className="msg-text">⚠️ Error: {error}</div></div>}
 
       {result && (
         <div style={{marginTop:28, display:'flex', flexDirection:'column', gap:18}}>
