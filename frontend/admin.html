@@ -97,11 +97,12 @@ function fmtDate(iso){
 }
 const CAT_ICON = {bug:'🐞',idea:'💡',question:'❓',praise:'🎉',other:'📝'};
 
-// See the API_BASE note in index.html: this page ships from Cloudflare Pages, the
+// See the API_BASE note in index.html: this page ships from Cloudflare's edge, the
 // API answers from the Jetson behind the tunnel; same-origin everywhere else.
 const API_BASE =
   location.hostname === 'bonegraph.org' ||
   location.hostname === 'www.bonegraph.org' ||
+  location.hostname.endsWith('.workers.dev') ||
   location.hostname.endsWith('.pages.dev')
     ? 'https://api.bonegraph.org'
     : '';
