@@ -1,17 +1,36 @@
-# Deployment — BoneGraph on Jetson AGX Orin
+# Deployment — BoneGraph (Cloudflare edge + Jetson API)
 
-This guide deploys BoneGraph as a 24/7 public beta on an **NVIDIA Jetson AGX Orin
-64 GB**, exposed at **bonegraph.org** through a Cloudflare Tunnel. No open ports,
-HTTPS automatic, near-zero running cost.
+BoneGraph runs as a **split deployment**: the static frontend is served from
+**Cloudflare's global edge**, and the API runs on an **NVIDIA Jetson AGX Orin
+64 GB** at home, reached through a Cloudflare Tunnel. No open ports, HTTPS
+automatic, near-zero running cost.
 
 ```
-Internet ──▶ Cloudflare (DNS + HTTPS + analytics) ──▶ cloudflared tunnel
-                                                            │
-                                              [Jetson AGX Orin 64 GB]
-                                              ├─ run_api.sh → uvicorn api.main:app (127.0.0.1:8000)
-                                              ├─ Ollama (huatuogpt-bone, llava:13b, llama3.2:3b)
-                                              └─ TensorFlow + D2IM weights (Mechanics tab; optional)
+                       ┌─ bonegraph.org, www.bonegraph.org
+Internet ──▶ Cloudflare ┤     └─▶ Worker "bonegraph" (static frontend/ from the edge — always up)
+                       │
+                       └─ api.bonegraph.org, ssh.bonegraph.org
+                             └─▶ cloudflared tunnel
+                                       │
+                                 [Jetson AGX Orin 64 GB]  (API only)
+                                 ├─ run_api.sh → uvicorn api.main:app (127.0.0.1:8000)
+                                 ├─ Ollama (huatuogpt-bone, llava:13b, llama3.2:3b)
+                                 └─ TensorFlow + D2IM weights (Mechanics tab; optional)
 ```
+
+**Why the split.** The Jetson is on home Wi-Fi (RTL8822CE) that drops several
+times an hour. When one process served both the page and the API, every drop
+took the whole domain down (Cloudflare 530). Now the page always loads from the
+edge and a Jetson blip degrades a single in-flight query instead of killing the
+site. The frontend calls the API cross-origin at `api.bonegraph.org` (see
+`API_BASE` in `frontend/index.html`); CORS is already `allow_origins=["*"]`.
+
+Two independent pieces to deploy:
+
+- **The API on the Jetson** — Steps 0–8 below (Ollama, models, DBs, systemd,
+  tunnel). This is the bulk of the work.
+- **The frontend on Cloudflare** — the "Frontend deployment" section near the
+  end. It's a one-time dashboard setup, then auto-deploys on `git push`.
 
 The API launches through **`run_api.sh`**, not a bare `uvicorn` line — the script
 sets two aarch64 shared-library workarounds (see Step 6) that the app needs in
@@ -210,15 +229,24 @@ WantedBy=multi-user.target
 chmod +x run_api.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now bonegraph
-curl http://127.0.0.1:8000/            # smoke test — expect 200 once startup completes
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/api/stats   # expect 401
 ```
+
+The API is **API-only** — it no longer serves any HTML, so `/` returns **404**,
+not 200. Smoke-test an API route instead: `/api/stats` returns **401
+Not authenticated** (it's auth-gated) once startup is complete — a 401 means the
+app is up.
 
 `--host 127.0.0.1` keeps the app local; the Cloudflare Tunnel is the only path in
 from the internet. Startup loads the retriever + graph before the port answers, so
 give it a few seconds; watch `journalctl -u bonegraph -f` for
 `Application startup complete`.
 
-## Step 7 — Cloudflare Tunnel → bonegraph.org
+## Step 7 — Cloudflare Tunnel → api.bonegraph.org
+
+The tunnel exposes the **API** (and SSH), not the site. `bonegraph.org` and
+`www.bonegraph.org` are served by the Cloudflare Worker (see "Frontend
+deployment"); the tunnel owns `api.bonegraph.org` and `ssh.bonegraph.org`.
 
 ```bash
 # install cloudflared (ARM64)
@@ -227,64 +255,171 @@ sudo install cloudflared /usr/local/bin/
 
 cloudflared tunnel login                       # open the printed URL on any browser; pick bonegraph.org
 cloudflared tunnel create bonegraph
-cloudflared tunnel route dns bonegraph bonegraph.org
+cloudflared tunnel route dns bonegraph api.bonegraph.org
+cloudflared tunnel route dns bonegraph ssh.bonegraph.org   # optional: SSH over the tunnel
 ```
 
-Create `~/.cloudflared/config.yml`:
+The service runs with an explicit config path, so create the config at
+**`/etc/cloudflared/config.yml`** (this is the one the service reads — see the
+trap note below):
 
 ```yaml
-tunnel: bonegraph
-credentials-file: /home/<jetson-user>/.cloudflared/<tunnel-id>.json
+tunnel: <tunnel-id>            # e.g. b80de107-6748-4a56-933c-198971050120
+credentials-file: /etc/cloudflared/<tunnel-id>.json
 ingress:
+  - hostname: api.bonegraph.org
+    service: http://127.0.0.1:8000
+  - hostname: ssh.bonegraph.org
+    service: ssh://localhost:22
+  # bonegraph.org + www are served by the Worker. These two rules are kept as a
+  # rollback path only: delete the Worker routes and traffic falls back here.
+  # (Since the API no longer serves HTML, that fallback serves the API, not the
+  # page — a true rollback also needs the frontend handlers restored in main.py.)
   - hostname: bonegraph.org
+    service: http://127.0.0.1:8000
+  - hostname: www.bonegraph.org
     service: http://127.0.0.1:8000
   - service: http_status:404
 ```
+
+> **Trap — two config files.** `cloudflared service install` may drop a config at
+> `~/.cloudflared/config.yml`, but this deployment runs the service with
+> `--config /etc/cloudflared/config.yml`. Edit **only** the `/etc/cloudflared/`
+> one; the `~/.cloudflared/` copy is stale and ignored. Check which is live with
+> `systemctl cat cloudflared | grep ExecStart`.
 
 Run it as a service:
 
 ```bash
 sudo cloudflared service install
 sudo systemctl enable --now cloudflared
+curl -s -o /dev/null -w '%{http_code}\n' https://api.bonegraph.org/api/stats   # expect 401
 ```
 
 ## Step 8 — Verify end-to-end
 
-- Visit `https://bonegraph.org` from a phone → all five tabs load over HTTPS.
+- **Edge vs tunnel** — confirm each hostname is served by the right thing.
+  `GET /index.html` is the discriminator: **307** (clean-URL redirect) = the
+  Worker; **404** = the Jetson (the API has no such route).
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}\n' https://bonegraph.org/index.html      # 307 → Worker (edge)
+  curl -s -o /dev/null -w '%{http_code}\n' https://api.bonegraph.org/index.html  # 404 → Jetson (API)
+  ```
+- Visit `https://bonegraph.org` from a phone → the page loads from the edge; all
+  five tabs render. API calls go to `api.bonegraph.org`.
 - Run one query per tab (Chat, Search, Reasoning, Vision); watch `sudo tegrastats`
-  for GPU activity.
+  on the Jetson for GPU activity.
 - **Mechanics:** click a bundled sample vertebra slice → **Predict fields** → a
   displacement/strain figure + stats appears. (Or check `/api/mechanics/status`
   returns `available: true` when logged in.) If TF/weights are absent you'll see a
   "setup needed" panel instead — that's expected, not a failure.
-- Feedback endpoint is locked down:
-  - `https://bonegraph.org/api/feedback/list` → **403**
+- **Graceful degradation** — stop the API (`sudo systemctl stop bonegraph`) and
+  reload `bonegraph.org`: the page still loads, and each tab shows
+  "⚠️ Error: The server seems to be down, please try after a while." Restart with
+  `sudo systemctl start bonegraph`.
+- Feedback endpoint is locked down (on the API host now):
+  - `https://api.bonegraph.org/api/feedback/list` → **403**
   - `…/api/feedback/list?token=<your-secret>` → returns the list
 
 ---
+
+## Frontend deployment (Cloudflare Worker — static assets)
+
+The `frontend/` directory (HTML + `static/`, no build step — JSX is transpiled in
+the browser by `babel.min.js`) is served as an **assets-only Worker** from
+Cloudflare's edge. This is a one-time setup; afterwards it **auto-deploys on every
+`git push` to `main`**.
+
+**Config in the repo** (`frontend/wrangler.jsonc`):
+
+```jsonc
+{
+  "name": "bonegraph",
+  "compatibility_date": "2026-07-17",
+  "assets": { "directory": "./" }   // assets-only: no "main", nothing runs server-side
+}
+```
+
+`frontend/.assetsignore` keeps `.wrangler`, `wrangler.jsonc` and `.DS_Store` off
+the CDN.
+
+**One-time dashboard setup** (Cloudflare → Workers & Pages → Create → import
+`Khislatjon/BoneGraph`):
+
+| Setting | Value | Why |
+|---|---|---|
+| Root directory | **`/frontend`** | **Critical.** At the repo root the build auto-detects `requirements.txt` and tries to `pip install` torch/tensorflow/CUDA to publish static files — 12 min, then fails. `frontend/` has no Python, so detection finds nothing. |
+| Build command | *(empty)* | No build step. |
+| Deploy command | `npx wrangler deploy` | Finds `frontend/wrangler.jsonc`. |
+| Production branch | `main` | Auto-deploys on push. |
+
+> `SKIP_DEPENDENCY_INSTALL` does **not** fix the pip problem — set via the
+> dashboard's Variables it becomes a Worker *runtime* variable the build never
+> reads. Setting Root directory is the fix.
+
+A green build (~30 s) publishes to `https://bonegraph.<subdomain>.workers.dev`.
+
+**Point the domain at the Worker.** A Custom Domain refuses while the tunnel CNAME
+exists ("delete the DNS record first" → brief outage). Use **Worker Routes**
+instead — they intercept the existing proxied DNS record before the tunnel, with
+zero downtime:
+
+- `bonegraph.org/*` → Worker `bonegraph` — add from the Worker's **Domains** tab.
+- `www.bonegraph.org/*` → Worker `bonegraph` — the Worker-side dialog errors
+  ("No zones match www.bonegraph.org"), so add it from the **zone** side:
+  Dashboard → bonegraph.org → **Workers Routes** → Add route.
+
+**How the frontend finds the API.** `API_BASE` in `frontend/index.html` and
+`frontend/admin.html` resolves to `https://api.bonegraph.org` on the public hosts
+(`bonegraph.org`, `www.`, `*.workers.dev`, `*.pages.dev`) and to `''` (same-origin)
+everywhere else — so local dev and hitting the Jetson directly still work.
+
+**Shipping frontend changes:** just `git push`. Cloudflare rebuilds and deploys;
+no Jetson involvement, and it works even while the Jetson is offline. **Backend
+changes still need** `ssh` to the Jetson + `git pull` + restart (Operations below).
 
 ## Operations
 
 - **Logs:** `journalctl -u bonegraph -f` and `journalctl -u cloudflared -f`.
   Configure `logrotate` / journald size limits so logs don't fill the eMMC.
 - **Disk watch:** `df -h /` regularly; the eMMC has limited headroom.
-- **Updates:** `git pull` in the repo, then `sudo systemctl restart bonegraph`.
-  If the pull added dependencies, `pip install -r requirements.txt` first (and see
-  Step 5b if it touched the Mechanics/TensorFlow stack). Startup re-loads the
-  models, so expect a few seconds of downtime on restart.
+- **Backend updates:** `git pull` in the repo on the Jetson, then
+  `sudo systemctl restart bonegraph`. If the pull added dependencies,
+  `pip install -r requirements.txt` first (and see Step 5b if it touched the
+  Mechanics/TensorFlow stack). Startup re-loads the models, so expect a few
+  seconds of API downtime on restart — the page stays up (it's on the edge).
+- **Frontend updates:** `git push` only. Cloudflare rebuilds `frontend/` and
+  deploys to the edge automatically; nothing to do on the Jetson.
+- **Wi-Fi self-heal (`net-watchdog`).** The Jetson's Wi-Fi (RTL8822CE) drops
+  periodically. A systemd timer (`net-watchdog.timer` → `net-watchdog.sh`) pings
+  the gateway every few minutes and cycles the radio when it's unreachable; a hard
+  hang is caught by the Tegra hardware watchdog. The vendor driver ignores the
+  standard powersave setting, so its power management is disabled at the driver
+  level via `/etc/modprobe.d/rtl8822ce.conf`
+  (`rtw_power_mgnt=0 rtw_ips_mode=0 rtw_lps_level=0 rtw_lps_chk_by_tp=0`). While a
+  drop is active the API is unreachable and every tab shows the "server seems to be
+  down" message; the page itself stays up.
+- **Rollback.** *Frontend:* revert the commit and `git push` (or roll back the
+  deployment in the Cloudflare dashboard). *Backend:* `git reset --hard <good-sha>`
+  on the Jetson + `sudo systemctl restart bonegraph`.
 - **Models:** `ollama list`; remove anything unused with `ollama rm <model>`.
 - **Reading feedback:** `curl "http://127.0.0.1:8000/api/feedback/list?token=<secret>"`
-  on the Jetson, or via the public URL with the token.
+  on the Jetson, or `https://api.bonegraph.org/api/feedback/list?token=<secret>`.
 
 ## Pre-launch checklist
 
-- [ ] `FEEDBACK_ADMIN_TOKEN` set in the service environment
+- [ ] `FEEDBACK_ADMIN_TOKEN` set (loaded from `.env` by `config/settings.py`, or
+      as a systemd `Environment=`)
 - [ ] All three Ollama models present in `ollama list`
 - [ ] `data/db/` transferred (chunks.db + papers.db + ontology.db)
 - [ ] `run_api.sh` executable; systemd `ExecStart` points at it
 - [ ] Both services `enabled` (survive reboot) and `active`
-- [ ] `https://bonegraph.org` reachable; all five tabs functional
+- [ ] `api.bonegraph.org/api/stats` → 401 (API up via tunnel)
+- [ ] Worker deployed; `bonegraph.org` + `www.` routes point at it
+      (`GET bonegraph.org/index.html` → 307)
+- [ ] `https://bonegraph.org` reachable; all five tabs render and reach the API
 - [ ] (Optional) Mechanics: TensorFlow + `data/models/D2IM_trained.h5` present;
       `/api/mechanics/status` → `available: true`
 - [ ] Feedback list returns 403 without the token
+- [ ] `net-watchdog.timer` active; `/etc/modprobe.d/rtl8822ce.conf` present
 - [ ] Active cooling confirmed; `df -h` headroom acceptable
