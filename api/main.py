@@ -29,7 +29,10 @@ POST /api/reason/chat       — SSE stream: reasoning agent → physical groundi
 POST /api/reason/feedback   — record 👍/👎; on 👎 with text, extract a proposed rule
 POST /api/reason/rules/*    — confirm / list / enable / delete / import user rules
 POST /api/analyse          — VLM image analysis (multipart), JSON response
-GET  /                     — serves frontend/index.html
+
+The frontend is deliberately not served from here: it ships from Cloudflare's edge
+as an assets-only Worker and calls this API cross-origin at api.bonegraph.org, so a
+WiFi drop on this box degrades a live query instead of taking bonegraph.org down.
 """
 
 import base64
@@ -44,8 +47,7 @@ from pathlib import Path
 
 import requests
 from fastapi import FastAPI, Form, UploadFile, File, Query, Request, HTTPException, Header, Depends
-from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from retrieval.retriever import BoneGraphRetriever
@@ -280,10 +282,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
-
-
 # ── Auth ───────────────────────────────────────────────────────────────────────
 # Email/password accounts (api/auth_store.py). The email becomes the
 # `user_id` threaded through reasoning/feedback_store.py and
@@ -419,16 +417,6 @@ def _dedupe_venue(venue: str) -> str:
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
-
-@app.get("/", response_class=HTMLResponse)
-def serve_frontend():
-    return (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
-
-
-@app.get("/test", response_class=HTMLResponse)
-def serve_test():
-    return (FRONTEND_DIR / "test.html").read_text(encoding="utf-8")
-
 
 @app.get("/api/stats")
 def get_stats(user_id: str = Depends(get_current_user)):
@@ -1873,12 +1861,6 @@ async def list_feedback_admin(token: str = Query("")):
     if admin_token and token != admin_token:
         raise HTTPException(status_code=403, detail="Forbidden")
     return {"count": count(), "feedback": list_feedback()}
-
-
-@app.get("/admin", response_class=HTMLResponse)
-def serve_admin():
-    """Server-rendered admin dashboard (signups + beta feedback)."""
-    return (FRONTEND_DIR / "admin.html").read_text(encoding="utf-8")
 
 
 @app.get("/api/admin/overview")
