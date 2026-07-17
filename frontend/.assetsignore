@@ -1,2 +1,6 @@
+# assets: "./" publishes this directory, so keep non-asset files off the edge.
+# .wrangler is wrangler's own scratch dir -- it writes the deploy's no-op worker
+# stub in here, which otherwise ships as a public asset on every deploy.
+.wrangler
 wrangler.jsonc
 .DS_Store
