@@ -236,13 +236,23 @@ const { useState, useEffect, useRef, Fragment } = React;
 // attempt's 401 reaches the caller (AuthScreen) to display, instead of reloading
 // the page before the error message can be shown.
 const _rawFetch = window.fetch.bind(window);
+// This shell is served from Cloudflare Pages but the API runs on the Jetson behind
+// the tunnel, so on the public site API calls need an absolute origin. Everywhere
+// else — local dev, hitting the box directly — one process serves both, so
+// same-origin ('') is correct. Callers always pass a relative '/api/...' path.
+const API_BASE =
+  location.hostname === 'bonegraph.org' ||
+  location.hostname === 'www.bonegraph.org' ||
+  location.hostname.endsWith('.pages.dev')
+    ? 'https://api.bonegraph.org'
+    : '';
 function authHeaders() {
   const token = localStorage.getItem('bg_token');
   return token ? { Authorization: 'Bearer ' + token } : {};
 }
 async function apiFetch(url, opts = {}) {
   const headers = { ...(opts.headers || {}), ...authHeaders() };
-  const resp = await _rawFetch(url, { ...opts, headers });
+  const resp = await _rawFetch(API_BASE + url, { ...opts, headers });
   if (resp.status === 401 && !url.startsWith('/api/auth/')) {
     localStorage.removeItem('bg_token');
     localStorage.removeItem('bg_fullname');

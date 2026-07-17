@@ -97,8 +97,17 @@ function fmtDate(iso){
 }
 const CAT_ICON = {bug:'🐞',idea:'💡',question:'❓',praise:'🎉',other:'📝'};
 
+// See the API_BASE note in index.html: this page ships from Cloudflare Pages, the
+// API answers from the Jetson behind the tunnel; same-origin everywhere else.
+const API_BASE =
+  location.hostname === 'bonegraph.org' ||
+  location.hostname === 'www.bonegraph.org' ||
+  location.hostname.endsWith('.pages.dev')
+    ? 'https://api.bonegraph.org'
+    : '';
+
 async function load(token){
-  const url = '/api/admin/overview' + (token ? ('?token=' + encodeURIComponent(token)) : '');
+  const url = API_BASE + '/api/admin/overview' + (token ? ('?token=' + encodeURIComponent(token)) : '');
   const r = await fetch(url);
   if(r.status === 403) { const e = new Error('forbidden'); e.code = 403; throw e; }
   if(!r.ok) throw new Error('Request failed (' + r.status + ')');
@@ -185,7 +194,7 @@ async function deleteFeedback(id){
   if(!Number.isFinite(id)) return;
   if(!confirm('Delete this feedback? This cannot be undone.')) return;
   const token = localStorage.getItem(TOKEN_KEY) || '';
-  const url = '/api/admin/feedback/' + id + (token ? ('?token=' + encodeURIComponent(token)) : '');
+  const url = API_BASE + '/api/admin/feedback/' + id + (token ? ('?token=' + encodeURIComponent(token)) : '');
   try {
     const r = await fetch(url, { method: 'DELETE' });
     if(r.status === 403){ localStorage.removeItem(TOKEN_KEY); renderGate('Token rejected — sign in again.'); return; }
