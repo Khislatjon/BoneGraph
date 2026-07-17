@@ -2102,7 +2102,7 @@ function MechanicsTab() {
     <div style={{maxWidth:720, margin:'0 auto', padding:'48px 20px'}}>
       <div style={{fontFamily:'var(--sans)', fontSize:24, marginBottom:16, color:'var(--text)', textAlign:'center'}}>Mechanics</div>
       {avail.serverDown ? (
-        <div className="id-card"><div className="msg-text">⚠️ Error: {avail.reason}</div></div>
+        <div className="id-card"><div className="msg-text" style={{textAlign:'center'}}>⚠️ Error: {avail.reason}</div></div>
       ) : (
         <div className="id-card">
           <div className="id-head"><span className="id-name">Setup needed</span></div>
