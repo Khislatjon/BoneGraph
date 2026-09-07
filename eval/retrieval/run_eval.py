@@ -1,6 +1,6 @@
 """
-eval/run_eval.py
-================
+eval/retrieval/run_eval.py
+==========================
 Retrieval quality benchmark for BoneGraph.
 
 Metrics
@@ -17,9 +17,9 @@ appears in the chunk text (case-insensitive substring match).
 
 Usage
 -----
-    python eval/run_eval.py                  # default top_k=10
-    python eval/run_eval.py --top-k 20      # custom top_k
-    python eval/run_eval.py --out eval/results.json
+    python -m eval.retrieval.run_eval                 # default top_k=10
+    python -m eval.retrieval.run_eval --top-k 20      # custom top_k
+    python -m eval.retrieval.run_eval --out eval/retrieval/results.json
 """
 
 import argparse
@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 # Allow running from the project root
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from retrieval.retriever import BoneGraphRetriever
 
@@ -36,8 +36,8 @@ from retrieval.retriever import BoneGraphRetriever
 # ── CLI args ──────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument("--top-k", type=int, default=10)
-parser.add_argument("--benchmark", default="eval/benchmark.json")
-parser.add_argument("--out", default="eval/results.json")
+parser.add_argument("--benchmark", default="eval/retrieval/benchmark.json")
+parser.add_argument("--out", default="eval/retrieval/results.json")
 args = parser.parse_args()
 
 TOP_K = args.top_k

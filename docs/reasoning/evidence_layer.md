@@ -56,7 +56,7 @@ verdict.
 ## Phase 0.1 audit findings
 
 Before building, the evidence sources were audited on five fracture-domain
-probes (see [`eval/evidence_audit.py`](../../eval/evidence_audit.py),
+probes (see [`eval/evidence/evidence_audit.py`](../../eval/evidence/evidence_audit.py),
 re-runnable under `.venv/bin/python`).
 
 ### Literature — strong

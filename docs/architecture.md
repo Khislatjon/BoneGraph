@@ -101,7 +101,7 @@ layer — but the system is best understood tab-by-tab.
   each embedded with **SPECTER2** (`allenai/specter2_base` + the proximity
   adapter, 768-dim) and stored in `chunks.db`.
 - Retrieval is cosine similarity via `BoneGraphRetriever`. Benchmark: **MRR 0.928,
-  Recall@5 1.000** (`eval/run_eval.py`).
+  Recall@5 1.000** (`eval/retrieval/run_eval.py`).
 - Pipeline detail: [chat/papers_ingestion_pipeline.md](chat/papers_ingestion_pipeline.md),
   [chat/textbooks_ingestion_pipeline.md](chat/textbooks_ingestion_pipeline.md),
   [chat/phase2_rag_pipeline.md](chat/phase2_rag_pipeline.md).
@@ -359,9 +359,10 @@ BoneGraph/
 │   └── correction_store.py     SQLite: events · corrections · embedding recall
 │
 ├── eval/                       Benchmarks
-│   ├── benchmark.json · run_eval.py · results.json   (retrieval: MRR / Recall@k)
-│   ├── evidence_audit.py       Reasoning: literature + KG quality
-│   └── feedback_demo.py        "second chat is better" demo harness
+│   ├── retrieval/              MRR / Recall@k — run_eval.py · benchmark.json · results.json
+│   ├── evidence/               Reasoning: literature + KG quality audit
+│   ├── feedback/               "second chat is better" demo harness
+│   └── mcq/                    Multiple-choice benchmark + corpus checks
 │
 ├── api/                        FastAPI backend
 │   ├── main.py                 All endpoints, prompts, critic loop, auth wiring

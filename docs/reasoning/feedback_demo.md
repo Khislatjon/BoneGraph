@@ -7,7 +7,7 @@ second chat is better than the first."* It demonstrates, with a measurable
 delta, that a user correction changes the system's behaviour on a repeat of the
 same question.
 
-> Code: [`eval/feedback_demo.py`](../../eval/feedback_demo.py)
+> Code: [`eval/feedback/feedback_demo.py`](../../eval/feedback/feedback_demo.py)
 > Feedback mechanism: [`reasoning_tab.md`](reasoning_tab.md) §"Feedback loop"
 
 ---
@@ -90,9 +90,9 @@ notations fire.
 ## Running it
 
 ```bash
-.venv/bin/python -m eval.feedback_demo                 # Part A + B (needs server)
-.venv/bin/python -m eval.feedback_demo --part-a-only   # deterministic only, no server
-.venv/bin/python -m eval.feedback_demo --json out.json # save full results
+.venv/bin/python -m eval.feedback.feedback_demo                 # Part A + B (needs server)
+.venv/bin/python -m eval.feedback.feedback_demo --part-a-only   # deterministic only, no server
+.venv/bin/python -m eval.feedback.feedback_demo --json out.json # save full results
 ```
 
 Note: after editing `reasoning/physical_grounding.py` or the pipeline, restart

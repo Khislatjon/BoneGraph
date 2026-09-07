@@ -67,7 +67,7 @@ User query  ──────────────────────�
 | Reference formatting | Each `[N]` entry rendered on its own line with clickable Open paper link |
 | Multi-turn chat | `/api/ask` accepts `history` (prior question/answer pairs) for pronoun resolution across turns |
 | Context management | Sliding window (last 3 pairs) · thinking block and References stripped from history · keeps prompt under ~5,000 tokens |
-| Eval script | `eval/run_eval.py` — rerun any time corpus or retriever changes |
+| Eval script | `eval/retrieval/run_eval.py` — rerun any time corpus or retriever changes |
 
 ---
 
@@ -114,8 +114,8 @@ python serve.py
 ### Run retrieval benchmark
 
 ```bash
-python eval/run_eval.py              # default top_k=10
-python eval/run_eval.py --top-k 20
+python eval/retrieval/run_eval.py              # default top_k=10
+python eval/retrieval/run_eval.py --top-k 20
 ```
 
 ---

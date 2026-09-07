@@ -395,7 +395,7 @@ New Gradio components needed:
 
 ## Step 7 — Evaluation
 
-Create `eval/benchmark_vlm.json` — 20 images with known findings:
+Create `eval/vision/benchmark_vlm.json` — 20 images with known findings:
 
 ```json
 {
@@ -406,7 +406,7 @@ Create `eval/benchmark_vlm.json` — 20 images with known findings:
 }
 ```
 
-Create `eval/run_eval_vlm.py` — measures:
+Create `eval/vision/run_eval_vlm.py` — measures:
 - **Report coverage**: fraction of expected findings present in VLM report
 - **Retrieval Recall@k**: does cross-modal retrieval find relevant text chunks?
 - **End-to-end**: does the final LLM answer address the image findings?

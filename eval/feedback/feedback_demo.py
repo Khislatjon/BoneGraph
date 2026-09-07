@@ -1,6 +1,6 @@
 """
-eval/feedback_demo.py
-=====================
+eval/feedback/feedback_demo.py
+==============================
 
 B1 — feedback-loop demo harness for the Reasoning tab.
 
@@ -27,10 +27,10 @@ Requirements:
   - Part A runs offline (imports reasoning.physical_grounding directly).
 
 Run:
-    .venv/bin/python -m eval.feedback_demo
-    .venv/bin/python -m eval.feedback_demo --base http://localhost:8000
-    .venv/bin/python -m eval.feedback_demo --part-a-only      # skip the server
-    .venv/bin/python -m eval.feedback_demo --json results.json
+    .venv/bin/python -m eval.feedback.feedback_demo
+    .venv/bin/python -m eval.feedback.feedback_demo --base http://localhost:8000
+    .venv/bin/python -m eval.feedback.feedback_demo --part-a-only      # skip the server
+    .venv/bin/python -m eval.feedback.feedback_demo --json results.json
 """
 
 from __future__ import annotations

@@ -310,6 +310,6 @@ reasoning/rule_import.py        CSV/XLSX bulk import: parse, validate, dedup, te
 reasoning/kg_context.py         anchor + 1-hop KG edges for the critic
 frontend/index.html             ReasonTab, ModeToggle, RulesPanel, ReviewDialogue,
                                 FeedbackBar, ProposedRuleCard, PhysicalCheckBadge
-eval/evidence_audit.py          Phase 0.1 audit of literature + KG quality
-eval/feedback_demo.py           B1 "second chat is better" demo harness
+eval/evidence/evidence_audit.py          Phase 0.1 audit of literature + KG quality
+eval/feedback/feedback_demo.py           B1 "second chat is better" demo harness
 ```

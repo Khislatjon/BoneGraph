@@ -1,6 +1,6 @@
 """
-eval/evidence_audit.py
-======================
+eval/evidence/evidence_audit.py
+===============================
 
 Phase 0.1 — de-risk the evidence layer BEFORE wiring it into the critic.
 
@@ -21,8 +21,8 @@ Output is a human-readable report. The decision gate:
   - KG paths garbage?         → drop KG, lean on literature only
 
 Run:
-    python -m eval.evidence_audit
-    python -m eval.evidence_audit --no-literature   # KG only (skip model load)
+    python -m eval.evidence.evidence_audit
+    python -m eval.evidence.evidence_audit --no-literature   # KG only (skip model load)
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import networkx as nx
 
-ONTOLOGY_DB = Path(__file__).resolve().parent.parent / "data" / "db" / "ontology.db"
+ONTOLOGY_DB = Path(__file__).resolve().parents[2] / "data" / "db" / "ontology.db"
 
 
 # ── Probe sets ────────────────────────────────────────────────────────────────

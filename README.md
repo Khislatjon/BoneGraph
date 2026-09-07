@@ -220,11 +220,11 @@ pathology, imaging, biomaterials, remodelling, fracture).
 | Recall@5 | **1.000** (30 / 30) |
 
 ```bash
-python eval/run_eval.py           # default top_k=10
-python eval/run_eval.py --top-k 5
+python eval/retrieval/run_eval.py           # default top_k=10
+python eval/retrieval/run_eval.py --top-k 5
 ```
 
-Results are saved to `eval/results.json`.
+Results are saved to `eval/retrieval/results.json`.
 
 ---
 
