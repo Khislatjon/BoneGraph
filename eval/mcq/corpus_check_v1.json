@@ -1,0 +1,1918 @@
+[
+  {
+    "id": "bg-001",
+    "domain": "mechanics",
+    "type": "factual",
+    "question": "What is the approximate longitudinal elastic (Young's) modulus of healthy human cortical bone?",
+    "options": [
+      "About 17-20 GPa",
+      "About 1-2 GPa",
+      "About 70-80 GPa",
+      "About 200-210 GPa"
+    ],
+    "answer": "About 17-20 GPa",
+    "source": "",
+    "notes": "distractors: cartilage-scale, aluminium, steel",
+    "verdict": "supported",
+    "method": "numeric",
+    "top_score": 0.791,
+    "corpus_values_found": 4,
+    "sample_values": [
+      10.0,
+      20.0,
+      50.0,
+      1141.0
+    ],
+    "option_votes": {
+      "About 17-20 GPa": 1,
+      "About 1-2 GPa": 0,
+      "About 70-80 GPa": 0,
+      "About 200-210 GPa": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.791,
+        "title": "3D Bioprinted Implants for Cartilage Repair in Intervertebral Discs and Knee Menisci",
+        "year": 2021,
+        "text": "Material properties of the shaped human meniscus is\nchallenging due to the complexity of the structure. Three\nregions (anterior, middle, posterior) of fresh-frozen human\nmeniscus were tested in compression at four strain rates (3, 6,\n9, and 12%) at a physiologically relevant walking strain rate of\n32%\u2212s (Chia and Hull, 2008). Young\u2019s Modulus increased with\ngreater strain and was higher in the anterior region (1,048 kPa at\n12%) than the posterior region (329 kPa at 12% strain), which is\n8x larger than at physiological equilibrium (Chia and Hull, 2008). Stiffness in the circumferential direction"
+      },
+      {
+        "rank": 2,
+        "score": 0.789,
+        "title": "Biomechanical properties of articular cartilage in different regions and sites of the knee joint: acquisition of osteochondral allografts",
+        "year": 2024,
+        "text": "The OCAs were analyzed \nand compared for Young\u2019s modulus, the compressive \nmodulus, and cartilage thickness. Young\u2019s modu-\nlus, cartilage thickness, and compressive modulus of \nOCA were significantly different in different regions \nof the joints. A negative correlation was observed \nbetween Young\u2019s modulus and the proportion of the \nsubchondral bone (r\u2009=\u2009\u2009\u2212\u20090.4241, P\u2009<\u20090.0001). Carti-\nlage thickness was positively correlated with Young\u2019s \nmodulus (r\u2009=\u20090.4473, P\u2009<\u20090.0001) and the compressive \nmodulus (r\u2009=\u20090.3678, P\u2009<\u20090.0001). During OCA trans-\nplantation, OCAs should be transplanted in the same"
+      },
+      {
+        "rank": 3,
+        "score": 0.784,
+        "title": "Biomechanics and mechanobiology of the bone matrix",
+        "year": 2022,
+        "text": "The Young\u2019s\nmodulus\nof\ncortical\nbone\nin\nthe\nlongitudinal\ndirection\nis\nsigni\ufb01cantly higher than that in the transverse direction, which\nindicates that this bone resists more forces in the longitudinal\ndirection during human activities. The bone matrix has both high\nstrength and strong toughness, indicating that bone requires both\nhigh strength to deal with the impact of stress and strong\ntoughness to resist the fracture and damage caused by deforma-\ntion, which corresponds to the role of bone in the human body. Proteins account for ~50% of the volume of animal endoskeletons\nbut only 5% of that "
+      }
+    ]
+  },
+  {
+    "id": "bg-002",
+    "domain": "mechanics",
+    "type": "relational",
+    "question": "How does the elastic modulus of cortical bone measured along the longitudinal axis compare with that measured transversely?",
+    "options": [
+      "Longitudinal is higher than transverse",
+      "Transverse is higher than longitudinal",
+      "They are essentially equal",
+      "The relationship reverses above body temperature"
+    ],
+    "answer": "Longitudinal is higher than transverse",
+    "source": "",
+    "notes": "anisotropy",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.796,
+    "option_overlap": {
+      "Longitudinal is higher than transverse": 1.0,
+      "Transverse is higher than longitudinal": 1.0,
+      "They are essentially equal": 0.0,
+      "The relationship reverses above body temperature": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.796,
+        "title": "Biomechanics and mechanobiology of the bone matrix",
+        "year": 2022,
+        "text": "The Young\u2019s\nmodulus\nof\ncortical\nbone\nin\nthe\nlongitudinal\ndirection\nis\nsigni\ufb01cantly higher than that in the transverse direction, which\nindicates that this bone resists more forces in the longitudinal\ndirection during human activities. The bone matrix has both high\nstrength and strong toughness, indicating that bone requires both\nhigh strength to deal with the impact of stress and strong\ntoughness to resist the fracture and damage caused by deforma-\ntion, which corresponds to the role of bone in the human body. Proteins account for ~50% of the volume of animal endoskeletons\nbut only 5% of that "
+      },
+      {
+        "rank": 2,
+        "score": 0.794,
+        "title": "Tibial subchondral trabecular bone micromechanical and microarchitectural properties are affected by alignment and osteoarthritis stage",
+        "year": 2020,
+        "text": "The data were adjusted for depth from subchondral surface before plotting. For scatter \nplots, best fit lines (solid lines) and 95% intervals (shaded area) for Pearson\u2019s correlations. (Left) Scatter plots \nof the association between the medial to lateral ratio of sample mean nanoindentation modulus (M:L mean E* \nratio) and knee alignment (HKA angle). (top right) Scatter plots of per sample mean nanoindentation modulus \n(E*) and knee alignment (HKA angle). (bottom right) Bar plot of the per sample means of nanoindentation \nmodulus (E*) stratified with both loading status and KL score. For KL sc"
+      },
+      {
+        "rank": 3,
+        "score": 0.794,
+        "title": "Elastic Modulus Of Bone Using Ultrasonic Testing",
+        "year": 2020,
+        "text": "Z, proximal \nY, Medial/Lateral \n \nX, Cranial (Anterior) \nY, Medial/Lateral \nPage 12.589.4 The next portion of the laboratory exercise required the students to analyze and palpate \nthe remaining portion of the diaphysis which had been immersed in acetic acid for approximately \n14 days. The composite nature of bone is demonstrated by removing the mineral phase and \nleaving the collagen. III. Results \n \n \nThe measurement of the dynamic modulus of elasticity using ultrasound techniques \ncorrelated well with the reported values for the elastic modulus of a bovine femur. In most cases, \nonly slight "
+      }
+    ]
+  },
+  {
+    "id": "bg-003",
+    "domain": "mechanics",
+    "type": "relational",
+    "question": "How does increasing the strain rate affect the measured elastic modulus and ultimate strength of cortical bone?",
+    "options": [
+      "Both increase with strain rate",
+      "Both decrease with strain rate",
+      "Modulus increases while strength decreases",
+      "Neither is affected by strain rate"
+    ],
+    "answer": "Both increase with strain rate",
+    "source": "",
+    "notes": "viscoelasticity",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.797,
+    "option_overlap": {
+      "Both increase with strain rate": 1.0,
+      "Both decrease with strain rate": 1.0,
+      "Modulus increases while strength decreases": 0.5,
+      "Neither is affected by strain rate": 0.333
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.797,
+        "title": "Passive myocardial mechanical properties: meaning, measurement, models",
+        "year": 2021,
+        "text": "While elastic components develop stress in phase with the\napplied strain, viscous components respond to the strain\nrate\u2014the time derivative of strain. Assessing the properties\nof viscoelastic materials, especially for large strains, rapidly\nbecomes complex with a wide range of possible models and\nparameters, as discussed in the \u201cLimitations for biological\nsamples\u201d section. Typically, experimental measurements of material proper-\nties are designed to simplify the analysis. Elastic properties are\noften measured by changing the sample strain and measuring\nthe resulting steady-state force. Viscous"
+      },
+      {
+        "rank": 2,
+        "score": 0.796,
+        "title": "The use of finite element analysis to estimate the changing strength of bone following treatment for osteoporosis",
+        "year": 2016,
+        "text": "This means that\nthe rate of loading is very important in determining the\nresulting stress and strain. Bone that is loaded at a higher rate\nwill exhibit stiffer behavior, whereas, bone loaded more slow-\nly will appear to be less stiff. The sensitivity of the model can provide some assurance\nthat the model is Baccurate\u2019\u2019 or at least a reasonable reflection\nof reality. In this case, it is important to conduct a parametric\nanalysis, in which the values of various parameters used in the\nmodel, for instance, the material properties, can be varied, and\nthe variation in the results based on different "
+      },
+      {
+        "rank": 3,
+        "score": 0.796,
+        "title": "A preliminary investigation of the dynamic viscoelastic relaxation of bovine cortical bone",
+        "year": 2015,
+        "text": "10 s\u22121 \u221250 s\u22121). The results show a rapid transition\nin the viscoelastic strain rate sensitivity of bovine cortical\nbone under ISR conditions, as shown in Fig. 2. Several viscoelastic models for cortical bone have been\nproposed based on compression data such as that shown in\nFig. 2 [3,8]. However, for a more complete description of\nbone behaviour, knowledge of the viscoelastic relaxation\nresponse is also required. This can be accomplished\nusing a stress relaxation tests or a cyclic test using a\ndynamic mechanical analyser (DMA) in which a small\nThis is an Open Access article distributed under "
+      }
+    ]
+  },
+  {
+    "id": "bg-004",
+    "domain": "mechanics",
+    "type": "relational",
+    "question": "How does the ultimate strength of cortical bone in compression compare with its ultimate strength in tension?",
+    "options": [
+      "Compressive strength is higher",
+      "Tensile strength is higher",
+      "They are approximately equal",
+      "Compressive strength is higher only in trabecular bone"
+    ],
+    "answer": "Compressive strength is higher",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.795,
+    "option_overlap": {
+      "Compressive strength is higher": 1.0,
+      "Tensile strength is higher": 1.0,
+      "They are approximately equal": 0.0,
+      "Compressive strength is higher only in trabecular bone": 1.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.795,
+        "title": "Mechanical response and in-situ deformation mechanism of cortical bone materials under combined compression and torsion loads",
+        "year": 2022,
+        "text": "https://doi.org/10.1371/journal.pone.0271301.g006\nFig 7. The shear modulus and torsion strength of bone specimen under single torsion load with different torsion speeds (a) Shear modulus (b) Torsion\nstrength. https://doi.org/10.1371/journal.pone.0271301.g007\nPLOS ONE\nMechanical deformation mechanism of cortical bone materials under combined compression and torsion loads\nPLOS ONE | https://doi.org/10.1371/journal.pone.0271301\nJuly 27, 2022\n9 / 14 cavity, surrounded concentrically by lamellae [30]. The cement lines provided hyper-mineral-\nized interfaces [31], and such structure provided conveni"
+      },
+      {
+        "rank": 2,
+        "score": 0.793,
+        "title": "The cement-bone bond is weaker than cement-cement bond in cement-in-cement revision arthroplasty. A comparative biomechanical study",
+        "year": 2021,
+        "text": "The uniaxial cyclic tension-compression tests were carried out\nusing the Zwick-Roell Z020 testing machine. The uniform cement sample had the highest\nultimate force of all specimens (n = 15; Rm = 3149 N). The composite cement sample (n =\n15; Rm = 902 N) had higher ultimate force as the bone-cement sample (n = 31; Rm = 284 N;\np <0.001). There were no significant differences between composite samples with 24 hours\n(n = 15; Rm = 902 N) and 6 weeks polymerization periods (n = 22; Rm = 890 N; p = 0.93). The composite cement samples with drill hole (n = 16; Rm = 607 N) were weaker than those\nwithout "
+      },
+      {
+        "rank": 3,
+        "score": 0.79,
+        "title": "Mechanical response and in-situ deformation mechanism of cortical bone materials under combined compression and torsion loads",
+        "year": 2022,
+        "text": "The dimensions of the cortical bone specimen. Material\nLength(h)\nWidth(b)\nHeight(l)\nCortical bone\n10.00mm\n3.00mm\n50.00mm\nhttps://doi.org/10.1371/journal.pone.0271301.t001\nPLOS ONE\nMechanical deformation mechanism of cortical bone materials under combined compression and torsion loads\nPLOS ONE | https://doi.org/10.1371/journal.pone.0271301\nJuly 27, 2022\n3 / 14 The shear modulus is the ability of materials to resist the shear strain, and torsion strength\nis the ability of materials to resist the external torque. In this research, the shear modulus and\ntorsion strength were selected to be charact"
+      }
+    ]
+  },
+  {
+    "id": "bg-005",
+    "domain": "mechanics",
+    "type": "factual",
+    "question": "What is the approximate fracture toughness of human cortical bone?",
+    "options": [
+      "2-6 MPa m^0.5",
+      "0.01-0.05 MPa m^0.5",
+      "50-80 MPa m^0.5",
+      "150-200 MPa m^0.5"
+    ],
+    "answer": "2-6 MPa m^0.5",
+    "source": "",
+    "notes": "",
+    "verdict": "silent",
+    "method": "numeric",
+    "top_score": 0.807,
+    "corpus_values_found": 0,
+    "sample_values": [],
+    "option_votes": {
+      "2-6 MPa m^0.5": 0,
+      "0.01-0.05 MPa m^0.5": 0,
+      "50-80 MPa m^0.5": 0,
+      "150-200 MPa m^0.5": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.807,
+        "title": "Fracture risk and height: An association partly accounted for by cortical porosity of relatively thinner cortices",
+        "year": 2013,
+        "text": "3. Higher probability of fracture is associated with a higher cortical\nporosity and a larger ratio of medullary cross\u2010sectional area (CSA) to total\nCSA, a surrogate re\ufb02ecting a relatively thinner cortex. 2024\nBJ\u00d8RNEREM ET AL. Journal of Bone and Mineral Research Authors\u2019 roles: Study design and conduct: A\n\u0001 B and ES. Data\ncollection: A\n\u0001 B and AGZ. Data analyses: MB and A\n\u0001 B. MB takes\nresponsibility for the integrity of the data analysis. RZ takes\nresponsibility for the integrity of the Strax analysis. Drafting\nmanuscript: A\n\u0001 B, MB, and ES. Data interpretation and approving\n\ufb01nal version: A\n\u0001"
+      },
+      {
+        "rank": 2,
+        "score": 0.797,
+        "title": "Effect of osteoporosis-related reduction in the mechanical properties of bone on the acetabular fracture during a sideways fall: A parametric finite element approach",
+        "year": 2022,
+        "text": "Methods\nThe current comprehensive finite element study aimed to study the effect of reduction in\nbone mechanical properties (trabecular, cortical, and trabecular + cortical) on the risk and\ntype of acetabular fracture. Also, the effect of reduction in the mechanical properties of bone\non the load-transferring mechanism within the pelvic girdle was examined. Results\nWe observed that while the reduction in the mechanical properties of trabecular bone con-\nsiderably affects the severity and area of trabecular bone failure, reduction in mechanical\nproperties of cortical bone moderately influences "
+      },
+      {
+        "rank": 3,
+        "score": 0.796,
+        "title": "Ultra-processed food targets bone quality via endochondral ossification",
+        "year": 2021,
+        "text": "e\u2013h\nCortical bone parameters: cortical area fraction (Ct.Ar/Tt. Ar), average cortical thickness (Ct. Th), medullary area (Ma. Ar) and bone mineral\ndensity (BMD). i Growth plates (GPs) from the control, UPF + CSD, corn and sucrose groups were stained with safranin-O. j Quanti\ufb01cation of\nthe relative ratio of the zones in the GP. k Representative 3D images of transverse sections of femoral trabecular and cortical areas visualized\nby Amira software. Values are expressed as the mean \u00b1 SD, n = 8. Different letters denote signi\ufb01cant differences at P < 0.05 between groups\nUltra-processed food on the g"
+      }
+    ]
+  },
+  {
+    "id": "bg-006",
+    "domain": "mechanics",
+    "type": "relational",
+    "question": "How is the apparent elastic modulus of trabecular bone related to its apparent density?",
+    "options": [
+      "By a power law with an exponent of roughly 2 to 3",
+      "By a linear relationship with zero intercept",
+      "By an inverse square relationship",
+      "By a logarithmic relationship that plateaus above 0.5 g/cm3"
+    ],
+    "answer": "By a power law with an exponent of roughly 2 to 3",
+    "source": "",
+    "notes": "Carter-Hayes type relation",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.809,
+    "option_overlap": {
+      "By a power law with an exponent of roughly 2 to 3": 0.5,
+      "By a linear relationship with zero intercept": 0.667,
+      "By an inverse square relationship": 0.667,
+      "By a logarithmic relationship that plateaus above 0.5 g/cm3": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.809,
+        "title": "Differing trabecular bone architecture in dinosaurs and mammals contribute to stiffness and limits on bone strain",
+        "year": 2020,
+        "text": "The apparent and specific apparent moduli were dependent on\nthe trabecular bone architectural indices. For the dinosaurian species, apparent elastic modu-\nlus was found to follow the equation E App = 0.0722 x Conn.D (p = 0.062, R2 = 0.5337) and spe-\ncific apparent modulus was found to follow the equation E App Spec = 0.0974 x Conn.D\n(p = 0.056, R2 = 0.5504). For the mammalian species, apparent elastic modulus was found to\nfollow the equation E App = 10.67 x Tb.Th (p <0.001, R2 = 0.9644) and specific apparent modu-\nlus was found to follow the equation E App Spec = 5.32 x Tb.Th + 4.65 x Tb.Sp (f"
+      },
+      {
+        "rank": 2,
+        "score": 0.803,
+        "title": "Differing trabecular bone architecture in dinosaurs and mammals contribute to stiffness and limits on bone strain",
+        "year": 2020,
+        "text": "Trabecular bone\napparent modulus was positively correlated with trabecular spacing in mammals and posi-\ntively correlated with connectivity density in dinosaurs, but these differential architectural\neffects on trabecular bone apparent modulus limit average trabecular bone tissue strains to\nbelow 3,000 microstrain for estimated high levels of physiological loading in both mammals\nand dinosaurs. PLOS ONE\nPLOS ONE | https://doi.org/10.1371/journal.pone.0237042\nAugust 19, 2020\n1 / 20\na1111111111\na1111111111\na1111111111\na1111111111\na1111111111\nOPEN ACCESS\nCitation: Aguirre TG, Ingrole A, Fuller L, "
+      },
+      {
+        "rank": 3,
+        "score": 0.797,
+        "title": "The dependence of ultrasound velocity and attenuation on the material properties of cancellous bone.",
+        "year": 1995,
+        "text": "There is a catalogue of data attempting to relate mechanical properties (Young's \nmodulus(E), compressive strength and tensile strength) to the apparent density. The \nattractiveness of these correlations lies in the fact that these measures are relatively \neasy and may relate to similar non-invasive techniques enabling the characterisation of \nbone properties to be performed in vivo [Currey, 1969; Galante et al., 1970; Townsend \net al., 1975; Carter and Hayes, 1977; Brown and Ferguson, 1980 and reviewed by \nGoldstein, 1987]. This has become necessary, because of the need to be able to predict "
+      }
+    ]
+  },
+  {
+    "id": "bg-007",
+    "domain": "mechanics",
+    "type": "relational",
+    "question": "What is the effect of increasing cortical porosity on the elastic modulus of cortical bone?",
+    "options": [
+      "It decreases the modulus",
+      "It increases the modulus",
+      "It leaves the modulus unchanged",
+      "It increases the modulus only under tensile loading"
+    ],
+    "answer": "It decreases the modulus",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.79,
+    "option_overlap": {
+      "It decreases the modulus": 1.0,
+      "It increases the modulus": 1.0,
+      "It leaves the modulus unchanged": 0.5,
+      "It increases the modulus only under tensile loading": 0.75
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.79,
+        "title": "Finite element analysis of irregular porous scaffold for bone tissue engineering",
+        "year": 2023,
+        "text": "These results suggest \nthat the bone scaffold's elastic modulus and compressive \nstrength are comparable to the trabecular bone but less \nthan cortical bone. Additional experimental mechanical \ntesting, in vitro and in vivo, will be required to determine \nthe clinical applicability of bone scaffolds with an \nirregular porous design. ACKNOWLEDGMENTS  \nThis work was supported by the Deputy for \nStrengthening Research and Development, the Ministry of \nResearch and Technology, Higher Education, the Republic \nof Indonesia under Ph.D. research grants of number: \n088/ES/PG.02.00.PT/2022; 345-35/UN7.6"
+      },
+      {
+        "rank": 2,
+        "score": 0.787,
+        "title": "Endocortical bone loss in osteoporosis: The role of bone surface availability",
+        "year": 2013,
+        "text": "Over time, this leads to\na substantial reduction of cortical wall thickness from the endosteum. The associated expansion of\nthe medullary cavity can be made to match experimentally observed cross-sectional data from the\nMelbourne Femur Collection. Finally, we calculate the redistribution of the mechanical stresses in this\nevolving bone structure and show that mechanical load becomes critically transferred to the periosteal\ncortical bone. Key words: osteoporosis, endocortical bone loss, cortical thinning, speci\ufb01c surface, mathematical\nmodelling\n1\nIntroduction\nIt is well known that cortical poro"
+      },
+      {
+        "rank": 3,
+        "score": 0.787,
+        "title": "Effect of osteoporosis-related reduction in the mechanical properties of bone on the acetabular fracture during a sideways fall: A parametric finite element approach",
+        "year": 2022,
+        "text": "Both\ncortical and trabecular bones were modeled as viscoelastoplastic (strain-rate dependent with\nstrain-rate coverage range: 0.008\u201330 s-1) materials with different behaviors in tension and com-\npression [37]. Since the cortical bone has rather uniform mechanical properties [17], it was con-\nsidered as a homogeneous material, while the trabecular bone was assumed to be heterogenic\n(Appendix A in S1 File) and was implemented into the model using the material mapping strat-\negy available in Mimics1 [12]. By using the empirical relationship between apparent density\n(derived from the CT) and elast"
+      }
+    ]
+  },
+  {
+    "id": "bg-008",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "What does the central (Haversian) canal of a secondary osteon contain?",
+    "options": [
+      "Blood vessels and nerves",
+      "Only mineralised matrix",
+      "Osteoclasts arranged in a cutting cone",
+      "Hyaline cartilage"
+    ],
+    "answer": "Blood vessels and nerves",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.792,
+    "option_overlap": {
+      "Blood vessels and nerves": 0.0,
+      "Only mineralised matrix": 0.5,
+      "Osteoclasts arranged in a cutting cone": 0.0,
+      "Hyaline cartilage": 0.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.792,
+        "title": "Anatomical Study of the Canalis Sinuosus in Chilean Individuals by Cone-Beam Computed Tomography",
+        "year": 2021,
+        "text": "and von Arx et al. found similar mean values to\nours for the diameter in the region of S2, with 1.4 mm and\n1.3 mm respectively. Accessory Canals. After reaching the lateral wall of\nthe nasal cavity, AC may diverge from the CS. We agree\nwith Machado et al. who say that the AC of the CS is a\nfrequent anatomical structure, since in our study at least one\nAC was found in every sample analysed; up to five AC were\nobserved, the most frequent number being 3, independent\nof sex, side or age range. Orhan et al. found a mean number\nof 4.6 AC, which generally ended in the region of the upper\ncentral inci"
+      },
+      {
+        "rank": 2,
+        "score": 0.788,
+        "title": "Anatomical Study of the Canalis Sinuosus in Chilean Individuals by Cone-Beam Computed Tomography",
+        "year": 2021,
+        "text": "In the region of S2, the\ndiameter of the CS varied between 1.0 and 2.20 mm; 66.7\n% of the CS presented a diameter between 1.0 and 1.4 mm\nand 33.3 % presented a diameter greater than 1.5 mm. In the\nregion of S3, the diameter of the CS varied between 0.7 and\n1.90 mm; 75 % of the CS presented a diameter between 1.0\nand 1.4 mm and only 5.4 % presented a diameter greater\nthan 1.5 mm. A higher percentage of CS with diameter\nbetween 1.0 and 1.4 mm was observed in Segments 1 and 3. In the region of Segment two, 33.3 % of the CS presented a\ndiameter greater than 1.5 mm (p=0.000). Terminal portion of th"
+      },
+      {
+        "rank": 3,
+        "score": 0.784,
+        "title": "Anatomical Study of the Canalis Sinuosus in Chilean Individuals by Cone-Beam Computed Tomography",
+        "year": 2021,
+        "text": "S3: terminal portion of the CS in the maxillary region. ALVES, N.; TORO, R.; GARAY. I. & DEANA, N. F. Anatomical study of the canalis sinuosus in chilean individuals by cone-beam computed tomography. Int. J. Morphol., 39(3):928-934, 2021. 932\nNo statistically significant differences were found\nbetween sexes or between age ranges for the diameter of the\nAC (p>0.05). In the analysis between sexes by location of\nthe AC, a statistically significant difference was found only\nin the region of the upper central incisors, where the values\nfound for males were higher than for females (p=0.001). DISCUSS"
+      }
+    ]
+  },
+  {
+    "id": "bg-009",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "What is the approximate diameter of a secondary osteon in human cortical bone?",
+    "options": [
+      "About 200 micrometres",
+      "About 10 micrometres",
+      "About 2 millimetres",
+      "About 2 centimetres"
+    ],
+    "answer": "About 200 micrometres",
+    "source": "",
+    "notes": "",
+    "verdict": "silent",
+    "method": "numeric",
+    "top_score": 0.809,
+    "corpus_values_found": 0,
+    "sample_values": [],
+    "option_votes": {
+      "About 200 micrometres": 0,
+      "About 10 micrometres": 0,
+      "About 2 millimetres": 0,
+      "About 2 centimetres": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.809,
+        "title": "Advances in the Development of Gradient Scaffolds Made of Nano-Micromaterials for Musculoskeletal Tissue Regeneration",
+        "year": 2024,
+        "text": "The long bone cross section displays a struc-\ntural gradient in the radial direction. Cortical bone, also \nknown as compact bone, forms the outer layer of bones \nand is characterized by a solid and dense structure with a \nminimal amount of open space. Osteons, also called the \nHaversian system, are cylindrical structures resembling the \nfundamental unit of cortical bone [25]. At the center of an \nosteon is the Haversian canal, a central channel surrounded \nby a concentric ring of lamellae housing blood vessels and \nnerves, which provides nutrients and innervation to the \nbone cells within the "
+      },
+      {
+        "rank": 2,
+        "score": 0.805,
+        "title": "Radiographic Morphometric Analysis of the Distal Radius in the Tamil Nadu Population: A Retrospective Study",
+        "year": 2024,
+        "text": "The anteroposterior diameter\nof the DER (23.22 \u00b1 2.63 mm) exhibited significant gender differences (males: 24.52 \u00b1 2.24 mm, females:\n21.71 \u00b1 2.22 mm). Similarly, the transverse diameter (29.04 \u00b1 2.87 mm) varied significantly between males\n(30.81 \u00b1 2.37 mm) and females (26.99 \u00b1 1.87 mm). The oblique width of the radius also displayed a significant\ndifference between males (32.77 \u00b1 2.54 mm) and females (29.21 \u00b1 1.97 mm) (Table 3). 2024 Geeta Anasuya et al. Cureus 16(6): e62226. DOI 10.7759/cureus.62226\n4 of 9 Parameter\nMales (mean \u00b1 SD)\nFemales (mean \u00b1 SD)\np-value\nRadial height (mm)\n11.51 \u00b1 1.57"
+      },
+      {
+        "rank": 3,
+        "score": 0.801,
+        "title": "Differentiating human from non\u2010human bone fragments through histomorphological assessment of remains from Camposanto cemetery, Italy",
+        "year": 2022,
+        "text": "Human or non-human\nThe bone fragments were subjected to histomorphometric analysis to determine their origin as\nhuman or non-human. A summary of the results for area, perimeter, minimum and maximum\ndiameter, and circularity for secondary osteons and Haversian canals for the 40 analysed bone\nfragments is presented in Table 2; the full measurement dataset is available in Porto et al. (2022). The average circularity for each individual specimen was then used to determine the\nlikely origin as either human or non-human using Crescimanno and Stout\u2019s (2012) formula,\nwith results summarised in Figure "
+      }
+    ]
+  },
+  {
+    "id": "bg-010",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "What is the approximate bone volume fraction (BV/TV) of trabecular bone in a healthy adult human vertebral body?",
+    "options": [
+      "About 8-15%",
+      "About 40-50%",
+      "About 70-80%",
+      "About 95%"
+    ],
+    "answer": "About 8-15%",
+    "source": "",
+    "notes": "deliberately tests a value LLMs often overestimate",
+    "verdict": "tie",
+    "method": "numeric",
+    "top_score": 0.8,
+    "corpus_values_found": 3,
+    "sample_values": [
+      8.2,
+      19.5,
+      52.8
+    ],
+    "option_votes": {
+      "About 8-15%": 1,
+      "About 40-50%": 1,
+      "About 70-80%": 0,
+      "About 95%": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.8,
+        "title": "The Functional and Allometric Implications of Hipbone Trabecular Microarchitecture in a Sample of Eutherian and Metatherian Mammals",
+        "year": 2021,
+        "text": "BV/TV \nbone volume fraction, BS/BV \nbone surface-area-to-volume \nratio, Tb.N trabecular number, \nTb.Sp trabecular spacing, Tb.Th \ntrabecular thickness, DA degree \nof anisotropy 358\n\t\nEvolutionary Biology (2021) 48:346\u2013365\n1 3\nbody size is typical given that an organism\u2019s size evolves \ngradually over time compared to more labile behavioral \ntraits which can change relatively quickly (Freckleton, \n2002). In general, the sample itself reveals several of the trabecu-\nlar parameters have a significant size-driven component with \nTb.Th \u00ad(R2\u2009=\u20090.74) and BS/BV \u00ad(R2\u2009=\u20090.74) being the most \ninfluenced b"
+      },
+      {
+        "rank": 2,
+        "score": 0.798,
+        "title": "The clinician\u2019s guide to prevention and treatment of osteoporosis",
+        "year": 2022,
+        "text": "&\nWhat is the optimal type, intensity, duration, and frequen-\ncy of exercise programs for osteoporosis prevention and\ntreatment? &\nFor individuals with vertebral fractures, what exercise is\nsafe and effective in lowering incidence of fractures and\nfalls and improving patient-centered outcomes (pain,\nfunction). Osteoporos Int (2022) 33:2049\u20132102\n2087 &\nHow effective and safe are different FDA-approved treat-\nments in preventing fractures in patients with low bone\nmass (osteopenia)? Do benefits exceed risks? &\nWhat approaches are most effective in treating osteoporo-\nsis in patients with spinal "
+      },
+      {
+        "rank": 3,
+        "score": 0.798,
+        "title": "Trabecular bone variation in the gorilla calcaneus",
+        "year": 2024,
+        "text": "(2016), for exam-\nple, found some differences in BV/TV, Tb.Th, and degree of anisot-\nropy (DA) among nonhuman apes and baboons in VOIs placed in the\ncalcaneocuboid joint and subtalar joint. Addison and Lieberman\n(2020) found differences among Pan troglodytes and Gorilla gorilla in\ntrabecular spacing (Tb.Sp) in a calcaneal tuberosity VOI, as well as dif-\nferences in Tb.Th, Tb.Sp, DA, and connectivity density (Conn.D) in a\nVOI deep to the posterior talar facet. Maga et al. (2006) found differ-\nences in DA and BV/TV in the posterior calcaneus among humans,\nG. gorilla, P. troglodytes, and Pongo py"
+      }
+    ]
+  },
+  {
+    "id": "bg-011",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "Which collagen type forms the dominant organic component of the bone matrix?",
+    "options": [
+      "Type I",
+      "Type II",
+      "Type III",
+      "Type X"
+    ],
+    "answer": "Type I",
+    "source": "",
+    "notes": "type II is cartilage",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.785,
+    "option_overlap": {
+      "Type I": 0.0,
+      "Type II": 0.0,
+      "Type III": 0.0,
+      "Type X": 0.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.785,
+        "title": "Principles of Fracture Healing and Fixation: A Literature Review",
+        "year": 2024,
+        "text": "The organic component is predominantly composed of collagen, accounting for approximately 90% of its\ncomposition, with type 1 collagen being the primary form. The remaining 10% consists of non-collagenous\nproteins, contributing to the overall protein content of bone, and plays an important role in various\nbiological processes, including mineralisation, bone remodelling, cell signalling, and regulation of bone cell\nactivity [2]. Collagen provides tensile strength and flexibility to the bone, and with its fibrous structure, it\nforms a scaffold which allows the deposition of hydroxyapatite crysta"
+      },
+      {
+        "rank": 2,
+        "score": 0.777,
+        "title": "Osteocalcin is necessary for the alignment of apatite crystallites, but not glucose metabolism, testosterone synthesis, or muscle mass",
+        "year": 2020,
+        "text": "The present study also shows that the c-axis of apatite crystallites is not always aligned syn-\nchronously along the orientation of collagen and, therefore, collagen is not the only factor\ninfluencing the orientation of apatite, which is consistent with the findings of Glimcher [49]. According to biomechanics, the orientations of collagen and apatite contribute differently to\nbone mechanical properties; highly oriented collagen mainly contributes to the prevention of\ncrack propagation along the vertical direction against the collagen running axis [50], while\nhighly oriented apatite c-axes pred"
+      },
+      {
+        "rank": 3,
+        "score": 0.776,
+        "title": "Intermolecular channels direct crystal orientation in mineralized collagen",
+        "year": 2020,
+        "text": "Type-I collagen sponge tapes\nderived from bovine Achilles tendon was purchased from ACE Surgical. Preparation of TEM lamella of bone sample. The present study was carried out\non a sample of healthy cortical bone from the left tibia of a 10-year-old female. According to the Central Committee on Research involving Human Subjects\n(CCMO), this type of study does not require approval from an ethics committee in\nthe Netherlands (see https://english.ccmo.nl/investigators/legal-framework-for-\nmedical-scienti\ufb01c-research/your-research-is-it-subject-to-the-wmo-or-not). A sec-\ntion of ~2 cm \u00d7 2 cm \u00d7 2 cm,"
+      }
+    ]
+  },
+  {
+    "id": "bg-012",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "Which mineral phase predominates in the inorganic component of bone matrix?",
+    "options": [
+      "Carbonated hydroxyapatite",
+      "Calcium carbonate as calcite",
+      "Amorphous silica",
+      "Magnesium sulfate"
+    ],
+    "answer": "Carbonated hydroxyapatite",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.798,
+    "option_overlap": {
+      "Carbonated hydroxyapatite": 0.5,
+      "Calcium carbonate as calcite": 0.667,
+      "Amorphous silica": 0.0,
+      "Magnesium sulfate": 0.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.798,
+        "title": "Multiscale and multidisciplinary analysis of aging processes in bone",
+        "year": 2024,
+        "text": "Clarifying and quantifying how mod-\ni\ufb01cations of bone building blocks at the nanoscale translate to bone tissue\nproperties is an extremely interesting area of research with many gaps in\nknowledge yet to be \ufb01lled. This challenge requires a truly multidisciplinary\napproach, with the interpenetration of different skills and the joint use of\ndifferent techniques. Even if challenging, that approach would be of high\ninterest for a profound understanding of the fundamental mechanisms\ninvolved in bone aging, paving the way for the development of better\ndiagnostics, and more ef\ufb01cient and targeted thera"
+      },
+      {
+        "rank": 2,
+        "score": 0.796,
+        "title": "Assessing matrix quality by Raman spectroscopy helps predict fracture toughness of human cortical bone",
+        "year": 2019,
+        "text": "RS measurements of the bone matrix calculated from either integrated area or peak intensity include: \nmineral-to-matrix ratio (\u03bd1PO4/Amide I, \u03bd1PO4/Proline and \u03bd2PO4/Amide III), Type-B carbonate substitution \n(CO3/\u03bd1PO4), crystallinity (the inverse of the line-width of the \u03bd1PO4 peak at half the height from baseline or \nhalf-maximum; 1/FWHM)22, collagen crosslink or matrix maturity ratio (Amide I sub-band ratio at ~1670 cm\u22121 \nand ~1690 cm\u22121)23, and helical status of collagen (Amide I sub-peak ratio at ~1670 cm\u22121 and ~1640 cm\u22121)24. Using standard laboratory RS instruments (integrated into a com"
+      },
+      {
+        "rank": 3,
+        "score": 0.796,
+        "title": "Comparison of different protocols for demineralization of cortical bone",
+        "year": 2021,
+        "text": "1\nVol. :(0123456789)\nScientific Reports |         (2021) 11:7012  \n| https://doi.org/10.1038/s41598-021-86257-4\nwww.nature.com/scientificreports\nComparison of\u00a0different protocols \nfor\u00a0demineralization of\u00a0cortical \nbone\nSiyuan\u00a0Pang1,5, Frances\u00a0Y.\u00a0Su2,5, Amesha\u00a0Green3, Justin\u00a0Salim4, Joanna\u00a0McKittrick2,6\u00a0& \nIwona\u00a0Jasiuk1*\u200a\nBone is a biological composite material consisting of two main components: collagen and mineral. Collagen is the most abundant protein in vertebrates, which makes it of high clinical and scientific \ninterest. In this paper, we compare the composition and structure of cortical "
+      }
+    ]
+  },
+  {
+    "id": "bg-013",
+    "domain": "morphology",
+    "type": "factual",
+    "question": "Within which structures do osteocytes reside, and through which do their processes communicate?",
+    "options": [
+      "Lacunae, communicating through canaliculi",
+      "Howship's lacunae, communicating through Volkmann's canals",
+      "Trabecular marrow spaces, communicating through the periosteum",
+      "Haversian canals, communicating through cement lines"
+    ],
+    "answer": "Lacunae, communicating through canaliculi",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.786,
+    "option_overlap": {
+      "Lacunae, communicating through canaliculi": 0.75,
+      "Howship's lacunae, communicating through Volkmann's canals": 0.5,
+      "Trabecular marrow spaces, communicating through the periosteum": 0.333,
+      "Haversian canals, communicating through cement lines": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.786,
+        "title": "An Organoid for Woven Bone",
+        "year": 2021,
+        "text": "Sizes of the circles reflect the number of processes of that respective cell. Thickness of the lines reflects the number of connections between individual cells (cell numbers refer to identification in Figure S7, Supporting Infor-\nmation). g) single slice from the 3D FIB/SEM stack showing long processes (arrow), creating a cellular network. h) TEM image shows a gap junction \nbetween processes of two connecting cells. i) fluorescent immunohistochemistry showing the presence of gap junctions on the surface of the different \ncells. Color code: red \u2013 cell cytoplasm, blue \u2013 cell nuclei, green \u2013 con"
+      },
+      {
+        "rank": 2,
+        "score": 0.785,
+        "title": "Pathways Controlling Formation and Maintenance of the Osteocyte Dendrite Network",
+        "year": 2022,
+        "text": "In addition to regulating osteoblast activities by secreted\nfactors, osteocytes can directly regulate osteoblasts via gap junc-\ntions. In vitro co-culture of osteoblasts and osteocytes showed\nthat under mechanical stimulation, osteocytes communicate\nwith endosteal osteoblasts through dendritic processes and reg-\nulate the function of osteoblasts via gap junctions [36]. Osteocyte dendrites are also involved in the regulation of hema-\ntopoietic stem/progenitor cell (HSPC) mobilization [37]. Both\n\u201costeocyte-less (OL) mice\u201d and klotho hypomorphic (kl/kl) mice\nmodels failed to induce HSPC mobilizat"
+      },
+      {
+        "rank": 3,
+        "score": 0.784,
+        "title": "Assessment of the human bone lacuno-canalicular network at the nanoscale and impact of spatial resolution",
+        "year": 2020,
+        "text": "Apart from their function in bone homeostasis, osteocytes may \nalso contribute to fat metabolism by secreting sclerostin, leading to the increase of beige adipogenesis4, and influ-\nence hematopoiesis by the adjustment of the endosteal microenvironment through the release of soluble factors5. After being entrapped in the bone matrix, the mature osteocytes are housed within lacunae and connected to \neach other by cytoplasmic processes hosted within channels called canaliculi. The porous network hosting the \nosteocyte system is called the lacuno-canalicular network (LCN). Through the LCN, the ost"
+      }
+    ]
+  },
+  {
+    "id": "bg-014",
+    "domain": "pathology",
+    "type": "factual",
+    "question": "According to the WHO definition, which bone mineral density T-score threshold defines osteoporosis?",
+    "options": [
+      "A T-score of -2.5 or lower",
+      "A T-score of -1.0 or lower",
+      "A T-score of -4.0 or lower",
+      "A T-score of +2.5 or higher"
+    ],
+    "answer": "A T-score of -2.5 or lower",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.83,
+    "option_overlap": {
+      "A T-score of -2.5 or lower": 1.0,
+      "A T-score of -1.0 or lower": 1.0,
+      "A T-score of -4.0 or lower": 1.0,
+      "A T-score of +2.5 or higher": 1.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.83,
+        "title": "Postmenopausal Osteoporosis: A Literature Review",
+        "year": 2022,
+        "text": "Bone densitometry can be\nused for the early detection of a weakening bone that would benefit from treatment given in due time and\ncan be used to calculate the future risk of fractures [67]. T score\nThe T score measures the standard deviation units from the average value of BMD that is expected in a\nyoung adult [68]. Figure 3 depicts the T score grading. The Z score is another scale that also measures units of standard deviation, which is usually used in children\nand adolescents. It is calculated in a way similar to the calculation of T scores, but the comparisons are made\nwith someone of the s"
+      },
+      {
+        "rank": 2,
+        "score": 0.824,
+        "title": "The clinician\u2019s guide to prevention and treatment of osteoporosis",
+        "year": 2022,
+        "text": "An individual\u2019s BMD is reported as the\nstandard deviations above or below the mean BMD, as\noutlined in Table 4. The BMD diagnosis of normal bone mass,\nlow bone mass (osteopenia), and osteoporosis are based on\nTable 2\nMajor risk factors for falls\nMedical risk factors\n\u2022 Advanced age\n\u2022 Arthritis\n\u2022 Female gender\n\u2022 Poor vision\n\u2022 Urinary urgency or incontinence\n\u2022 Previous fall\n\u2022 Orthostatic hypotension\n\u2022 Impaired transfer and mobility\n\u2022 Medications that cause dizziness or sedation (narcotic analgesics,\nanticonvulsants, psychotropics)\n\u2022 Malnutrition/parenteral nutrition (vitamin D deficiency, insuffi"
+      },
+      {
+        "rank": 3,
+        "score": 0.819,
+        "title": "Relationship between muscle and subcutaneous adipose tissue size and density and proximal femur bone in elderly women with hip fracture",
+        "year": 2024,
+        "text": "In this context, \nwe utilized the TH T-score to differentiate whether partici-\npants had osteoporosis. SD standard deviance, BMD bone mineral density, FNF femoral neck fracture, ITF intertrochanteric fracture, TH total hip; aBMD areal bone mineral density, vBMD volumetric bone mineral \ndensity, CI confidence interval; G.MaxM gluteus maximus muscle, G.Med/MinM gluteus medius and minimus muscle, MM midthigh muscle, MSAT midthigh subcutaneous adipose tissue\na\u200aAdjusted for age, body mass index (BMI)\nb\u200aB for standard deviance increase of continuous muscle and subcutaneous adipose tissue variables\nT"
+      }
+    ]
+  },
+  {
+    "id": "bg-015",
+    "domain": "pathology",
+    "type": "factual",
+    "question": "Which molecular defect underlies most cases of osteogenesis imperfecta?",
+    "options": [
+      "A defect in type I collagen",
+      "A defect in type II collagen",
+      "A deficiency of alkaline phosphatase",
+      "A mutation in the vitamin D receptor"
+    ],
+    "answer": "A defect in type I collagen",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.809,
+    "option_overlap": {
+      "A defect in type I collagen": 1.0,
+      "A defect in type II collagen": 1.0,
+      "A deficiency of alkaline phosphatase": 0.333,
+      "A mutation in the vitamin D receptor": 0.667
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.809,
+        "title": "Collagen transport and related pathways in Osteogenesis Imperfecta",
+        "year": 2021,
+        "text": "Vol. :(0123456789)\n1 3\nHuman Genetics (2021) 140:1121\u20131141 \nhttps://doi.org/10.1007/s00439-021-02302-2\nREVIEW\nCollagen transport and\u00a0related pathways in\u00a0Osteogenesis Imperfecta\nLauria\u00a0Claeys1\u200a \u00a0\u00b7 Silvia\u00a0Storoni2\u00a0\u00b7 Marelise\u00a0Eekhoff2\u00a0\u00b7 Mariet\u00a0Elting1\u00a0\u00b7 Lisanne\u00a0Wisse1\u00a0\u00b7 Gerard\u00a0Pals1\u00a0\u00b7 \nNathalie\u00a0Bravenboer3\u00a0\u00b7 Alessandra\u00a0Maugeri1\u00a0\u00b7 Dimitra\u00a0Micha1\nReceived: 9 April 2021 / Accepted: 8 June 2021 / Published online: 24 June 2021 \n\u00a9 The Author(s) 2021\nAbstract\nOsteogenesis Imperfecta (OI) comprises a heterogeneous group of patients who share bone fragility and deformities as the \nmain characteristics, a"
+      },
+      {
+        "rank": 2,
+        "score": 0.807,
+        "title": "Management of Osteogenesis Imperfecta: A Multidisciplinary Comprehensive Approach",
+        "year": 2020,
+        "text": "However, \nthese methods cannot be used to detect large copy number \nvariations including intragenic exonal deletions or dupli-\ncations, which is an important limitation. The authors have conducted molecular genetic \nanalysis using next-generation sequencing and/or Sanger \nsequencing in 177 Korean patients with OI and found that \n96 patients (54%) carried COL1A1 mutations, 39 (22%) \nManagement of Osteogenesis Imperfecta:  \nA Multidisciplinary Comprehensive Approach\nTae-Joon Cho, MD, Jung Min Ko, MD*, Hyoungmin Kim, MD,  \nHyung-Ik Shin, MD\u2020, Won Joon Yoo, MD, Chang Ho Shin, MD\nDivision of Pediat"
+      },
+      {
+        "rank": 3,
+        "score": 0.805,
+        "title": "Genetic Disorders of Bone or Osteodystrophies of Jaws\u2014A Review",
+        "year": 2021,
+        "text": "Genetic Disorders of Bone or Osteodystrophies\nof Jaws\u2014A Review\nSirisha Vammi1\nJaya Lakshmi Bukyya2\nAnulekha Avinash C.K.3\nM. L. Avinash Tejasvi4\nArchana Pokala4\nChanchala H.P.5\nPriyanka Talwade5\nPraveen Kumar Neela6\nT. K. Shyamilee7\nMary Oshin8\nVeenila Pantala8\n1Private Practitioner, Oral Medicine and Radiology, Vishakapatnam,\nAndhra Pradesh, India\n2Department of Oral Medicine and Radiology, Tirumala Institute of\nDental Sciences, Nizamabad, Telangana, India\n3Department of Prosthodontics, Kamineni Institute of Dental\nSciences, Narketpally, Telangana, India\n4Department of Oral Medicine and Radio"
+      }
+    ]
+  },
+  {
+    "id": "bg-016",
+    "domain": "pathology",
+    "type": "relational",
+    "question": "What is the characteristic effect of Paget's disease of bone on bone turnover and matrix organisation?",
+    "options": [
+      "Greatly increased turnover producing disorganised woven bone",
+      "Greatly reduced turnover producing dense lamellar bone",
+      "Normal turnover with a selective mineralisation defect",
+      "Reduced turnover with expansion of the marrow cavity only"
+    ],
+    "answer": "Greatly increased turnover producing disorganised woven bone",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.815,
+    "option_overlap": {
+      "Greatly increased turnover producing disorganised woven bone": 0.6,
+      "Greatly reduced turnover producing dense lamellar bone": 0.2,
+      "Normal turnover with a selective mineralisation defect": 0.4,
+      "Reduced turnover with expansion of the marrow cavity only": 0.4
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.815,
+        "title": "Paget disease of bone: Diagnosis and drug therapy",
+        "year": 2013,
+        "text": "It is unclear why, in a disorder \nmarked by accelerated bone remodeling, the \nbiochemical markers are inconsistent mea-\nsures of bone turnover. Research into biochemical markers of \nPaget disease has had two aims: to identify the \nsingle best marker for baseline assessment of \npagetic bone activity and to find out wheth-\ner this measurement responds to therapy.46,47 \nMeasures of bone formation such as bone-spe-\ncific alkaline phosphatase, osteocalcin, and \nthe procollagen type I peptides, and measures \nof bone resorption including the pyridino-\nlines, hydroxyproline, and cross-linked colla-\nge"
+      },
+      {
+        "rank": 2,
+        "score": 0.805,
+        "title": "Paget disease of bone: Diagnosis and drug therapy",
+        "year": 2013,
+        "text": "Treatment of Paget disease relies primarily on the new \ngeneration of nitrogen-containing bisphosphonates. P\naget disease of bone is a focal disorder \nof the aging skeleton that can be asymp-\ntomatic or can present with pain, bowing \ndeformities, fractures, or nonspecific rheu-\nmatic complaints. Physicians often discover \nit in asymptomatic patients when serum al-\nkaline phosphatase levels are elevated or as \nan incidental finding on radiography. Despite \nevidence of germline mutations and poly-\nmorphisms that predispose to Paget disease, \nthe environmental determinants that permit \ndisease ex"
+      },
+      {
+        "rank": 3,
+        "score": 0.805,
+        "title": "Paget disease of bone: Diagnosis and drug therapy",
+        "year": 2013,
+        "text": "EDUCATIONAL OBJECTIVE: Readers will recognize that pain in Paget disease of bone is often multifactorial\nPaget disease of bone:  \nDiagnosis and drug therapy\n\u25a0\n\u25a0ABSTRACT\nPaget disease of bone is a focal disorder of aging bone \nthat may be asymptomatic or may present with pain, \nbowing deformity, fracture, or a nonspecific rheumatic \ncomplaint. It is the second most common disease of bone \nin the elderly after osteoporosis, and the loss of struc-\ntural integrity in affected bone conveys a risk of fracture. It  may occur sporadically or in geographic or familial \nclusters. This article discusses "
+      }
+    ]
+  },
+  {
+    "id": "bg-017",
+    "domain": "pathology",
+    "type": "relational",
+    "question": "What principally distinguishes osteomalacia from osteoporosis?",
+    "options": [
+      "Osteomalacia is a mineralisation defect, osteoporosis a loss of bone mass",
+      "Osteomalacia is a loss of bone mass, osteoporosis a mineralisation defect",
+      "Both are mineralisation defects differing only in severity",
+      "Osteomalacia affects only trabecular bone, osteoporosis only cortical bone"
+    ],
+    "answer": "Osteomalacia is a mineralisation defect, osteoporosis a loss of bone mass",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.809,
+    "option_overlap": {
+      "Osteomalacia is a mineralisation defect, osteoporosis a loss of bone mass": 0.25,
+      "Osteomalacia is a loss of bone mass, osteoporosis a mineralisation defect": 0.25,
+      "Both are mineralisation defects differing only in severity": 0.0,
+      "Osteomalacia affects only trabecular bone, osteoporosis only cortical bone": 0.6
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.809,
+        "title": "Postmenopausal Osteoporosis: A Literature Review",
+        "year": 2022,
+        "text": "FIGURE 1: Classification of osteoporosis\nOsteoporosis is of two types, primary and secondary. Postmenopausal osteoporosis is a type of primary\nosteoporosis\nThis image is created by the authors\nWhile osteoporosis can affect anyone of any age group, women of the postmenopausal age group are\nespecially an \"at-risk\" population to suffer from osteoporosis. In fact, postmenopausal osteoporosis is the\nmost common bone disorder in the developed world [16]. This can be understood better by comprehending\nthe part played by estrogen in the process of maintaining BMD in women. 2022 Bhatnagar et al. Cureus"
+      },
+      {
+        "rank": 2,
+        "score": 0.806,
+        "title": "The clinician\u2019s guide to prevention and treatment of osteoporosis",
+        "year": 2022,
+        "text": "&\nWhat is the optimal type, intensity, duration, and frequen-\ncy of exercise programs for osteoporosis prevention and\ntreatment? &\nFor individuals with vertebral fractures, what exercise is\nsafe and effective in lowering incidence of fractures and\nfalls and improving patient-centered outcomes (pain,\nfunction). Osteoporos Int (2022) 33:2049\u20132102\n2087 &\nHow effective and safe are different FDA-approved treat-\nments in preventing fractures in patients with low bone\nmass (osteopenia)? Do benefits exceed risks? &\nWhat approaches are most effective in treating osteoporo-\nsis in patients with spinal "
+      },
+      {
+        "rank": 3,
+        "score": 0.806,
+        "title": "The clinician\u2019s guide to prevention and treatment of osteoporosis",
+        "year": 2022,
+        "text": "The BMD diagnosis of normal bone mass,\nlow bone mass (osteopenia), and osteoporosis are based on\nTable 2\nMajor risk factors for falls\nMedical risk factors\n\u2022 Advanced age\n\u2022 Arthritis\n\u2022 Female gender\n\u2022 Poor vision\n\u2022 Urinary urgency or incontinence\n\u2022 Previous fall\n\u2022 Orthostatic hypotension\n\u2022 Impaired transfer and mobility\n\u2022 Medications that cause dizziness or sedation (narcotic analgesics,\nanticonvulsants, psychotropics)\n\u2022 Malnutrition/parenteral nutrition (vitamin D deficiency, insufficient\nprotein)\nNeurological and musculoskeletal risk factors\n\u2022 Poor balance\n\u2022 Weak muscles/sarcopenia\n\u2022 Gait dis"
+      }
+    ]
+  },
+  {
+    "id": "bg-018",
+    "domain": "pathology",
+    "type": "factual",
+    "question": "Which cellular abnormality underlies osteopetrosis?",
+    "options": [
+      "Defective osteoclast function",
+      "Defective osteoblast collagen secretion",
+      "Excessive osteocyte apoptosis",
+      "Failure of chondrocyte hypertrophy"
+    ],
+    "answer": "Defective osteoclast function",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.795,
+    "option_overlap": {
+      "Defective osteoclast function": 1.0,
+      "Defective osteoblast collagen secretion": 0.75,
+      "Excessive osteocyte apoptosis": 0.667,
+      "Failure of chondrocyte hypertrophy": 0.667
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.795,
+        "title": "Predicting Cortical Bone Resorption of Mouse Tibia in Disuse Condition Caused by Transient Muscle Paralysis",
+        "year": 2023,
+        "text": "However, the cellular and molecular mechanism behind how the loss in the mechanical \nenvironment is related to bone tissue deterioration needs to be better understood. It has been \nwell recognized that the bone cell osteocyte acts as a mechano-sensor (Qin et al. 2020) \n(Klein-Nulend et al. 2013) and is densely connected through the lacune canaliculi network \n(LCN) in the bone matrix. Experimental studies provide insight that the load-induced fluid \nflow inside the LCN helps in the mass transport necessary to enhance the metabolic function \nof the bone cells, i.e., osteocytes, which are crucial"
+      },
+      {
+        "rank": 2,
+        "score": 0.782,
+        "title": "Wnt/\u03b2-catenin signaling components and mechanisms in bone formation, homeostasis, and disease",
+        "year": 2024,
+        "text": "Early onset, severe\nosteopetrosis. Signi\ufb01cant accumulation of bone matrix in the\nfemur. Signi\ufb01cantly increased bone deposition associated\nwith disturbances in bone architecture and composition. Rapid bone formation rate. Lack of osteoclasts. Marked\nabnormalities in vertebrae, long bones, and calvaria. 486\nApc\nLoss of function/cKO/Col2\u03b11-Cre\nHomozygous APC cKO mice die perinatally due to severe\ndefects in skeletogenesis. Craniofacial abnormalities, short\ntrunk, an incomplete closure of both thoracic and abdominal\ncavities. Severe truncation of both upper and lower limbs. No\ncartilaginous primor"
+      },
+      {
+        "rank": 3,
+        "score": 0.78,
+        "title": "Genetic Disorders of Bone or Osteodystrophies of Jaws\u2014A Review",
+        "year": 2021,
+        "text": "Severe form is\ninvariably fatal early in life. Patient experiences progressive\nloss of the bone marrowand its cellular products and a severe\nincrease in bone density. Narrowing of bony canals results in\nhydrocephalus, blindness, deafness, vestibular nerve dys-\nfunction, and facial nerve paralysis. Medullary spaces of jaws\nare reduced, leading to development of osteomyelitis, Enam-\nel hypoplasia, microscopic dentinal defects, arrested root\ndevelopment, teeth prone to dental caries, and retardation of\ntooth eruption due to sclerosis of bone. Radiographic fea-\ntures of the skull: The typical \u201cope"
+      }
+    ]
+  },
+  {
+    "id": "bg-019",
+    "domain": "pathology",
+    "type": "relational",
+    "question": "How does a purely lytic metastatic lesion typically affect the load-bearing capacity of the affected vertebra?",
+    "options": [
+      "It reduces load-bearing capacity",
+      "It increases load-bearing capacity",
+      "It leaves load-bearing capacity unchanged",
+      "It increases capacity in compression but reduces it in torsion"
+    ],
+    "answer": "It reduces load-bearing capacity",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.802,
+    "option_overlap": {
+      "It reduces load-bearing capacity": 0.0,
+      "It increases load-bearing capacity": 0.0,
+      "It leaves load-bearing capacity unchanged": 0.0,
+      "It increases capacity in compression but reduces it in torsion": 0.25
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.802,
+        "title": "Biomechanical effects of metastasis in the osteoporotic lumbar spine: A\u00a0Finite Element Analysis",
+        "year": 2018,
+        "text": "Tschirhart et al. [51] suggested focusing\nprimarily on axial compressive loading rather than com-\nplex load/boundary conditions since it is the predomin-\nant load type leading to increased risk of burst fracture\ninitiation of the thoracic spine and it is likely to be the\nsame for the lumbar segment. Fourth, it could be argued\nthat metastatic lesions are more common in the thoracic\nspine rather than in the lumbar spine. However, we\naimed to evaluate the effect of axial loading without the\ninfluences of the ribs, which can contribute to reduce\nthe effective axial loading applied on the vertebra."
+      },
+      {
+        "rank": 2,
+        "score": 0.799,
+        "title": "A novel approach to evaluate the effects of artificial bone focal lesion on the three-dimensional strain distributions\u00a0within the vertebral body",
+        "year": 2021,
+        "text": "Different studies have evaluated the effect of metastatic lesions on the vertebral mechanics,\nin order to prevent fractures. Experimental tests were performed on healthy vertebrae with\nartificial lesions (usually reproduced as holes in the structure) [3\u20137] and vertebrae with actual\nPLOS ONE\nPLOS ONE | https://doi.org/10.1371/journal.pone.0251873\nJune 1, 2021\n1 / 16\na1111111111\na1111111111\na1111111111\na1111111111\na1111111111\nOPEN ACCESS\nCitation: Palanca M, De Donno G, Dall\u2019Ara E (2021)\nA novel approach to evaluate the effects of artificial\nbone focal lesion on the three-dimensional strain\ndist"
+      },
+      {
+        "rank": 3,
+        "score": 0.797,
+        "title": "A novel approach to evaluate the effects of artificial bone focal lesion on the three-dimensional strain distributions\u00a0within the vertebral body",
+        "year": 2021,
+        "text": "The induced lesions, used in this study and in\nsimilar studies for vertebrae [5] and femurs [25], were far from real metastases, which may\naffect the tissue within and around the border of the lesion. In this study only one lesion shape\nwas induced to define and test the proposed methodology. Finally, this approach was per-\nformed using high resolution microCT scans, not applicable in clinics. A similar approach\ncould be applied in the future to clinical CT images [54], but higher measurement uncertainty\nshould be expected [31]. In conclusion, the proposed experimental methods based on DVC mea"
+      }
+    ]
+  },
+  {
+    "id": "bg-020",
+    "domain": "biomaterials",
+    "type": "factual",
+    "question": "What is the stoichiometric calcium-to-phosphorus molar ratio of pure hydroxyapatite?",
+    "options": [
+      "1.67",
+      "1.00",
+      "2.15",
+      "3.33"
+    ],
+    "answer": "1.67",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.785,
+    "option_overlap": {
+      "1.67": 0.0,
+      "1.00": 0.0,
+      "2.15": 0.0,
+      "3.33": 0.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.785,
+        "title": "Exploring the Implications of Golgi Apparatus Dysfunction in Bone Diseases",
+        "year": 2024,
+        "text": "Sufficient levels of calcium are necessary for the mineralization of bone tissue,\nand thus essential in maintaining strength and avoiding fractures. Osteoporosis results from an imbalance\nbetween bone resorption by osteoclasts breaking down existing tissue and formation by osteoblasts building\nnew bone, leading to a net loss of calcium from bones over time, progressive decreases in density, as well as\nan increase in fracture risk. Hormonal changes such as menopause, insufficient calcium intake, vitamin D\ndeficiency, and the natural aging process can disrupt calcium homeostasis and contribute t"
+      },
+      {
+        "rank": 2,
+        "score": 0.781,
+        "title": "Synthesis techniques, characterization and mechanical properties of natural derived hydroxyapatite scaffolds for bone implants: a review",
+        "year": 2021,
+        "text": "The calcination of HAp at 600\u20131000\u00a0\u00b0C produces pure \nHAp with high crystallinity. 1.63 Ca/P stoichiometric ratio \nwas observed in the sample heated at 600\u00a0\u00b0C, and is a little \nbit below the HAp Ca/P stoichiometric ratio. Furthermore, \nfrom the elemental analysis, the sample heated at 600\u00a0\u00b0C \nshowed that there are Magnesium, Mg ions in the sample, \nand these Mg ions act as micronutrients for tissue metabo-\nlism [81]. A thermally treated fish scales at 1000\u00a0\u00b0C, which \nwas pulverized for 16\u00a0h with a pulverizer to obtain pure \nphase HAp with 1.71 Ca/P stoichiometric ratio. The mor-\nphology of the "
+      },
+      {
+        "rank": 3,
+        "score": 0.78,
+        "title": "Recent trends on biomaterials for tissue regeneration applications: review",
+        "year": 2023,
+        "text": "Table 1 presents different types of Ca-\nphosphate depending on Ca/P ratio. It was reported\nthat Ca-phosphates of Ca/P ratio \\ 1 are not appro-\npriate for biological implantation due to high disso-\nlution rate of those Ca-phosphates. But, resorption\nrate of Ca-phosphates with Ca/P [ 1.67 dramatically\ndecreases. [34]. Table 1 Main types of Ca-phosphates compounds. Reproduced with permission from [35], Copyright 2022, Elsevier publisher\nName\nFormula\nCa/P\nMineral\nSymbol\nMonocalcium phosphate monohydrate\nCa(H2PO4)2\u0003H2O\n0.5\n\u2013\nMCPM\nDicalcium phosphate\nCaHPO4\n1\nMonetite\nDCPA\nDicalcium phosphate dehydr"
+      }
+    ]
+  },
+  {
+    "id": "bg-021",
+    "domain": "biomaterials",
+    "type": "relational",
+    "question": "What causes stress shielding around a metallic orthopaedic implant?",
+    "options": [
+      "The implant is much stiffer than the surrounding bone",
+      "The implant is much less stiff than the surrounding bone",
+      "The implant corrodes and releases metal ions",
+      "The implant surface is too rough for bone apposition"
+    ],
+    "answer": "The implant is much stiffer than the surrounding bone",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.83,
+    "option_overlap": {
+      "The implant is much stiffer than the surrounding bone": 0.667,
+      "The implant is much less stiff than the surrounding bone": 1.0,
+      "The implant corrodes and releases metal ions": 0.5,
+      "The implant surface is too rough for bone apposition": 0.75
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.83,
+        "title": "Principles of Fracture Healing and Fixation: A Literature Review",
+        "year": 2024,
+        "text": "One of the main issues is stress shielding: shielding of the\nbone from the normal stress or pressure it would otherwise experience. According to Wolff\u2019s law, bones will\nadapt to the degree of mechanical loading. A plate with a higher stiffness and Young\u2019s modulus will cause\nmost of the weight to be supported by the implant while the bone only bears part of the load [43]. This\nchange in how stress is distributed can lead to bone loss in the interface of bone and implant. Therefore, this\ncan prevent secondary healing by stopping bone remodelling and callus formation [42]. There are several varie"
+      },
+      {
+        "rank": 2,
+        "score": 0.812,
+        "title": "Effect of stress\u2010shielding\u2010induced bone resorption on glenoid loosening in reverse total shoulder arthroplasty",
+        "year": 2020,
+        "text": "\u00a9 2020 The Authors. Journal of Orthopaedic Research\u00ae published by Wiley Periodicals LLC on behalf of Orthopaedic Research Society and stress\u2010shielding.1,14\u201016 Scapular notching is caused by the hum-\neral component impinging against the scapular neck, often leading to\nthe generation of polyethylene wear debris from the humeral cup,\nand subsequent osteolysis. The considerable difference in material\nproperties between the bone and metallic prosthesis leads to a re-\nduction of stresses placed on the bone postoperatively, termed bone\nstress\u2010shielding. The loss of stress on the bone around the impla"
+      },
+      {
+        "rank": 3,
+        "score": 0.812,
+        "title": "Mechanical Properties of Biomaterials Used in Total Hip and Knee Arthroplasty",
+        "year": 2021,
+        "text": "Stress shielding is a primary cause of aseptic loosening and implant failure (Luo et al., \n2020). Therefore, to avoid damage to the femur and protect against implant loosening, it is critical \nto select an implant material with a similar modulus of elasticity. The best-fit materials per this \nrequirement will be examined in the following sections. Figure 3. Effect of stress shielding on the femur (Ait Moussa et al., 2017). Since the drop in stress is largest \nat the proximal end of the femur (z = 0), the cortical bone here is most susceptible to resorption. A second key criterion is the ultima"
+      }
+    ]
+  },
+  {
+    "id": "bg-022",
+    "domain": "biomaterials",
+    "type": "relational",
+    "question": "What is a recognised clinical concern during in situ polymerisation of PMMA bone cement?",
+    "options": [
+      "An exothermic reaction that can cause thermal necrosis",
+      "An endothermic reaction that can freeze adjacent tissue",
+      "Rapid resorption of the cement within days",
+      "Release of hydroxyapatite crystals into the bloodstream"
+    ],
+    "answer": "An exothermic reaction that can cause thermal necrosis",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.798,
+    "option_overlap": {
+      "An exothermic reaction that can cause thermal necrosis": 0.6,
+      "An endothermic reaction that can freeze adjacent tissue": 0.6,
+      "Rapid resorption of the cement within days": 0.667,
+      "Release of hydroxyapatite crystals into the bloodstream": 0.25
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.798,
+        "title": "Injectable bone cement based on magnesium potassium phosphate and cross-linked alginate hydrogel designed for minimally invasive orthopedic procedures",
+        "year": 2024,
+        "text": "The most significant process was observed for the groups \nMPC\u2009+\u20091.25%SA_2.0P/L_120/150GDL/CC and MPC\u2009+\u20091.50%SA_2.0P/L_90/120GDL/CC. In vitro bioactivity\nAfter 30 days of incubation in PBS, significant microstructural changes were found in all evaluated cements \n(Fig.\u00a07). Their surfaces were sparsely covered with spherical particles resembling apatite, primarily consisting \nof P and Ca (spot 2 on Fig.\u00a07b). However, trace amounts of Mg and K were also identified in the EDS analysis. The precipitates significantly differ in composition from the substrate (k-struvite), in which the presence of Ca "
+      },
+      {
+        "rank": 2,
+        "score": 0.794,
+        "title": "Injectable bone cement based on magnesium potassium phosphate and cross-linked alginate hydrogel designed for minimally invasive orthopedic procedures",
+        "year": 2024,
+        "text": "The clinically \naccepted setting time should be between 10 and 20\u00a0min for optimal cement \u00adapplication32. Further, several studies \nshowed that tissue exposure of more than 1\u00a0min to temperature over 50\u00a0\u00b0C causes bone tissue necrosis, hence \nthe cement reaction temperature should be \u00adlower33,34. Unfortunately, the above-mentioned parameters have \nlimited effectiveness and often, the MPC reaction has an inadequate setting time and occurs at high tempera-\ntures; therefore, various retarders are additionally \u00adused35. Another option proposed here is to create a composite \ncement by incorporating a p"
+      },
+      {
+        "rank": 3,
+        "score": 0.792,
+        "title": "In vivo analysis of a proprietary glass-based adhesive for sternal fixation and stabilization using rabbit and sheep models",
+        "year": 2021,
+        "text": "9 Histological images of a PMMA implant acquired from a sheep\nmodel at 8 weeks. a Slide overview, un\ufb01lled defect with \ufb01brous tissue\nfound between PMMA and bone. b \u00d740 magni\ufb01cation, band of\nimmune cells found directly adjacent to PMMA surface. c Post-\noperative clinical CT scan of PMMA implant with incomplete \ufb01lling\nof defect\nJournal of Materials Science: Materials in Medicine (2021) 32:53\nPage 9 of 12\n53 samples, an excellent tissue response was observed, with no\nbone resorption. There was little evidence of \ufb01brous encap-\nsulation or an in\ufb02ammatory response around any of the\nsamples implanted "
+      }
+    ]
+  },
+  {
+    "id": "bg-023",
+    "domain": "biomaterials",
+    "type": "factual",
+    "question": "What does osseointegration describe?",
+    "options": [
+      "Direct structural and functional connection between living bone and an implant surface",
+      "Formation of a fibrous capsule separating bone from an implant",
+      "Resorption of bone adjacent to an implant",
+      "Ingrowth of cartilage into an implant's porous surface"
+    ],
+    "answer": "Direct structural and functional connection between living bone and an implant surface",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.807,
+    "option_overlap": {
+      "Direct structural and functional connection between living bone and an implant surface": 0.714,
+      "Formation of a fibrous capsule separating bone from an implant": 0.4,
+      "Resorption of bone adjacent to an implant": 0.667,
+      "Ingrowth of cartilage into an implant's porous surface": 0.4
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.807,
+        "title": "Correlation of two different devices for the evaluation of primary implant stability depending on dental implant length and bone density: An in vitro study",
+        "year": 2024,
+        "text": "To ensure successful osseointegration and reduce the risk of\nPLOS ONE\nPLOS ONE | https://doi.org/10.1371/journal.pone.0290595\nMay 22, 2024\n1 / 14\na1111111111\na1111111111\na1111111111\na1111111111\na1111111111\nOPEN ACCESS\nCitation: Lee J, Lim Y-J, Ahn J-S, Kim B, Baek Y-\nW, Lim B-S (2024) Correlation of two different\ndevices for the evaluation of primary implant\nstability depending on dental implant length and\nbone density: An in vitro study. PLoS ONE 19(5):\ne0290595. https://doi.org/10.1371/journal. pone.0290595\nEditor: Sameh Attia, Justus Liebig University\nGiessen, GERMANY\nReceived: August 10, 2"
+      },
+      {
+        "rank": 2,
+        "score": 0.793,
+        "title": "Survival of dental implants and occurrence of osteoradionecrosis in irradiated head and neck cancer patients: a systematic review and meta-analysis",
+        "year": 2021,
+        "text": "This makes \naltered\u2014sometimes even reconstructed\u2014anatomy common \nand therefore proper implant positioning, successful osse-\nointegration, and complication-free soft tissue healing even \nwithout radiotherapy harder to achieve. Suboptimal implant \npositioning could lead to occlusal overloading, while soft \nHBO, hyperbaric oxygen therapy; impl, implants; mand., mandible; max, maxilla; ORN, osteoradionecrosis; POS, prospective observational study; pt, patients; RCT\u200b, randomized control study; \nROS, retrospective observational study; RT, radiotherapy; \u00d8, unspecified\nTable\u202f2\u2002 \u2009(continued)\nAuthor\nStu"
+      },
+      {
+        "rank": 3,
+        "score": 0.793,
+        "title": "Accelerated orthodontic tooth movement: surgical techniques and the regional acceleratory phenomenon",
+        "year": 2022,
+        "text": "Therefore, it plays a very important role in the\neffectiveness of the techniques. Abbreviations\nMOPs: Micro-osteoperforations; PAOO: Periodontally accelerated osteogenic\northodontics; PDL: Periodontal ligament; RAP: Regional acceleratory\nphenomenon; TAD: Temporary anchorage device\nAuthors\u2019 contributions\nEK prepared the first draft of the review article, and EK and FBN contributed\nto the final manuscript. Both authors reviewed the final manuscript. Availability of data and materials\nNot applicable. Declarations\nEthics approval and consent to participate\nNot applicable. Consent for publication\nN"
+      }
+    ]
+  },
+  {
+    "id": "bg-024",
+    "domain": "biomaterials",
+    "type": "relational",
+    "question": "How does the elastic modulus of titanium alloy used in orthopaedic implants compare with that of cortical bone?",
+    "options": [
+      "Titanium alloy is roughly five times stiffer",
+      "Titanium alloy is roughly five times less stiff",
+      "They are closely matched",
+      "Titanium alloy is roughly one hundred times stiffer"
+    ],
+    "answer": "Titanium alloy is roughly five times stiffer",
+    "source": "",
+    "notes": "Ti-6Al-4V ~110 GPa vs ~20 GPa",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.808,
+    "option_overlap": {
+      "Titanium alloy is roughly five times stiffer": 0.75,
+      "Titanium alloy is roughly five times less stiff": 0.75,
+      "They are closely matched": 0.0,
+      "Titanium alloy is roughly one hundred times stiffer": 0.75
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.808,
+        "title": "Biomechanical properties of articular cartilage in different regions and sites of the knee joint: acquisition of osteochondral allografts",
+        "year": 2024,
+        "text": "The OCAs were analyzed \nand compared for Young\u2019s modulus, the compressive \nmodulus, and cartilage thickness. Young\u2019s modu-\nlus, cartilage thickness, and compressive modulus of \nOCA were significantly different in different regions \nof the joints. A negative correlation was observed \nbetween Young\u2019s modulus and the proportion of the \nsubchondral bone (r\u2009=\u2009\u2009\u2212\u20090.4241, P\u2009<\u20090.0001). Carti-\nlage thickness was positively correlated with Young\u2019s \nmodulus (r\u2009=\u20090.4473, P\u2009<\u20090.0001) and the compressive \nmodulus (r\u2009=\u20090.3678, P\u2009<\u20090.0001). During OCA trans-\nplantation, OCAs should be transplanted in the same"
+      },
+      {
+        "rank": 2,
+        "score": 0.805,
+        "title": "Biomaterials for orthopedic applications and techniques to improve corrosion resistance and mechanical properties for magnesium alloy: a review",
+        "year": 2023,
+        "text": "2, a\ncomparison of the elastic module of cortical bones\nand materials frequently used for implant applica-\ntions is performed. Figure 2 shows that the closest\nmaterials to the femur cortical bone, regarding\nYoung\u2019s modulus and density, are the Mg and Zn\nalloys, composites of Mg matrix and polymers. Additionally, it is observed that materials commonly\nused for orthopedic applications (such as Ti alloys,\nstainless\nsteels\nand\nCr-Co\nalloys)\nare\nnon-\nFigure 1 Co-occurrence network of \u2018\u2018Orthopedic Implant\u2019\u2019 (2000\u20132021). J Mater Sci bioabsorbable metals even though their mechanical\nproperties differ "
+      },
+      {
+        "rank": 3,
+        "score": 0.804,
+        "title": "Biomaterials for orthopedic applications and techniques to improve corrosion resistance and mechanical properties for magnesium alloy: a review",
+        "year": 2023,
+        "text": "Similarly, the mismatch between\nthe elastic modulus of the bone and biomaterials\nleads to stress shielding in the surrounding bones\ncausing bone resorption [5, 21\u201323, 25]. Therefore,\nresearchers have focused on the selection of non-cy-\ntotoxic materials with morphology and mechanical\nproperties similar to bone [26]. Regarding mechanical properties of the bone, such\nas\ntensile\nstrength,\nelastic\nmodulus,\nhardness,\ntoughness and stiffness, they usually vary signi\ufb01-\ncantly with the patient\u2019s age, anatomical location and\nbone quality. The mechanical property of the bone\nthat has attracted the most "
+      }
+    ]
+  },
+  {
+    "id": "bg-025",
+    "domain": "simulation",
+    "type": "relational",
+    "question": "In QCT-based finite element models of bone, how are element material properties most commonly assigned?",
+    "options": [
+      "From calibrated Hounsfield units converted to density and then to modulus",
+      "Uniformly, using a single homogeneous modulus for all elements",
+      "From the mesh element volume alone",
+      "At random within a physiological range to model uncertainty"
+    ],
+    "answer": "From calibrated Hounsfield units converted to density and then to modulus",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.815,
+    "option_overlap": {
+      "From calibrated Hounsfield units converted to density and then to modulus": 0.333,
+      "Uniformly, using a single homogeneous modulus for all elements": 0.6,
+      "From the mesh element volume alone": 0.667,
+      "At random within a physiological range to model uncertainty": 0.2
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.815,
+        "title": "Non-invasive prediction of the mouse tibia mechanical properties from microCT images: comparison between different finite element models",
+        "year": 2021,
+        "text": "Vol. :(0123456789)\n1 3\nBiomechanics and Modeling in Mechanobiology (2021) 20:941\u2013955 \nhttps://doi.org/10.1007/s10237-021-01422-y\nORIGINAL PAPER\nNon\u2011invasive prediction of\u00a0the\u00a0mouse tibia mechanical properties \nfrom\u00a0microCT images: comparison between\u00a0different finite element \nmodels\nS.\u00a0Oliviero1,2\u00a0\u00b7 M.\u00a0Roberts3\u00a0\u00b7 R.\u00a0Owen2,4,5\u00a0\u00b7 G.\u00a0C.\u00a0Reilly2,4\u00a0\u00b7 I.\u00a0Bellantuono1,2,6\u00a0\u00b7 E.\u00a0Dall\u2019Ara1,2,6\u200a\nReceived: 22 July 2020 / Accepted: 7 January 2021 / Published online: 1 February 2021 \n\u00a9 The Author(s) 2021\nAbstract\nNew treatments for bone diseases require testing in animal models before clinical translation, a"
+      },
+      {
+        "rank": 2,
+        "score": 0.812,
+        "title": "Image-based biomechanical models of the musculoskeletal system",
+        "year": 2020,
+        "text": "Whereas most published models do not attempt\nto replicate in detail the local properties of the tissues\non a patient-specific basis, in several papers information\nabout the material properties is directly extracted from\nthe images and then implemented in an element-wise\nfashion in the models. Such an approach has been widely\nemployed for the simulation of the local properties of bone\nbased on quantitative CT (QCT) and high-resolution QCT\n(HR-QCT) [49, 50], using various techniques to assign the\nproperties to either nodes or elements [51, 52]. Addition-\nally, other methods based on MR and ultra"
+      },
+      {
+        "rank": 3,
+        "score": 0.81,
+        "title": "A Review on Recent Advances in the Constitutive Modeling of Bone Tissue",
+        "year": 2020,
+        "text": "Usually, such models\nare implemented into finite element tools to allow the analysis\nof complex geometries, material distributions, and loading\nconditions. The focus here was to evaluate recently published consti-\ntutive laws for trabecular or cortical bone with respect to prac-\ntical usage, e.g., in CT-based bone strength predictions. In summary, there are advances in the field of constitutive\nmodeling of bone tissue. The main focus of recent studies was\non the extension and experimental validation of existing\nmodels. There were a few new developments, but no funda-\nmental improvements were f"
+      }
+    ]
+  },
+  {
+    "id": "bg-026",
+    "domain": "simulation",
+    "type": "relational",
+    "question": "What is the purpose of a mesh convergence study in finite element analysis of bone?",
+    "options": [
+      "To confirm the solution no longer changes appreciably with further mesh refinement",
+      "To minimise the number of elements regardless of solution accuracy",
+      "To validate the model against experimental strain measurements",
+      "To select the constitutive law governing bone plasticity"
+    ],
+    "answer": "To confirm the solution no longer changes appreciably with further mesh refinement",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.773,
+    "option_overlap": {
+      "To confirm the solution no longer changes appreciably with further mesh refinement": 0.286,
+      "To minimise the number of elements regardless of solution accuracy": 0.667,
+      "To validate the model against experimental strain measurements": 0.667,
+      "To select the constitutive law governing bone plasticity": 0.25
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.773,
+        "title": "Effect of trabecular architectures on the mechanical response in osteoporotic and healthy human bone",
+        "year": 2024,
+        "text": "3\u2002 \u2009Mesh convergence \nanalysis. Representative mesh \nconvergence for OS_4: Similar \nresults are obtained for all sam-\nples (a), boundary conditions to \nevaluate the apparent longi-\ntudinal stiffness (AL_STIFF) \n(b) and apparent transversal \nstiffness (AT_STIFF) (c) 3269\nMedical & Biological Engineering & Computing (2024) 62:3263\u20133281\t\nstatistical difference in morphometric parameters is investi-\ngated; later, the correlation among the morphometric param-\neters themselves is studied. Then, definition of mechanical \nresponse of each sample subjected to longitudinal and trans-\nversal displacement"
+      },
+      {
+        "rank": 2,
+        "score": 0.767,
+        "title": "Effect of different constraining boundary conditions on simulated femoral stresses and strains during gait",
+        "year": 2024,
+        "text": "An average surface mesh size of 2 mm was deemed suitable for this \nanalysis, as established by prior mesh convergence studies (see Supplementary Material, Fig.\u00a0S2). Meshing the \nfemur model with an average seeding size of 2 mm resulted in a highly detailed femur model consisting of 47,511 \nnodes and 229,779 linear tetrahedral (C3D4) elements capturing the cortical and cancellous structures of the \nbone. In-house analyses confirmed that the C3D4 element type performed similarly to other element types for \nthe selected evaluation criteria and was selected due its computational efficiency. The fe"
+      },
+      {
+        "rank": 3,
+        "score": 0.767,
+        "title": "Computational optimization of 3D printed bone scaffolds using orthogonal array-driven FEA and neural network modeling",
+        "year": 2025,
+        "text": "An optimal scaffold must \nclosely match the native bone in mechanical behavior to avoid stress shielding while also providing a suitable \nenvironment for cell proliferation and nutrient transport. Hence, any deviation in these output properties can \nnegatively affect osseointegration and the long-term stability of the implant. Geometry Type\nWall Thickness\n(mm)\nLoad\n(kN)\nExperimental\nDisplacement\n(mm)\nFEA Simulation\nError %\nLidinoid\n1.0\n3\n2.84\n3.08\n8.45\nLidinoid\n1.5\n6\n2.63\n2.47\n6.08\nLidinoid\n2.0\n9\n2.42\n2.12\n12.39\nDiamond\n1.0\n3\n1.86\n1.73\n6.98\nDiamond\n1.5\n6\n1.12\n1.21\n8.03\nDiamond\n2.0\n9\n1.02\n1.17\n"
+      }
+    ]
+  },
+  {
+    "id": "bg-027",
+    "domain": "simulation",
+    "type": "relational",
+    "question": "What principally distinguishes micro-finite-element models of trabecular bone from continuum-level models?",
+    "options": [
+      "Micro-FE resolves individual trabeculae explicitly",
+      "Micro-FE uses larger elements to reduce computation",
+      "Micro-FE ignores material anisotropy entirely",
+      "Micro-FE can only be applied to cortical bone"
+    ],
+    "answer": "Micro-FE resolves individual trabeculae explicitly",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.81,
+    "option_overlap": {
+      "Micro-FE resolves individual trabeculae explicitly": 0.8,
+      "Micro-FE uses larger elements to reduce computation": 0.8,
+      "Micro-FE ignores material anisotropy entirely": 0.4,
+      "Micro-FE can only be applied to cortical bone": 1.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.81,
+        "title": "Multiscale and multidisciplinary analysis of aging processes in bone",
+        "year": 2024,
+        "text": "1 | Multiscale structure of bone. a Human femur as an example of bone;\nb femur cross section showing the cortical tissue (outer layer) and the trabecular\ntissue that accomodate bone marrow (inner part); c magni\ufb01cation of the previous\npanel, with a focus on the Haversian structure: the main building block is the osteon,\na hollow composite cylinder, made of several concentric \ufb01ber-reinforced layers, the\nlamellae, each one showing a preferential orientation of the mineralized collagen\n\ufb01bers; d collagen \ufb01ber, represented as a collagen \ufb01bril bundle (the surrounding\nmatrix is removed for clarity); e"
+      },
+      {
+        "rank": 2,
+        "score": 0.809,
+        "title": "Narrative Review of Subchondral Bone Morphology on Cartilage Damage (Osteoarthritis)",
+        "year": 2022,
+        "text": "Table 1. Subchondral bone morphology data for normal patients \nNo \nTitle \nAuthor \n(Year) \nMorphology \nGender \nBMI \n(kg/m\u00b2) \nAge \n(years) \nHeight \n(m) \nWeight \n(kg) \nBV/TV \n(%) \nTb.N \n(mm) \nTb.Th \n(mm) \nTb.Sp \n(mm) \n1 \nDifferences in \nsubchondral \ntrabecular bone \nmicrostructure and \nfinite element \nanalysis-based \nbiomechanical \nproperties between \nosteoporosis and \nosteoarthritis \nZihao He \n(2020) \n22,64 \u00b1 \n5,07 \n1,53 \u00b1 \n0,29 \n0,19 \u00b1 \n0,03 \n0,68 \u00b1 \n0,1 \nFemale \n(4)/ \nMale(4) \n24,13 \u00b1 \n2,37 \n65,25 \u00b1 \n23,3 \n164,63 \n\u00b1 6,76 \n65,13 \u00b1 \n3,83 \n2 \nChanges in \narticular cartilage \nand subchondral \nbone"
+      },
+      {
+        "rank": 3,
+        "score": 0.808,
+        "title": "Effect of data binning and frame averaging for micro-CT image acquisition on the morphometric outcome of bone repair assessment",
+        "year": 2022,
+        "text": "There are several segmentation techniques to separate bone from \u201cnon-bone\u201d tissue. In this study, a \nglobal threshold was applied which is the most widely used technique is built-in image analysis software. It is \nbased on histogram analysis, in which a grayscale value is chosen, and voxels above this value are considered \nas \u00adbone39. In the literature, some authors suggest refining this technique can be refined with the application of a \nvoxel-specific local threshold. However, this technique is restricted to analysis of larger structures and samples \nand would not fit the sample of the prese"
+      }
+    ]
+  },
+  {
+    "id": "bg-028",
+    "domain": "simulation",
+    "type": "relational",
+    "question": "Why is digital volume correlation used alongside finite element models of bone?",
+    "options": [
+      "It provides experimentally measured displacement fields for validation",
+      "It generates the finite element mesh automatically",
+      "It replaces the need to assign material properties",
+      "It converts micro-CT greyscale directly into stress"
+    ],
+    "answer": "It provides experimentally measured displacement fields for validation",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.81,
+    "option_overlap": {
+      "It provides experimentally measured displacement fields for validation": 1.0,
+      "It generates the finite element mesh automatically": 0.5,
+      "It replaces the need to assign material properties": 0.5,
+      "It converts micro-CT greyscale directly into stress": 0.4
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.81,
+        "title": "The Application of Digital Volume Correlation (DVC) to Evaluate Strain Predictions Generated by Finite Element Models of the Osteoarthritic Humeral Head",
+        "year": 2020,
+        "text": "Original Article\nThe Application of Digital Volume Correlation (DVC) to Evaluate Strain\nPredictions Generated by Finite Element Models of the Osteoarthritic\nHumeral Head\nJONATHAN KUSINS,1,2 NIKOLAS KNOWLES,3 MELANIE COLUMBUS,4\nSARA OLIVIERO,5 ENRICO DALL\u2019ARA,5 GEORGE S. ATHWAL,2\nand LOUIS M. FERREIRA1,2\n1Department of Mechanical and Materials Engineering, Western University, London, ON, Canada; 2Roth|McFarlane Hand and\nUpper Limb Centre, St. Joseph\u2019s Health Care, London, ON, Canada; 3Department of Radiology, Cumming School of Medicine,\nUniversity of Calgary, Calgary, AB, Canada; 4University of"
+      },
+      {
+        "rank": 2,
+        "score": 0.805,
+        "title": "Verification and Validation of MicroCT-based Finite Element Models of Bone Tissue Biomechanics",
+        "year": 2016,
+        "text": "The application of digital volume correlation (DVC) to study the \nmicrostructural behaviour of trabecular bone during compression. Journal of the \nmechanical behavior of biomedical materials 29, 480-499. Grassi, L., Isaksson, H., 2015. Extracting accurate strain measurements in bone \nmechanics: A critical review of current methods. Journal of the mechanical behavior of \nbiomedical materials 50, 43-54. Gross, T., Pahr, D.H., Peyrin, F., Zysset, P.K., 2012. Mineral heterogeneity has a minor \ninfluence on the apparent elastic properties of human cancellous bone: a SRmuCT-\nbased finite element stu"
+      },
+      {
+        "rank": 3,
+        "score": 0.8,
+        "title": "Quantifying the Human Subchondral Trabecular Bone Microstructure in Osteoarthritis with Clinical CT",
+        "year": 2022,
+        "text": "Figure 5. Correlation to clinical gold standard, and correlation of the regional patterns of the \u201creliable\u201d subchondral bone parameters. a) Pearson\ncorrelation matrices of the ex vivo micro-CT and clinical CT parameters with the mean KL grades and ICRS scores. Correlation matrix of the p-values;\ncyan dots show signi\ufb01cant (p < 0.05) correlations, the decreasing size of dots indicates the increase of the p values. Correlation coe\ufb03cients (r) of the\nsigni\ufb01cant (p < 0.05) correlations. Scatter plot and linear regression of correlation between b,c) KL grades and BV/TV, and d,e) KL grades and Tb.N. P"
+      }
+    ]
+  },
+  {
+    "id": "bg-029",
+    "domain": "imaging",
+    "type": "factual",
+    "question": "What quantity does dual-energy X-ray absorptiometry (DXA) actually measure?",
+    "options": [
+      "Areal bone mineral density in g/cm2",
+      "Volumetric bone mineral density in g/cm3",
+      "Trabecular bone volume fraction",
+      "Cortical porosity as a percentage"
+    ],
+    "answer": "Areal bone mineral density in g/cm2",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.789,
+    "option_overlap": {
+      "Areal bone mineral density in g/cm2": 1.0,
+      "Volumetric bone mineral density in g/cm3": 0.667,
+      "Trabecular bone volume fraction": 0.333,
+      "Cortical porosity as a percentage": 0.667
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.789,
+        "title": "Assessment of age and sex by means of DXA bone densitometry: Application in forensic anthropology",
+        "year": 2011,
+        "text": "Introduction \nDual X-ray Absorptiometry (DEXA) has rarely been used in Forensic Anthropology. The determination of Bone Mineral Densitometry (BMD) currently bases its application \nin the medical field, as a diagnostic technique for high impact pathologies, such as \nosteoporosis, osteopenias and osteomalacias. This technique in particular has undergone \nrapid growth over the last few years. Absorptiometry techniques measure the absorption \nof photonic energy in a skeletal region. Dual X-ray absorptiometry (DEXA) uses two \nenergy peaks; this feature makes it possible to measure bone regions with"
+      },
+      {
+        "rank": 2,
+        "score": 0.781,
+        "title": "Linking Non-alcoholic Fatty Liver Disease Severity With Metabolic Syndrome Features: An Integrative Study on Clinical and Radiological Fronts",
+        "year": 2024,
+        "text": "BMD measurement\nwas done using dual-energy X-ray absorptiometry (DEXA) scan. Anthropometric Measurements\nAnthropometric measurements were taken according to the CDC National Health and Nutrition\nExamination Survey (NHANES) Anthropometry Procedures Manual. Height and weight were recorded to the\n \nPublished via DMIHER Datta Meghe Medical\nCollege\n2024 Sukumar et al. Cureus 16(5): e59788. DOI 10.7759/cureus.59788\n2 of 11 nearest 0.1 cm and 0.1 kg with a stadiometer and electronic scale, respectively. Body mass index (BMI) was\ncalculated by \\(BMI = Weight / (Height) ^{2}\\). Waist circumference was "
+      },
+      {
+        "rank": 3,
+        "score": 0.78,
+        "title": "Dual-Energy X-Ray Absorptiometry (DEXA) Scan Versus Computed Tomography for Bone Density Assessment",
+        "year": 2021,
+        "text": "The limitations of our study are that our measurements and calculations were done on a single type of CT\nscanner and DEXA machine. We do not know the reproducibility of the results in other different types of CT\nand DEXA scanners. Another limitation is that the number of patients was limited and hence the need for a\nlarge population to determine the accuracy and reliability of the results. The third limitation was the gap of\none to two years between CT and DEXA imaging may alter the results. Also, the HU values were calculated\nfrom trabeculated bone on CT, while DEXA values are calculated incl"
+      }
+    ]
+  },
+  {
+    "id": "bg-030",
+    "domain": "imaging",
+    "type": "relational",
+    "question": "What is the difference between a bone density T-score and a Z-score?",
+    "options": [
+      "T-score compares with young adults, Z-score with age-matched peers",
+      "T-score compares with age-matched peers, Z-score with young adults",
+      "T-score is volumetric, Z-score is areal",
+      "T-score applies to the spine, Z-score to the hip"
+    ],
+    "answer": "T-score compares with young adults, Z-score with age-matched peers",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.799,
+    "option_overlap": {
+      "T-score compares with young adults, Z-score with age-matched peers": 0.667,
+      "T-score compares with age-matched peers, Z-score with young adults": 0.667,
+      "T-score is volumetric, Z-score is areal": 1.0,
+      "T-score applies to the spine, Z-score to the hip": 0.667
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.799,
+        "title": "Postmenopausal Osteoporosis: A Literature Review",
+        "year": 2022,
+        "text": "Bone densitometry can be\nused for the early detection of a weakening bone that would benefit from treatment given in due time and\ncan be used to calculate the future risk of fractures [67]. T score\nThe T score measures the standard deviation units from the average value of BMD that is expected in a\nyoung adult [68]. Figure 3 depicts the T score grading. The Z score is another scale that also measures units of standard deviation, which is usually used in children\nand adolescents. It is calculated in a way similar to the calculation of T scores, but the comparisons are made\nwith someone of the s"
+      },
+      {
+        "rank": 2,
+        "score": 0.791,
+        "title": "Updated practice guideline for dual-energy X-ray absorptiometry (DXA)",
+        "year": 2024,
+        "text": "\u2022\t A T-score difference between vertebrae\u2009\u2265\u20091.0. \u2022\t Aortic calcifications. Common pitfalls and\u00a0artifacts in\u00a0hip DXA\nPatients are advised to have the test on their clothes, remov-\ning only metal parts, but thick or reflecting materials, could \nalter results [69, 70]. Hip osteoarthritis\n In advanced cases of osteoarthritis, cortical bone thickening \non the medial or lateral side of the femoral neck can occur, \nresulting in increased BMD values at the neck, but in general \nmuch less common as compared to the lumbar spine. Arthroplasty or\u00a0osteosynthesis hardware\n The presence of hip prostheses or "
+      },
+      {
+        "rank": 3,
+        "score": 0.788,
+        "title": "Biomechanical Computed Tomography analysis\u00a0(BCT) for clinical assessment of osteoporosis",
+        "year": 2020,
+        "text": "Comparable differ-\nences have been noted between different types of DXA scan-\nners for the BMD T-score [80]. For example, for the femoral\nneck BMD T-score, which can be directly compared between\nBCT and DXA, the correlation between measurements within\neach modality was at least as high for BCT (R2 = 0.94; PET/\nCT vs. multi-detector CT) as for DXA (R2 = 0.87; Hologic\nDXAvs. Lunar DXA). These findings suggest that the clinical\nreproducibility for one-time measurements for opportunistic\nBCT when used on different scanners/settings should be com-\nparable to reproducibility for DXA when used on dif"
+      }
+    ]
+  },
+  {
+    "id": "bg-031",
+    "domain": "imaging",
+    "type": "relational",
+    "question": "Which imaging limitation of DXA most affects its assessment of fracture risk?",
+    "options": [
+      "It cannot resolve bone microarchitecture",
+      "It cannot be performed on the lumbar spine",
+      "It requires intravenous contrast",
+      "It cannot distinguish left from right hip"
+    ],
+    "answer": "It cannot resolve bone microarchitecture",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.822,
+    "option_overlap": {
+      "It cannot resolve bone microarchitecture": 0.0,
+      "It cannot be performed on the lumbar spine": 0.75,
+      "It requires intravenous contrast": 0.0,
+      "It cannot distinguish left from right hip": 0.333
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.822,
+        "title": "Updated practice guideline for dual-energy X-ray absorptiometry (DXA)",
+        "year": 2024,
+        "text": "Most modern DXA \nscanners also permit a lateral view of the thoracic and lum-\nbar spine, providing additional information on the presence \nor absence of vertebral fractures. Best practice recommenda-\ntions on the use of DXA are summarized in this document \nproviding both technical and clinical recommendations. These recommendations were developed by an International \nWorking Group (IWG) consisting of representatives from \nInternational Societies dedicated to enhancing the care of \nindividuals with metabolic bone disease. The recommen-\ndations are being published in a series of manuscripts [2]."
+      },
+      {
+        "rank": 2,
+        "score": 0.822,
+        "title": "Updated practice guideline for dual-energy X-ray absorptiometry (DXA)",
+        "year": 2024,
+        "text": "When DXA measurements are \nperformed or reported incorrectly, there can be serious \nimplications for osteoporosis diagnosis, management and \nmonitoring with serial assessments. Physicians involved \nin performing and interpretating DXA and VFA should be \nfamiliar with the potential pitfalls to minimize errors and \nallow proper use of bone densitometry and VFA. Common pitfalls and\u00a0artifacts in\u00a0lumbar spine DXA \n[7, 65]\n Optimal interpretation of a DXA scan involves evalua-\ntion of the images and ancillary data. As in interpretating \na chest radiograph or an electrocardiogram, it is useful \nto de"
+      },
+      {
+        "rank": 3,
+        "score": 0.819,
+        "title": "Computed Tomography Provides Improved Quantification of Trabecular Lumbar Spine Bone Loss Compared to <scp>Dual\u2010Energy X\u2010Ray</scp> Absorptiometry in Ovariectomized Sheep",
+        "year": 2023,
+        "text": "(10) DXA is considered\nthe \u201cgold standard\u201d for clinical measurement of BMD because\nof its low radiation exposure and simplicity of use. (11) However,\nbecause DXA quanti\ufb01es bone density based on a two-\ndimensional region of interest, there are limitations with its\nThis is an open access article under the terms of the Creative Commons Attribution License, which permits use, distribution and reproduction in any medium,\nprovided the original work is properly cited. Received in original form April 14, 2023; revised form July 26, 2023; accepted August 1, 2023. Address correspondence to: Jeremiah T E"
+      }
+    ]
+  },
+  {
+    "id": "bg-032",
+    "domain": "imaging",
+    "type": "factual",
+    "question": "What spatial resolution is typically required to resolve individual human trabeculae in micro-CT?",
+    "options": [
+      "On the order of 10 micrometres",
+      "On the order of 1 millimetre",
+      "On the order of 1 nanometre",
+      "On the order of 1 centimetre"
+    ],
+    "answer": "On the order of 10 micrometres",
+    "source": "",
+    "notes": "",
+    "verdict": "supported",
+    "method": "numeric",
+    "top_score": 0.806,
+    "corpus_values_found": 15,
+    "sample_values": [
+      5.0,
+      10.0,
+      10.0,
+      13.0,
+      13.0,
+      13.0,
+      50.0,
+      80.0,
+      90.0,
+      100.0,
+      100.0,
+      175.0
+    ],
+    "option_votes": {
+      "On the order of 10 micrometres": 2,
+      "On the order of 1 millimetre": 0,
+      "On the order of 1 nanometre": 0,
+      "On the order of 1 centimetre": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.806,
+        "title": "Automated analysis of rabbit knee calcified cartilage morphology using micro-computed tomography and deep learning segmentation",
+        "year": 2020,
+        "text": "Micro-computed tomography (\u00b5CT) has been widely used to characterize 3D morphology in micron \n. CC-BY-NC 4.0 International license\navailable under a\n(which was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made \nThe copyright holder for this preprint\nthis version posted August 22, 2020. \n; \nhttps://doi.org/10.1101/2020.08.21.260992\ndoi: \nbioRxiv preprint 7 \n \nlevel, including CC(27,28). In contrast to histology and SEM, only minimal sample processing is required \nin \u00b5CT. We showed previously that \u00b5CT images of"
+      },
+      {
+        "rank": 2,
+        "score": 0.806,
+        "title": "Determination of anisotropic elastic parameters from morphological parameters of cancellous bone for osteoporotic lumbar spine",
+        "year": 2021,
+        "text": "The resolution of \u03bcCT images used in the present study\n(80 \u03bcm) is higher than presently can be obtained in vivo. Based on a resolution study, M\u00a8uller et al. [32] showed a\nhigh dependency of morphological indices on resolution. They concluded that reconstructions with a resolution of\nabout 175 \u03bcm are sufficient and the values restorable when\nusing calibration procedures. However, with the trabecular\nthickness in this range, a finer resolution seems reasonable. The morphological indices measured with the image\nanalysis software FIJI from lumbar osteoporotic spines\nshowed a good agreement to othe"
+      },
+      {
+        "rank": 3,
+        "score": 0.805,
+        "title": "Multiscale and multidisciplinary analysis of aging processes in bone",
+        "year": 2024,
+        "text": "147. Table 2 | Macroscale characteristics of bone tissue from imaging techniques\nQuantity\nDescription\nSpecies\nTrend with aging\nTb.BMD (mgHA/cm3)\ntrabecular bone density\nmice/humans\n\u219342,141\nCt.BMD (mgHA/cm3)\ncortical bone density\nhumans\n\u219342\nCt.CSA (mm2)\ncross-sectional area of the cortical tissue\nmice\n\u2248142\nCt.Th (mm)\nthickness of the cortical tissue\nmice\n\u2193141\nBV/TV (%)\nratio between trabecular volume and total volume\nmice\n\u2193141\nTb.Th (\u03bcm)\ntrabecular thickness (avg)\nmice\n\u2191142\nTb.Th (\u03bcm)\ntrabecular thickness (avg)\nhumans\n\u219342\nTb.N (1/mm)\ntrabecular number (Tb:N \u00bc\n1\nTb:Th\u00feTb:Sp)\nmice/humans\n\u219342,141\n"
+      }
+    ]
+  },
+  {
+    "id": "bg-033",
+    "domain": "imaging",
+    "type": "relational",
+    "question": "What does increased uptake of 99mTc-MDP on a bone scintigram principally indicate?",
+    "options": [
+      "Increased osteoblastic activity",
+      "Increased marrow fat content",
+      "Reduced cortical porosity",
+      "Increased collagen crosslink density"
+    ],
+    "answer": "Increased osteoblastic activity",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.775,
+    "option_overlap": {
+      "Increased osteoblastic activity": 1.0,
+      "Increased marrow fat content": 0.667,
+      "Reduced cortical porosity": 0.667,
+      "Increased collagen crosslink density": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.775,
+        "title": "Ewing's Sarcoma of the Talus in an Adolescent Female: An Unusual Case Presentation With Review of Literature",
+        "year": 2022,
+        "text": "FIGURE 5: PET/CT images (a, b, c) demonstrate increased tracer uptake\nin the left talus, right shaft of the femur, and left sacrum and hemi pelvis\n(yellow arrows). PET/CT: Positron emission tomography/computed tomography\nThe patient became symptomatic with pain in the right thigh during the course of diagnosis. A radiograph of\nthe right femur was performed, which revealed permeative destruction with a periosteal reaction involving\nthe femoral diaphysis (Figure 6, a). The Mirel\u2019s score for impending fracture risk was 9 so, the decision for\nprophylactic reamed intramedullary interlocking nail (I"
+      },
+      {
+        "rank": 2,
+        "score": 0.77,
+        "title": "Optimum Imaging Strategies for Advanced Prostate Cancer: ASCO Guideline",
+        "year": 2020,
+        "text": "It involves administration of a diphosphonate, which\nmimics phosphate in bone mineral and adsorbs to areas of\nactive bone formation, particularly around metastases\nwhere osteoblastic activity is prominent. In some cases, it\ncan detect lesions not seen by CT.54-56 However, there are\n22 \u00a9 2020 by American Society of Clinical Oncology\nTrabulsi et al\nDownloaded from ascopubs.org by Queen's University Belfast on February 3, 2020 from 143.117.193.021\nCopyright \u00a9 2020 American Society of Clinical Oncology. All rights reserved. numerous disadvantages. As the bone scan images not the\ntumor itself but t"
+      },
+      {
+        "rank": 3,
+        "score": 0.77,
+        "title": "Optimum Imaging Strategies for Advanced Prostate Cancer: ASCO Guideline",
+        "year": 2020,
+        "text": "Conventional\nstandard\nimaging\nmodalities\ninclude\n99mTc-labeled methylene diphosphonate (99mTc-MDP)\nbone scan and computerized tomography (CT) or\nmagnetic resonance imaging (MRI). The relatively poor\nspeci\ufb01city of 99mTc-MDP relates to the fact that MDP\nadsorbs onto the crystalline hydroxyapatite mineral of\nbone and is not prostate cancer\u2013speci\ufb01c, thus providing\nonly an indirect measure of tumor activity based on\nosteoblastic activity in the tumor microenvironment. In\naddition, the interpretation of a bone scan is subjective,\nrelying on manual assessments of lesion number, size,\nand intensity. S"
+      }
+    ]
+  },
+  {
+    "id": "bg-034",
+    "domain": "imaging",
+    "type": "relational",
+    "question": "Why can DXA-measured areal bone mineral density be biased by bone size?",
+    "options": [
+      "A projected area measurement underestimates density in smaller bones",
+      "A projected area measurement overestimates density in smaller bones",
+      "Larger bones attenuate less X-ray energy per unit thickness",
+      "Areal density is independent of bone size by construction"
+    ],
+    "answer": "A projected area measurement underestimates density in smaller bones",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.802,
+    "option_overlap": {
+      "A projected area measurement underestimates density in smaller bones": 1.0,
+      "A projected area measurement overestimates density in smaller bones": 0.833,
+      "Larger bones attenuate less X-ray energy per unit thickness": 0.6,
+      "Areal density is independent of bone size by construction": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.802,
+        "title": "A structural approach to the assessment of fracture risk in children and adolescents with chronic kidney disease",
+        "year": 2007,
+        "text": "Despite the\ngrowing body of published normative data utilizing DXA\nin children, there are no evidence-based guidelines for the\ndefinition of osteoporosis in children. Fractures occur\ncommonly in otherwise healthy children, with a peak\nincidence during early adolescence around the time of the\npubertal growth spurt [34]. Several studies have compared\nthe DXA BMD of normal children and adolescents with\nforearm fractures to that of age-matched controls without\nPediatr Nephrol (2007) 22:1815\u20131824\n1817 fractures. Most [35\u201339], but not all [40, 41], found that\nmean DXA BMD was significantly lower in "
+      },
+      {
+        "rank": 2,
+        "score": 0.802,
+        "title": "Osteoporosis in adults with cerebral palsy",
+        "year": 2009,
+        "text": "DXA does, however, has limitations. The most impor-\ntant one is that it cannot distinguish trabecular or cancel-\nlous bone from cortical bone. Likewise, it is limited in\nassessing certain structural characteristics of bone that\naffect strength. Nor can DXA characterize the material\n(other than calcium) properties of bone that affect strength\n(e.g. protein content, bone quality). Some of these limita-\ntions have more-profound consequences in select popula-\ntions,\nsuch\nas\nchildren,\nadolescents,\nand,\nespecially,\nindividuals with neuromuscular diseases. Some of the less commonly used methods of bo"
+      },
+      {
+        "rank": 3,
+        "score": 0.801,
+        "title": "Choosing the site to estimate bone mineral density with DXA method",
+        "year": 2021,
+        "text": "Limitations of DXA\nPeople who interpret and report a DXA examination should \nbe careful with some technical limitations of DXA. Areal \nBMD measurements from DXA are bone size-dependent, \na fact that results in an overestimation of density in larger \nbones and an underestimation of density in smaller bones2. This limitation is considered a significant problem when this \ntechnique is used in children who are in the growing phase. Another limitation of this technique is the heterogeneity of \ndensity due to previous fracture or scoliosis/osteoarthrosis, \nusually in lumbar spine in older people, th"
+      }
+    ]
+  },
+  {
+    "id": "bg-035",
+    "domain": "mechanobiology",
+    "type": "relational",
+    "question": "What does Wolff's law describe?",
+    "options": [
+      "Bone adapts its structure in response to the mechanical loads placed upon it",
+      "Bone mass is determined solely by genetic factors",
+      "Bone mineral density declines at a fixed rate irrespective of loading",
+      "Bone remodelling ceases once skeletal maturity is reached"
+    ],
+    "answer": "Bone adapts its structure in response to the mechanical loads placed upon it",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.784,
+    "option_overlap": {
+      "Bone adapts its structure in response to the mechanical loads placed upon it": 0.167,
+      "Bone mass is determined solely by genetic factors": 0.25,
+      "Bone mineral density declines at a fixed rate irrespective of loading": 0.167,
+      "Bone remodelling ceases once skeletal maturity is reached": 0.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.784,
+        "title": "Functions and Populations: Sharpening the Generalized Selected Effects Theory of Function",
+        "year": 2024,
+        "text": "Why all this fuss over a handful of counterexamples? The issue is not, as one\nmight think, that giving functions to rocks violates my \u201cintuitions.\u201d Many feel, rightly or\nwrongly, that relying heavily on intuitions to win a philosophical argument is a\ndistasteful activity, and at any rate one that is inappropriate for a theoretical definition,\nrather than a conceptual analysis. Rather, my view that rocks don\u2019t have proper functions\nis based on a general methodological principle: A good theoretical definition of function\n\u2014that is, a definition that seeks to identify a kind of process or pattern "
+      },
+      {
+        "rank": 2,
+        "score": 0.784,
+        "title": "Functions and Populations: Sharpening the Generalized Selected Effects Theory of Function",
+        "year": 2024,
+        "text": "One of her examples comes from\nlanguage. A phrase might have the \u201cdirect\u201d proper function of inducing one set of\nactions in its hearer (e.g., \u201cpass the salt\u201d might have the proper function of inducing\nits hearer to pass the salt) and a \u201cderived\u201d proper function that is contrary to the first\n(e.g., if the speaker uses the term in a metaphorical, sarcastic, or idiosyncratic way). The fact that there are occasional function conflicts should not, alone, count against\nany particular theory of function. 4. Three solutions\nI turn now to three critics, Conley, Bourrat, and Schulte (as Dussault 2023 la"
+      },
+      {
+        "rank": 3,
+        "score": 0.782,
+        "title": "Variation, mosaicism and degeneracy in the hominin foot",
+        "year": 2021,
+        "text": "This philo-\nsophical approach has led to the dominance of the \u2018covering-law\u2019 model in theory and science,\nwhich emphasises the labelling and generic categorisation of phenomena in groups, overlooking the\nrelevance and pertinence of contextually driven variability. Criticisms of the way that the covering\nlaw model neglected and mis-represented variability in complex systems are relevant and influential\nbecause they tend to \u2018dump context in favour of universals\u2019 (Riley & Turvey, 2004, p. 164). Riley\nand Turvey (2004) correctly criticised this, because it neglects emergence in nonlinear phenomena"
+      }
+    ]
+  },
+  {
+    "id": "bg-036",
+    "domain": "mechanobiology",
+    "type": "factual",
+    "question": "Which cell is regarded as the principal mechanosensor in bone?",
+    "options": [
+      "The osteocyte",
+      "The osteoclast",
+      "The chondrocyte",
+      "The bone lining cell"
+    ],
+    "answer": "The osteocyte",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.781,
+    "option_overlap": {
+      "The osteocyte": 1.0,
+      "The osteoclast": 1.0,
+      "The chondrocyte": 0.0,
+      "The bone lining cell": 1.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.781,
+        "title": "Osteocytes and Primary Cilia",
+        "year": 2023,
+        "text": "While osteocytes \nwere gradually accepted to be the key sensors of mechani-\ncal loading in bone tissue, these complex cells and their \nintricate environment have presented a bewildering array \nof experimental challenges, molecular sensors, and signal-\nling pathways that have hampered attempts to pinpoint the \nmechanism underpinning their mechanosensitivity (Fig.\u00a01). In the unique mechanical environment of the lacuno-\ncanalicular network, osteocytes experience a range of \nmechanical stimuli, including substrate deformation, fluid \nshear, or changes in hydrostatic pressure; and osteocytes \nexper"
+      },
+      {
+        "rank": 2,
+        "score": 0.766,
+        "title": "Predicting Cortical Bone Resorption of Mouse Tibia in Disuse Condition Caused by Transient Muscle Paralysis",
+        "year": 2023,
+        "text": "However, the cellular and molecular mechanism behind how the loss in the mechanical \nenvironment is related to bone tissue deterioration needs to be better understood. It has been \nwell recognized that the bone cell osteocyte acts as a mechano-sensor (Qin et al. 2020) \n(Klein-Nulend et al. 2013) and is densely connected through the lacune canaliculi network \n(LCN) in the bone matrix. Experimental studies provide insight that the load-induced fluid \nflow inside the LCN helps in the mass transport necessary to enhance the metabolic function \nof the bone cells, i.e., osteocytes, which are crucial"
+      },
+      {
+        "rank": 3,
+        "score": 0.765,
+        "title": "Osteocytes and Primary Cilia",
+        "year": 2023,
+        "text": "Moreover, whole bone tissue typically breaks \nFig. 1\u2002 \u2009Osteocytes sense mechanical stimulation in\u00a0 vivo, with a \nnumber of potential sensing mechanisms identified (black and \nwhite\u00a0arrows indicate mechanosensors): (A) TEM image of an oste-\nocyte process displaying the actin cytoskeleton; (B) TEM image of \nproteoglycan pericellular matrix (PCM) tethering elements (black \narrows) bridging an osteocyte cell process to the bony canalicular \nwall; (C) fluorescent immunohistochemical staining showing that \n\u03b21 integrins (white arrows) are located only on osteocyte cell bod-\nies; (D) TEM image demonst"
+      }
+    ]
+  },
+  {
+    "id": "bg-037",
+    "domain": "mechanobiology",
+    "type": "relational",
+    "question": "What is the effect of prolonged mechanical unloading, such as bed rest or microgravity, on bone mass?",
+    "options": [
+      "Bone mass decreases",
+      "Bone mass increases",
+      "Bone mass is unchanged",
+      "Cortical bone mass increases while trabecular decreases"
+    ],
+    "answer": "Bone mass decreases",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.817,
+    "option_overlap": {
+      "Bone mass decreases": 0.0,
+      "Bone mass increases": 0.0,
+      "Bone mass is unchanged": 0.0,
+      "Cortical bone mass increases while trabecular decreases": 1.0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.817,
+        "title": "The effects of microgravity on bone structure and function",
+        "year": 2022,
+        "text": "This review also points out discrepancies in existing data, highlighting knowledge gaps in our current\nunderstanding. Further dissection of the exact mechanisms of microgravity-induced bone loss will enable the development of more\neffective preventative and therapeutic measures to protect against bone loss, both in space and possibly on ground. npj Microgravity  (2022) 8:9 ; https://doi.org/10.1038/s41526-022-00194-8\nINTRODUCTION\nExtended human space\ufb02ight was once a distant fantasy; however,\nit is now almost a tangible reality. With NASA\u2019s goal to send\nhumans back to the moon by 2024, then onw"
+      },
+      {
+        "rank": 2,
+        "score": 0.817,
+        "title": "Bone health in spacefaring rodents and primates: systematic review and meta-analysis",
+        "year": 2021,
+        "text": "Thus, microgravity induces bone de\ufb01cits in rodents and primates likely through\nthe suppression of bone formation. npj Microgravity  (2021) 7:19 ; https://doi.org/10.1038/s41526-021-00147-7\nINTRODUCTION\nWith plans by NASA to return humans to the lunar surface by\n20241 and to have the \ufb01rst-ever astronauts journey to Mars within\nthe next 2 decades2, in addition to private interests in developing\nthe \ufb01rst human colony on the Martian surface3, human space\ntravel will no doubt continue if not increase in the following\ncentury. Despite these high ambitions, we still do not fully\nunderstand the cause "
+      },
+      {
+        "rank": 3,
+        "score": 0.816,
+        "title": "The effects of microgravity on bone structure and function",
+        "year": 2022,
+        "text": "Space\ufb02ight studies of bone-loss in humans. Species Duration (days) Sample size \u00b5G-related observations\nReference\nHuman\n126\u2013438\n45\n\u2022 Space\ufb02ight decreases BMD\n\u2022 Recovery to pre-\ufb02ight BMD takes longer than \ufb02ight duration\nSibonga et al.28\nHuman\n28, 183\n2\n\u2022 Decreased bone mass in weight-bearing tibia but not non-weight-bearing\ndistal radius\n\u2022 Bone loss more severe in longer space\ufb02ight\n\u2022 Recovery takes longer than \ufb02ight duration\nCollet et al.27\nHuman\n115\n3\n\u2022 Bone formation markers (ALP and osteocalcin) decreased during space\ufb02ight\n\u2022 Calcium metabolism disturbed during space\ufb02ight \u2013 calcium excretion i"
+      }
+    ]
+  },
+  {
+    "id": "bg-038",
+    "domain": "mechanobiology",
+    "type": "relational",
+    "question": "How does an increase in the RANKL to osteoprotegerin ratio affect bone?",
+    "options": [
+      "It promotes osteoclast formation and bone resorption",
+      "It suppresses osteoclast formation and bone resorption",
+      "It promotes osteoblast differentiation and bone formation",
+      "It has no effect on either cell lineage"
+    ],
+    "answer": "It promotes osteoclast formation and bone resorption",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.813,
+    "option_overlap": {
+      "It promotes osteoclast formation and bone resorption": 1.0,
+      "It suppresses osteoclast formation and bone resorption": 0.75,
+      "It promotes osteoblast differentiation and bone formation": 0.75,
+      "It has no effect on either cell lineage": 0.5
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.813,
+        "title": "The Ratio of Messenger RNA Levels of Receptor Activator of Nuclear Factor \u03baB Ligand to Osteoprotegerin Correlates with Bone Remodeling Indices in Normal Human Cancellous Bone but Not in Osteoarthritis",
+        "year": 2001,
+        "text": "Bone volume and bone turnover correlate with the\nratio of RANKL/OPG mRNA expression in control\nbone but not in OA\nBecause it is the ratio of RANKL/OPG that determines\nthe effective level of RANKL, we explored the relationship\nbetween the RANKL/OPG mRNA ratio and indices of\ntrabecular bone volume and turnover. There were 11 control\nand 12 OA cases in which both molecular and histomor-\nphometric data were available for analysis. The plot of\nBV/TV versus RANKL/OPG showed a signi\ufb01cant decrease\nin controls (r 5 20.67; p , 0.05; Fig. 8). However, no\nrelationship was seen in the OA samples or in the "
+      },
+      {
+        "rank": 2,
+        "score": 0.812,
+        "title": "The Effects of Exercise Intensity Difference on Bone Metabolic Markers and Cytokines of the RANKL/RANK/OPG System in Korean Osteopenia Elderly Women",
+        "year": 2017,
+        "text": "The change of serum concentration and mRNA expression of RANK/RANKL/OPG after a bout exercise of different intensity\nIntensity\nBefore\nAfter\nRecovery\nSource\nF (p)\nSerum concentration\nRANKL (pg/mL)\nCON\n66.6\u00b140.9\n28.5\u00b19.0\n66.7\u00b127.5\nG\n.184 (.837)\nLOW\n60.5\u00b126.7\n46.4\u00b116.6\n16.4\u00b17.7\nT\n2.494 (.177)\nHIGH\n89.0\u00b135.3\n36.1\u00b113.7\n8.8\u00b18.4\nG\u00d7T\n1.561 (.372)\nOPG (pg/mL)\nCON\n68.1\u00b16.2\n81.4\u00b18.2\n72.2\u00b16.7\nG\n3.786 (.100)\nLOW\n85.0\u00b14.9\n105.9\u00b114.6\n93.3\u00b18.1\nT\n4.661 (.072)\nHIGH\n107.5\u00b111.7\n105.8\u00b18.2\n95.4\u00b110.9\nG\u00d7T\n14.159 (.027)\nOPG/RANKL (ratio)\nCON\n1.43\u00b10.27\n1.96\u00b10.11\n0.84\u00b10.08\nG\n.735 (.550)\nLOW\n2.08\u00b10.62\n2.37\u00b10.80\n2.55\u00b10.18"
+      },
+      {
+        "rank": 3,
+        "score": 0.81,
+        "title": "Postmenopausal Osteoporosis: A Literature Review",
+        "year": 2022,
+        "text": "This finding is supported by a few studies, such as\nthe one by Eghbali-Fatourechi et al., which reported an elevated expression of RANKL on bone marrow cells\nsuch as lymphocytes and osteoblasts in women with postmenopausal osteoporosis as compared to\npremenopausal control subjects [55]. Figure 2 depicts the role of estrogen in the process of bone remodeling. 2022 Bhatnagar et al. Cureus 14(9): e29367. DOI 10.7759/cureus.29367\n4 of 15 FIGURE 2: Role of estrogen in the bone remodeling cycle\nIL-6: interleukin 6; IL-1: interleukin 1; TNF: tumor necrosis factor; OPG: osteoprotegerin; RANKL: recepto"
+      }
+    ]
+  },
+  {
+    "id": "bg-039",
+    "domain": "mechanobiology",
+    "type": "factual",
+    "question": "What order of magnitude of mechanical strain is generally associated with the maintenance of bone mass in vivo?",
+    "options": [
+      "Around 1000-1500 microstrain",
+      "Around 10 microstrain",
+      "Around 100000 microstrain",
+      "Around 5 percent strain"
+    ],
+    "answer": "Around 1000-1500 microstrain",
+    "source": "",
+    "notes": "",
+    "verdict": "silent",
+    "method": "numeric",
+    "top_score": 0.818,
+    "corpus_values_found": 1,
+    "sample_values": [
+      0.0
+    ],
+    "option_votes": {
+      "Around 1000-1500 microstrain": 0,
+      "Around 10 microstrain": 0,
+      "Around 100000 microstrain": 0,
+      "Around 5 percent strain": 0
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.818,
+        "title": "Changes in interstitial fluid flow, mass transport and the bone cell response in microgravity and normogravity",
+        "year": 2022,
+        "text": "\u03bc\u03b5: microstrain, BMD: bone mineral density, ALP: alkaline\nphosphatase, OCN: osteocalcin. Several studies have suggested that the rate (determined by the frequency and amplitude) rather than the\nmagnitude alone of the applied loading stimulus correlates with bone formation.75,247 This implies that bone formation is enhanced by\ndynamic loading, and therefore, both the magnitude (or amplitude) and the frequency of loading are important parameters. It has been\nshown that low magnitude [<10 \u03bc\u03b5 (<1 g; 1 g = 9.8 m\u00b7s\u22122)] and high frequency (10\u2013100 Hz) loading stimulate bone growth, inhibiting disuse\no"
+      },
+      {
+        "rank": 2,
+        "score": 0.809,
+        "title": "A Review on Recent Advances in the Constitutive Modeling of Bone Tissue",
+        "year": 2020,
+        "text": "This complex hierarchical structure, alongside with the\nchemical composition, leads to the remarkable mechanical\nproperties of bone that can be observed at different length\nscale levels. Pathological changes in nanostructural character-\nistics get manifest macroscopically, e.g., in osteogenesis\nimperfecta, where a collagen defect leads to brittle bones. This multi-scale interconnection of bone structures makes\nthe constitutive modeling challenging. Mechanical Behavior of Bone\nThe response of biological tissues to mechanical loads has\nbeen the focus of biomechanical investigations for more than"
+      },
+      {
+        "rank": 3,
+        "score": 0.808,
+        "title": "From mechanical stimulus to bone formation: A review",
+        "year": 2015,
+        "text": "[90], who counted the daily (12\u201324 h) strain \nevents and showed that large strains (exceeding 1000 \u03bc\u025b) seldom occur throughout the \nday and that very small strains (less than 10 \u03bc\u025b) occur thousands of times per day. Thus, \nthe importance of small strains in bone adaptation and/or bone maintenance needs to \nbe  assessed. Rubin et al. [108] asserted that the strain magnitude and strain rate of bone are \nrelated. In this study, they noticed that cortical bone mass could be maintained via the \napplication of a 800 \u03bc\u025b peak- induced load at a frequency of 3 Hz for 600 s per day. Furthermore, only 20"
+      }
+    ]
+  },
+  {
+    "id": "bg-040",
+    "domain": "mechanobiology",
+    "type": "relational",
+    "question": "In the bone remodelling sequence carried out by a basic multicellular unit, which event comes first?",
+    "options": [
+      "Osteoclastic resorption precedes osteoblastic formation",
+      "Osteoblastic formation precedes osteoclastic resorption",
+      "Resorption and formation occur simultaneously and independently",
+      "Osteocyte proliferation precedes both resorption and formation"
+    ],
+    "answer": "Osteoclastic resorption precedes osteoblastic formation",
+    "source": "",
+    "notes": "",
+    "verdict": "needs_reading",
+    "method": "overlap",
+    "top_score": 0.789,
+    "option_overlap": {
+      "Osteoclastic resorption precedes osteoblastic formation": 0.6,
+      "Osteoblastic formation precedes osteoclastic resorption": 0.6,
+      "Resorption and formation occur simultaneously and independently": 0.8,
+      "Osteocyte proliferation precedes both resorption and formation": 0.8
+    },
+    "passages": [
+      {
+        "rank": 1,
+        "score": 0.789,
+        "title": "Bone remodeling: an operational process ensuring survival and bone mechanical competence",
+        "year": 2022,
+        "text": "REVIEW ARTICLE\nOPEN\nBone remodeling: an operational process ensuring survival and\nbone mechanical competence\nSimona Bolamperti\n1, Isabella Villa\n1 and Alessandro Rubinacci\n1\u2709\nBone remodeling replaces old and damaged bone with new bone through a sequence of cellular events occurring on the same\nsurface without any change in bone shape. It was initially thought that the basic multicellular unit (BMU) responsible for bone\nremodeling consists of osteoclasts and osteoblasts functioning through a hierarchical sequence of events organized into distinct\nstages. However, recent discoveries have indicat"
+      },
+      {
+        "rank": 2,
+        "score": 0.788,
+        "title": "Zebrafish: A Resourceful Vertebrate Model to Investigate Skeletal Disorders",
+        "year": 2020,
+        "text": "Both in mammals and \ufb01sh, skeletal cells are formed\nby a complex interplay of intracellular molecular pathways and\nsecreted factors that regulate the timing, location, and pathway by\nwhich bone cells di\ufb00erentiate (40\u201342). Although not investigated\nin mammals before, in zebra\ufb01sh osteoblasts are present in clusters\nat the end of growing bones and can be classi\ufb01ed in two di\ufb00erent\ngroups (type I and type II) based on cell cluster size, location,\nand nuclei shape, although they have overlapping functions\n(36). Type I osteoblasts are located at the edges of growing \ufb02at\nbones, such as the dentary, max"
+      },
+      {
+        "rank": 3,
+        "score": 0.785,
+        "title": "Biological basis of bone strength: anatomy, physiology and measurement.",
+        "year": 2020,
+        "text": "\u2022 Lifespan of BMU: ~6-9 months\n\u2022 Duration of remodelling: ~4-6 months\n\u2022 Speed of remodelling: ~25 \u00b5m/day\n\u2022 Bone volume replaced by a single BMU: ~0.025 mm3\n\u2022 Lifespan of osteoclasts: ~2 weeks\n\u2022 Lifespan of osteoblasts (active): ~3 months\n\u2022 Interval between successive remodelling events at the same location: ~2-5 years. \u2022 Rate of turnover of whole skeleton: ~10% per year a\na 10% per year approximation assumes 4% turnover per year of cortical bone (75% of the skeleton), and 28% turnover per year of \ntrabecular bone (25% of the skeleton): Calculated as [0.75 x 4] + [0.25 x 28] = 10%; BMU = basic "
+      }
+    ]
+  }
+]
