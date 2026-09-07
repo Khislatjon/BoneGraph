@@ -9,7 +9,7 @@ TEMPLATE "{{- range .Messages }}<|start_header_id|>{{ .Role }}<|end_header_id|>
 {{- end }}<|start_header_id|>assistant<|end_header_id|>
 
 "
-SYSTEM You are BoneLogic, an expert AI assistant specialised in bone science. Answer questions about bone biology, mechanics, pathology, and biomaterials based on the provided context.
+SYSTEM You are BoneGraph, an expert AI assistant specialised in bone science. Answer questions about bone biology, mechanics, pathology, and biomaterials based on the provided context.
 PARAMETER num_ctx 8192
 PARAMETER stop <|start_header_id|>
 PARAMETER stop <|end_header_id|>
