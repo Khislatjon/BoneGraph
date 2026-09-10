@@ -1,0 +1,969 @@
+[
+ {
+  "id": "q-01",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "A remodelling unit advances through cortical bone at its typical reported speed. Approximately how long would it take to traverse a 5 mm cortical thickness?",
+  "options": [
+   "About 100 days",
+   "About 125 days",
+   "About 200 days",
+   "About 400 days"
+  ],
+  "answer": "About 200 days",
+  "source_chunks": [
+   133524
+  ],
+  "answer_needle": "25\\s*µm/day|25 µm/day",
+  "source": "chunk 133524: 'Speed of remodelling: ~25 µm/day'",
+  "notes": "5000 um / 25 um per day = 200 days. 125 = multiplying 25x5; 100 = halving; 400 = doubling."
+ },
+ {
+  "id": "q-02",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported bone volume replaced by a single basic multicellular unit, approximately how many such units would be required to replace one cubic centimetre of bone?",
+  "options": [
+   "About 4,000",
+   "About 20,000",
+   "About 40,000",
+   "About 80,000"
+  ],
+  "answer": "About 40,000",
+  "source_chunks": [
+   133524
+  ],
+  "answer_needle": "0\\.025\\s*mm",
+  "notes": "1000 mm3 / 0.025 mm3 = 40,000. 4,000 = a decimal slip; 20,000 = using 0.05.",
+  "source": "chunk 133524: 'Bone volume replaced by a single BMU: ~0.025 mm3'"
+ },
+ {
+  "id": "q-03",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "Given the reported annual rate at which the skeleton as a whole is remodelled, approximately how many years would a complete turnover of the skeleton take?",
+  "options": [
+   "About 5 years",
+   "About 13 years",
+   "About 30 years",
+   "About 75 years"
+  ],
+  "answer": "About 13 years",
+  "source_chunks": [
+   174937
+  ],
+  "answer_needle": "5\\s*-\\s*10%\\s*per\\s*ye|5 - 10% per ye",
+  "notes": "100% / ~7.5% per year ~= 13 years. 5 = reading the rate as the answer; 30 and 75 = using much lower rates.",
+  "source": "chunk 174937: 'The rate of remodelling of the skeleton, as a whole, is 5 - 10% per year'"
+ },
+ {
+  "id": "q-04",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported number density of osteocytes in bone, approximately how many osteocytes would one cubic centimetre of bone contain?",
+  "options": [
+   "About 2.5 million",
+   "About 12 million",
+   "About 25 million",
+   "About 50 million"
+  ],
+  "answer": "About 25 million",
+  "source_chunks": [
+   172192
+  ],
+  "answer_needle": "10\\s*000\\s*-\\s*40\\s*000|10 000–40 000",
+  "notes": "~25,000 per mm3 x 1000 mm3 = 25 million. 2.5 million = a decimal slip; 12 million = using the low end only.",
+  "source": "chunk 172192: 'osteocytes, found with a density of 10 000-40 000 per mm3'"
+ },
+ {
+  "id": "q-05",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported centre-to-centre separation of osteocyte lacunae with the reported diameter of a lacuna itself, approximately what is the ratio of separation to lacuna size?",
+  "options": [
+   "About 0.7 to 1",
+   "About 1.5 to 1",
+   "About 4 to 1",
+   "About 10 to 1"
+  ],
+  "answer": "About 1.5 to 1",
+  "source_chunks": [
+   171872,
+   39451
+  ],
+  "answer_needle": "21\\s*-\\s*40|21–40",
+  "notes": "~30 um separation / ~20 um lacuna diameter ~= 1.5. 0.7 = inverting the ratio.",
+  "source": "chunk 171872: 'lacunar separation of 21-40 [um]'; chunk 39451: 'lacunae (15-25 um diameter)'"
+ },
+ {
+  "id": "q-06",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "An osteocyte lacuna connects to its neighbours through canaliculi. Using the reported dimensions of each, approximately how many times larger is the lacuna diameter than a canaliculus diameter?",
+  "options": [
+   "About 8 times",
+   "About 25 times",
+   "About 80 times",
+   "About 250 times"
+  ],
+  "answer": "About 80 times",
+  "source_chunks": [
+   39451
+  ],
+  "answer_needle": "100\\s*-\\s*400\\s*nm|100–400 nm",
+  "notes": "~20 um = 20000 nm; 20000 / ~250 nm = 80. 8 and 250 are decimal slips in the um->nm conversion.",
+  "source": "chunk 39451: 'lacunae (15-25 um diameter) that interconnect through canaliculi (100-400 nm in diameter)'"
+ },
+ {
+  "id": "q-07",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "A cadaveric proximal femur was measured to fail at its reported experimental failure load. For a 70 kg adult (body weight about 690 N), approximately how many times body weight is that failure load?",
+  "options": [
+   "About 2 times",
+   "About 7 times",
+   "About 18 times",
+   "About 45 times"
+  ],
+  "answer": "About 7 times",
+  "source_chunks": [
+   195721
+  ],
+  "answer_needle": "4743\\s*N",
+  "notes": "4743 N / 690 N ~= 6.9. 2 = using ~2000 N; 18 and 45 = decimal slips.",
+  "source": "chunk 195721: 'Load-displacement curves from the experimental data (failure load: 4743 N)'"
+ },
+ {
+  "id": "q-08",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported dimensions of a tropocollagen molecule, approximately what is its length-to-diameter aspect ratio?",
+  "options": [
+   "About 20 to 1",
+   "About 60 to 1",
+   "About 200 to 1",
+   "About 600 to 1"
+  ],
+  "answer": "About 200 to 1",
+  "source_chunks": [
+   37418
+  ],
+  "answer_needle": "1\\.5\\s*nm",
+  "notes": "300 nm / 1.5 nm = 200. 60 = using 5 nm diameter; 20 and 600 are decimal slips.",
+  "source": "chunk 37418: 'a triple helix *1.5 nm in diameter and 300 nm in length'"
+ },
+ {
+  "id": "q-09",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Collagen molecules assemble with a characteristic axial periodicity. Using the reported periodicity and the reported molecule length, approximately how many periods span a single molecule?",
+  "options": [
+   "About 2",
+   "About 4.5",
+   "About 9",
+   "About 20"
+  ],
+  "answer": "About 4.5",
+  "source_chunks": [
+   37418
+  ],
+  "answer_needle": "67\\s*nm",
+  "notes": "300 nm / 67 nm ~= 4.5. 9 = halving the period; 2 = using 150 nm length.",
+  "source": "chunk 37418: 'a periodicity of 67 nm'; 'triple helix ... 300 nm in length'"
+ },
+ {
+  "id": "q-10",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported diameter of a mineralised collagen fibril with the reported length of the hydroxyapatite crystals associated with it, approximately what is the ratio?",
+  "options": [
+   "About 1 to 1",
+   "About 3 to 1",
+   "About 8 to 1",
+   "About 20 to 1"
+  ],
+  "answer": "About 3 to 1",
+  "source_chunks": [
+   39451,
+   35766
+  ],
+  "answer_needle": "80\\s*-\\s*100\\s*nm|80–100 nm",
+  "notes": "~90 nm fibril / ~30 nm crystal = 3. 1 = assuming comparable size; 8 = using 10 nm crystals.",
+  "source": "chunk 39451: 'collagen fibrils (80-100 nm diameter)'; chunk 35766: 'hydroxyapatite ... crystals (10-50 nm long)'"
+ },
+ {
+  "id": "q-11",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Osteocyte lacunar density differs markedly between skeletal sites. Using the reported values, approximately how many times denser is the petrous bone adjacent to the otic chamber than femoral cortical bone?",
+  "options": [
+   "About 1.5 times",
+   "About 3.5 times",
+   "About 8 times",
+   "About 20 times"
+  ],
+  "answer": "About 3.5 times",
+  "source_chunks": [
+   175443
+  ],
+  "answer_needle": "95,000|95000",
+  "notes": "~95,000 / ~27,000 ~= 3.5. 1.5 = comparing petrous with mastoid; 8 and 20 = decimal slips.",
+  "source": "chunk 175443: 'around 95,000 lacunae per mm3 ... the cortical bone of the femur (around 27,000 lacunae p[er mm3])'"
+ },
+ {
+  "id": "q-12",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported water content of the newborn skeleton, approximately what is the ratio of water to dry solid mass?",
+  "options": [
+   "About 0.6 to 1",
+   "About 1.6 to 1",
+   "About 2.6 to 1",
+   "About 4 to 1"
+  ],
+  "answer": "About 1.6 to 1",
+  "source_chunks": [
+   3130
+  ],
+  "answer_needle": "62%",
+  "notes": "~62% water / ~38% dry ~= 1.6. 0.6 = inverting; 2.6 = adding one to the wrong quotient.",
+  "source": "chunk 3130: 'The water content of the newborn skeleton has been estimated as 56% ... 62% ... 64%'"
+ },
+ {
+  "id": "q-13",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "The external cortical plate of the occipital bone has a reported mean thickness. Using the typical diameter of a secondary osteon, approximately how many osteons would span that thickness?",
+  "options": [
+   "About 7",
+   "About 15",
+   "About 35",
+   "About 80"
+  ],
+  "answer": "About 15",
+  "source_chunks": [
+   3234,
+   37537
+  ],
+  "answer_needle": "3\\.0\\s*mm",
+  "notes": "3.0 mm = 3000 um; 3000 / 200 = 15. 7 = using a 400 um osteon; 35 and 80 = decimal slips.",
+  "source": "chunk 3234: 'the external cortex was thickest within the occipital bone, averaging a grand mean of 3.0 mm'; chunk 37537: 'osteon are ~90 um and 200 um'"
+ },
+ {
+  "id": "q-14",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported lifespan of a basic multicellular unit with the reported duration of the remodelling it carries out, approximately what is the ratio?",
+  "options": [
+   "About 1.0 to 1",
+   "About 1.5 to 1",
+   "About 3 to 1",
+   "About 6 to 1"
+  ],
+  "answer": "About 1.5 to 1",
+  "source_chunks": [
+   133524
+  ],
+  "answer_needle": "6-9\\s*months|6 - 9 months",
+  "notes": "~7.5 months lifespan / ~5 months remodelling = 1.5. 1.0 = assuming they coincide; 3 and 6 = misreading the ranges.",
+  "source": "chunk 133524: 'Lifespan of BMU: ~6-9 months - Duration of remodelling: ~4-6 months'"
+ },
+ {
+  "id": "q-15",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "Osteoclasts have a much shorter lifespan than the remodelling unit they belong to. Using the reported figures, approximately how many successive generations of osteoclasts would a single unit require?",
+  "options": [
+   "About 3",
+   "About 10",
+   "About 25",
+   "About 60"
+  ],
+  "answer": "About 10",
+  "source_chunks": [
+   133512,
+   133524
+  ],
+  "answer_needle": "2 to 4 weeks",
+  "notes": "BMU ~7.5 months ~= 30 weeks; 30 / ~3 weeks = 10. 3 = dividing months by weeks; 25 and 60 = unit slips.",
+  "source": "chunk 133512: 'Osteoclasts have a limited lifespan, undergoing apoptosis ... within 2 to 4 weeks'; chunk 133524: 'Lifespan of BMU: ~6-9 months'"
+ },
+ {
+  "id": "q-16",
+  "domain": "remodelling",
+  "type": "quantitative_reasoning",
+  "question": "At the reported speed of remodelling, approximately how far does a remodelling unit advance in one month?",
+  "options": [
+   "About 0.25 mm",
+   "About 0.75 mm",
+   "About 1.8 mm",
+   "About 5 mm"
+  ],
+  "answer": "About 0.75 mm",
+  "source_chunks": [
+   133524
+  ],
+  "answer_needle": "25\\s*µm/day|25 µm/day",
+  "notes": "25 um/day x 30 days = 750 um = 0.75 mm. 0.25 = using 25 um/month; 5 mm = a decimal slip.",
+  "source": "chunk 133524: 'Speed of remodelling: ~25 µm/day'"
+ },
+ {
+  "id": "q-17",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "Scaffold designs distinguish macropores that permit bone ingrowth from micropores that govern resorption. Using the reported size ranges, approximately how many times larger is a typical ingrowth macropore than the micropore threshold?",
+  "options": [
+   "About 12 times",
+   "About 65 times",
+   "About 150 times",
+   "About 400 times"
+  ],
+  "answer": "About 65 times",
+  "source_chunks": [
+   136001
+  ],
+  "answer_needle": "150-500|150–500",
+  "notes": "~325 um macropore / 5 um micropore threshold = 65. 12 = using the low end against 25 um; 150 = quoting a range endpoint.",
+  "source": "chunk 136001: 'pores ranging 150-500um in size is considered optimal for ingrowth ... Microporosity (e.g., pores <5um)'"
+ },
+ {
+  "id": "q-18",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Cortical bone is weaker across the long axis than along it. Using the reported tensile yield strengths in the two directions, approximately what is the ratio of longitudinal to transverse tensile yield strength?",
+  "options": [
+   "About 1.2 to 1",
+   "About 2 to 1",
+   "About 4 to 1",
+   "About 9 to 1"
+  ],
+  "answer": "About 2 to 1",
+  "source_chunks": [
+   35757
+  ],
+  "answer_needle": "51\\s*-\\s*66|51–66",
+  "notes": "~114 MPa longitudinal / ~58 MPa transverse ~= 2. 1.2 = a near-isotropic prior; 4 and 9 = overestimating anisotropy.",
+  "source": "chunk 35757: 'yield strength of 78-151 MPa in tension ... longitudinal axis. When tested in its transverse axis, bone has a yield strength of 51-66 MPa in tension'"
+ },
+ {
+  "id": "q-19",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported strengths of cortical bone in compression and of cancellous bone, approximately how many times stronger is cortical bone?",
+  "options": [
+   "About 6 times",
+   "About 23 times",
+   "About 60 times",
+   "About 150 times"
+  ],
+  "answer": "About 23 times",
+  "source_chunks": [
+   98538
+  ],
+  "answer_needle": "5\\s*-\\s*10\\s*MPa|5–10 MPa",
+  "notes": "~175 MPa cortical compressive / ~7.5 MPa cancellous ~= 23. 6 = comparing the low ends; 150 = a decimal slip.",
+  "source": "chunk 98538: 'Cancellous bone ... Strength: 5-10 MPa ... Cortical bone ... Compression Strength: 130-220 MPa'"
+ },
+ {
+  "id": "q-20",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "The cement line separating an osteon from the surrounding interstitial bone has a reported thickness. Approximately how many times larger is the osteon diameter than that cement line?",
+  "options": [
+   "About 10 times",
+   "About 40 times",
+   "About 100 times",
+   "About 250 times"
+  ],
+  "answer": "About 40 times",
+  "source_chunks": [
+   37537
+  ],
+  "answer_needle": "~5\\s*μm|5 μm",
+  "notes": "200 um osteon / 5 um cement line = 40. 10 = using the Haversian canal instead; 100 and 250 = decimal slips.",
+  "source": "chunk 37537: 'the cement line, with a thickness of ~5 um'; 'osteon are ~90 um and 200 um'"
+ },
+ {
+  "id": "q-21",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "A specimen of human cortical bone has a volume of 10 cm3. Using the reported density of human cortical bone, approximately what is its mass?",
+  "options": [
+   "About 1.8 g",
+   "About 8.8 g",
+   "About 17.5 g",
+   "About 35 g"
+  ],
+  "answer": "About 17.5 g",
+  "source_chunks": [
+   38617
+  ],
+  "answer_needle": "1\\.75",
+  "source": "chunk 38617: 'human cortical bone (1.75 g/ cm3)'",
+  "notes": "1.75 g/cm3 x 10 cm3 = 17.5 g. 1.8 = quoting the density; 35 = doubling."
+ },
+ {
+  "id": "q-22",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "For cancellous bone, comparing the reported ultimate shearing stress with the reported yield shear stress, approximately what is the ratio?",
+  "options": [
+   "About 1.1 to 1",
+   "About 1.5 to 1",
+   "About 2.6 to 1",
+   "About 5 to 1"
+  ],
+  "answer": "About 1.5 to 1",
+  "source_chunks": [
+   39082
+  ],
+  "answer_needle": "4\\.24\\s*MPa",
+  "source": "chunk 39082: 'the yield shear stress was 4.24 MPa, the ultimate shearing stress was 6.35 MPa'",
+  "notes": "6.35 / 4.24 = 1.50. 1.1 = subtracting instead of dividing; 2.6 = misreading operands."
+ },
+ {
+  "id": "q-23",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported typical thickness of an individual trabecula with the reported diameter of an osteocyte lacuna, approximately how many times larger is the trabecula?",
+  "options": [
+   "About 3 times",
+   "About 9 times",
+   "About 25 times",
+   "About 60 times"
+  ],
+  "answer": "About 9 times",
+  "source_chunks": [
+   109589,
+   39451
+  ],
+  "answer_needle": "50\\s*[-–]\\s*300",
+  "source": "chunk 109589: 'a trabecula is typically around 50-300 um thick'; chunk 39451: 'lacunae (15-25 um diameter)'",
+  "notes": "~175 um / ~20 um ~= 9. 3 = comparing low ends; 25 and 60 = decimal slips."
+ },
+ {
+  "id": "q-24",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported typical bone volume fraction of trabecular bone, approximately what volume of bone tissue does one cubic centimetre of trabecular bone contain?",
+  "options": [
+   "About 18 mm3",
+   "About 60 mm3",
+   "About 175 mm3",
+   "About 500 mm3"
+  ],
+  "answer": "About 175 mm3",
+  "source_chunks": [
+   109589
+  ],
+  "answer_needle": "5\\s*[-–]\\s*30%",
+  "source": "chunk 109589: 'a typical bone volume fraction of 5-30% depending on anatomical [site]'",
+  "notes": "~17.5% of 1000 mm3 = 175 mm3. 18 = a decimal slip; 500 = using 50%."
+ },
+ {
+  "id": "q-25",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Microcracks in cortical bone are elongated rather than round. Using the reported mean length and mean width, approximately what is their aspect ratio?",
+  "options": [
+   "About 1.5 to 1",
+   "About 4 to 1",
+   "About 9 to 1",
+   "About 20 to 1"
+  ],
+  "answer": "About 4 to 1",
+  "source_chunks": [
+   92262
+  ],
+  "answer_needle": "404",
+  "source": "chunk 92262: 'microcracks were found to have a mean length of 404+/-145 um ... and mean width of 97+/-38 um'",
+  "notes": "404 / 97 ~= 4.2. 1.5 = using the standard deviations; 9 and 20 = overestimating elongation."
+ },
+ {
+  "id": "q-26",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported mean longitudinal length of a microcrack in cortical bone with the typical diameter of a secondary osteon, approximately what is the ratio?",
+  "options": [
+   "About 0.5 to 1",
+   "About 2 to 1",
+   "About 5 to 1",
+   "About 12 to 1"
+  ],
+  "answer": "About 2 to 1",
+  "source_chunks": [
+   92262,
+   37537
+  ],
+  "answer_needle": "404",
+  "source": "chunk 92262: 'mean length of 404+/-145 um'; chunk 37537: 'osteon are ~90 um and 200 um'",
+  "notes": "404 / 200 ~= 2. 0.5 = inverting; 5 = comparing against the 90 um canal."
+ },
+ {
+  "id": "q-27",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "In vitro work attributes most of the compressive strength of bone to its mineral phase. Approximately what fraction of compressive strength is therefore NOT attributable to mineral content?",
+  "options": [
+   "About 10%",
+   "About 30%",
+   "About 50%",
+   "About 70%"
+  ],
+  "answer": "About 30%",
+  "source_chunks": [
+   17860
+  ],
+  "answer_needle": "60\\s*[-–]\\s*80%",
+  "source": "chunk 17860: 'in vitro studies have shown that 60-80% of the compressive strength of bone is caused by its mineral content'",
+  "notes": "100% - ~70% = ~30%. 70 = restating the mineral share; 50 = assuming an even split."
+ },
+ {
+  "id": "q-28",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Osteon population density in the human femur rises with age across the reported age span. Approximately how much does it increase per decade?",
+  "options": [
+   "About 1.2 per mm2",
+   "About 5.8 per mm2",
+   "About 11.6 per mm2",
+   "About 23 per mm2"
+  ],
+  "answer": "About 5.8 per mm2",
+  "source_chunks": [
+   176292
+  ],
+  "answer_needle": "11\\.6",
+  "source": "chunk 176292: 'a mean OPD increase in human femurs between ages 30 to 50 years of about 11.6/mm2'",
+  "notes": "11.6 over 20 years = 5.8 per decade. 11.6 = quoting the total; 1.2 = dividing by the years."
+ },
+ {
+  "id": "q-29",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported in vivo strain rate during walking with the reported strain rate during impact, approximately how many times higher is the impact rate?",
+  "options": [
+   "About 60 times",
+   "About 200 times",
+   "About 2000 times",
+   "About 20000 times"
+  ],
+  "answer": "About 2000 times",
+  "source_chunks": [
+   18406
+  ],
+  "answer_needle": "25\\s*/s",
+  "source": "chunk 18406: 'strain rates of ~0.007-0.02/s during walking or running, while a strain rate as high as ~25 /s for impacts'",
+  "notes": "25 / ~0.0135 ~= 1850. 200 and 20000 are decimal slips; 60 = using 0.4/s."
+ },
+ {
+  "id": "q-30",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "A cranial finite-element model was loaded with the reported total muscle force over the reported model surface area. Approximately what is the resulting force per unit area?",
+  "options": [
+   "About 0.004 N/mm2",
+   "About 0.037 N/mm2",
+   "About 0.37 N/mm2",
+   "About 3.7 N/mm2"
+  ],
+  "answer": "About 0.037 N/mm2",
+  "source_chunks": [
+   36114
+  ],
+  "answer_needle": "2682",
+  "source": "chunk 36114: 'scaled to common surface area (72 067.26 mm2) and loaded with the same total muscle force (2682 N)'",
+  "notes": "2682 / 72067 = 0.037. The distractors are decimal slips."
+ },
+ {
+  "id": "q-31",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported applied muscle forces for a cranial model, approximately how many times greater is the combined masseter force than the combined temporalis force?",
+  "options": [
+   "About 1.0 to 1",
+   "About 1.4 to 1",
+   "About 2.2 to 1",
+   "About 3.5 to 1"
+  ],
+  "answer": "About 1.4 to 1",
+  "source_chunks": [
+   32554
+  ],
+  "answer_needle": "234\\.7",
+  "source": "chunk 32554: 'left temporalis = 156.3 N; right temporalis = 169.4 N; left masseter = 234.7 N; right masseter = 223.9 N'",
+  "notes": "(234.7+223.9)/(156.3+169.4) = 458.6/325.7 = 1.41. 1.0 = assuming parity; 2.2 = using one side only."
+ },
+ {
+  "id": "q-32",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported total muscle force applied in a cranial model with the reported final bite force measured in patients, approximately what is the ratio?",
+  "options": [
+   "About 2 to 1",
+   "About 7 to 1",
+   "About 16 to 1",
+   "About 40 to 1"
+  ],
+  "answer": "About 7 to 1",
+  "source_chunks": [
+   36114,
+   19685
+  ],
+  "answer_needle": "382\\.79",
+  "source": "chunk 36114: 'total muscle force (2682 N)'; chunk 19685: 'final bite force of 382.79 N'",
+  "notes": "2682 / 382.79 = 7.0. 2 = comparing against total muscle force per side; 16 and 40 = decimal slips."
+ },
+ {
+  "id": "q-33",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "Reported pedicle screw pullout forces span a wide range. Approximately how many times stronger is the strongest anchorage than the weakest?",
+  "options": [
+   "About 1.4 times",
+   "About 3.2 times",
+   "About 7 times",
+   "About 15 times"
+  ],
+  "answer": "About 3.2 times",
+  "source_chunks": [
+   80630
+  ],
+  "answer_needle": "1341\\.2",
+  "source": "chunk 80630: 'The average pullout forces range between 419.9 and 1341.2N'",
+  "notes": "1341.2 / 419.9 = 3.19. 1.4 = subtracting then dividing by the max; 7 and 15 = decimal slips."
+ },
+ {
+  "id": "q-34",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "In a reported implant study, three groups differed in scaffold porosity. Approximately how many times more porous was the highest-porosity group than the lowest?",
+  "options": [
+   "About 1.1 times",
+   "About 1.4 times",
+   "About 2.2 times",
+   "About 4 times"
+  ],
+  "answer": "About 1.4 times",
+  "source_chunks": [
+   35708
+  ],
+  "answer_needle": "66\\.1",
+  "source": "chunk 35708: '% Porosity 66.1 59.2 46.6'",
+  "notes": "66.1 / 46.6 = 1.42. 1.1 = comparing adjacent groups; 2.2 = using the difference."
+ },
+ {
+  "id": "q-35",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "In the same reported implant study, mean pore size differed between groups. Approximately how many times larger was the largest mean pore size than the smallest?",
+  "options": [
+   "About 1.2 times",
+   "About 1.9 times",
+   "About 3.5 times",
+   "About 7 times"
+  ],
+  "answer": "About 1.9 times",
+  "source_chunks": [
+   35708
+  ],
+  "answer_needle": "505",
+  "source": "chunk 35708: '% Mean pore size (lm) 259 +/- 30   272 +/- 17   505 +/- 136'",
+  "notes": "505 / 259 = 1.95. 1.2 = comparing the two smaller groups; 3.5 and 7 = decimal slips."
+ },
+ {
+  "id": "q-36",
+  "domain": "imaging",
+  "type": "quantitative_reasoning",
+  "question": "A micro-CT system resolves bone at its reported resolution. Comparing that with the reported typical thickness of a trabecula, approximately how many voxels span a single trabecula?",
+  "options": [
+   "About 2",
+   "About 10",
+   "About 30",
+   "About 90"
+  ],
+  "answer": "About 10",
+  "source_chunks": [
+   109589,
+   35231
+  ],
+  "answer_needle": "5 and 30",
+  "source": "chunk 35231: 'a resolution between 5 and 30 um'; chunk 109589: 'a trabecula is typically around 50-300 um thick'",
+  "notes": "~175 um / ~17.5 um = 10. 2 = comparing against the coarsest resolution; 30 and 90 = decimal slips."
+ },
+ {
+  "id": "q-37",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported density of human cortical bone with the reported specific gravity of the newborn body, approximately what is the ratio?",
+  "options": [
+   "About 1.2 to 1",
+   "About 1.7 to 1",
+   "About 2.6 to 1",
+   "About 4 to 1"
+  ],
+  "answer": "About 1.7 to 1",
+  "source_chunks": [
+   38617,
+   3130
+  ],
+  "answer_needle": "1\\.02",
+  "source": "chunk 38617: 'human cortical bone (1.75 g/ cm3)'; chunk 3130: 'The specific gravity of the newborn is about 1.02 g/cm3'",
+  "notes": "1.75 / 1.02 = 1.72. 1.2 = subtracting; 2.6 and 4 = misreading operands."
+ },
+ {
+  "id": "q-38",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "The densest cranial site reported in one study exceeds the typical density of human cortical bone. Approximately by what percentage?",
+  "options": [
+   "About 3%",
+   "About 10%",
+   "About 25%",
+   "About 45%"
+  ],
+  "answer": "About 10%",
+  "source_chunks": [
+   3234,
+   38617
+  ],
+  "answer_needle": "1\\.922",
+  "source": "chunk 3234: 'was the densest site (1.922 g/cm3)'; chunk 38617: 'human cortical bone (1.75 g/ cm3)'",
+  "notes": "(1.922-1.75)/1.75 = 9.8%. 3% = using an absolute difference; 25% and 45% = overestimates."
+ },
+ {
+  "id": "q-39",
+  "domain": "pathology",
+  "type": "quantitative_reasoning",
+  "question": "Critical-size craniomandibular defects in rodents are reported to remain unhealed over a given window. Approximately how many months is the midpoint of that window?",
+  "options": [
+   "About 1 month",
+   "About 4 months",
+   "About 9 months",
+   "About 18 months"
+  ],
+  "answer": "About 4 months",
+  "source_chunks": [
+   40972
+  ],
+  "answer_needle": "12\\s*[-–]\\s*24\\s*weeks",
+  "source": "chunk 40972: 'often both non-healing without therapeutic intervention at 12-24 weeks'",
+  "notes": "~18 weeks / 4.3 = ~4 months. 18 = reading weeks as months; 1 = using the shortest end in months."
+ },
+ {
+  "id": "q-40",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Trabecular bone contains both micropores and macropores. Using the reported size ranges, approximately how many times larger is a typical macropore than the largest micropore?",
+  "options": [
+   "About 5 times",
+   "About 17 times",
+   "About 40 times",
+   "About 100 times"
+  ],
+  "answer": "About 17 times",
+  "source_chunks": [
+   110970
+  ],
+  "answer_needle": "200\\s*[-–]\\s*500",
+  "source": "chunk 110970: 'Trabecular bone consists of a series of micropores ranging between 0.01-20 um, with macropores 200-500 um in size'",
+  "notes": "~350 um / 20 um = 17.5. 5 = comparing low ends; 40 and 100 = using the micropore minimum."
+ },
+ {
+  "id": "q-41",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported density of cancellous bone with the reported density of human cortical bone, approximately what is the ratio?",
+  "options": [
+   "About 0.4 to 1",
+   "About 0.73 to 1",
+   "About 1.0 to 1",
+   "About 1.5 to 1"
+  ],
+  "answer": "About 0.73 to 1",
+  "source_chunks": [
+   39082,
+   38617
+  ],
+  "answer_needle": "1\\.0168",
+  "source": "chunk 39082: 'the density was 1.0168 to 1.5406g/cm3'; chunk 38617: 'human cortical bone (1.75 g/ cm3)'",
+  "notes": "~1.28 / 1.75 = 0.73. 0.4 = using the lowest cancellous value against a higher cortical figure; 1.0 = assuming parity."
+ },
+ {
+  "id": "q-42",
+  "domain": "pathology",
+  "type": "quantitative_reasoning",
+  "question": "An early-intervention protocol changed bite force from its reported initial to its reported final value. Approximately what percentage increase is that?",
+  "options": [
+   "About 7%",
+   "About 20%",
+   "About 40%",
+   "About 85%"
+  ],
+  "answer": "About 20%",
+  "source_chunks": [
+   19685
+  ],
+  "answer_needle": "318\\.20",
+  "source": "chunk 19685: 'initial bite force of 318.20 N and final bite force of 382.79 N'",
+  "notes": "(382.79-318.20)/318.20 = 20.3%. 7% = dividing by the wrong base; 40% and 85% = overestimates."
+ },
+ {
+  "id": "q-43",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "Magnesium-based metals are proposed as bone substitutes partly on density grounds. Approximately how much does their reported density differ from that of human cortical bone?",
+  "options": [
+   "About 3%",
+   "About 12%",
+   "About 30%",
+   "About 60%"
+  ],
+  "answer": "About 3%",
+  "source_chunks": [
+   38617
+  ],
+  "answer_needle": "1\\.7\\s*[-–]\\s*1\\.9",
+  "source": "chunk 38617: 'The density of magnesium-based metals (1.7-1.9 g/cm3) is very similar to that of human cortical bone (1.75 g/cm3)'",
+  "notes": "~1.8 vs 1.75 = ~3%. 12% and 30% = misreading the ranges."
+ },
+ {
+  "id": "q-44",
+  "domain": "biomaterials",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported elastic modulus of magnesium-based metals with the longitudinal elastic modulus of human cortical bone, approximately what is the ratio?",
+  "options": [
+   "About 1.2 to 1",
+   "About 2.4 to 1",
+   "About 5 to 1",
+   "About 11 to 1"
+  ],
+  "answer": "About 2.4 to 1",
+  "source_chunks": [
+   38617,
+   35757
+  ],
+  "answer_needle": "45\\s*Gpa|45\\s*GPa",
+  "source": "chunk 38617: 'The elastic modulus of magnesium-based metals is ~ 45 Gpa'; chunk 35757: 'cortical bone is 17-20 GPa along the longitudinal axis'",
+  "notes": "45 / ~18.5 = 2.4. 1.2 = comparing against a stiffer bone figure; 5 and 11 = decimal slips."
+ },
+ {
+  "id": "q-45",
+  "domain": "pathology",
+  "type": "quantitative_reasoning",
+  "question": "Critical-size defects are reported at 4 mm in mice and 8 mm in rats. Assuming a circular defect, approximately how many times larger is the rat defect in area?",
+  "options": [
+   "About 2 times",
+   "About 4 times",
+   "About 8 times",
+   "About 16 times"
+  ],
+  "answer": "About 4 times",
+  "source_chunks": [
+   40972
+  ],
+  "answer_needle": "8-mm|8\\s*mm",
+  "source": "chunk 40972: '4-mm circular craniomandibular bone defect in mice and 8-mm defect in rats'",
+  "notes": "Area scales with the square of diameter: (8/4)^2 = 4. 2 = comparing diameters; 16 = squaring twice."
+ },
+ {
+  "id": "q-46",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Using the reported thickness of a bone lamella and the reported typical thickness of a trabecula, approximately how many lamellae span a single trabecula?",
+  "options": [
+   "About 10",
+   "About 35",
+   "About 90",
+   "About 250"
+  ],
+  "answer": "About 35",
+  "source_chunks": [
+   109589,
+   37536
+  ],
+  "answer_needle": "3\\s*[-–]\\s*7",
+  "source": "chunk 109589: 'a trabecula is typically around 50-300 um thick'; chunk 37536: 'The thicknesses of different types of bone lamellae are different (3-7 um)'",
+  "notes": "~175 um / ~5 um = 35. 10 = comparing low ends; 90 and 250 = decimal slips."
+ },
+ {
+  "id": "q-47",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported upper strain rate during walking or running with the reported upper limit of quasi-static testing, approximately what is the ratio?",
+  "options": [
+   "About 10 to 1",
+   "About 50 to 1",
+   "About 150 to 1",
+   "About 500 to 1"
+  ],
+  "answer": "About 50 to 1",
+  "source_chunks": [
+   18406,
+   18407
+  ],
+  "answer_needle": "up to 1/s",
+  "source": "chunk 18406: 'strain rates of ~0.007-0.02/s during walking'; chunk 18407: 'quasi-static strain rate (up to 1/s)'",
+  "notes": "1 / 0.02 = 50. 10 = using 0.1/s; 150 and 500 = using the lower walking rate."
+ },
+ {
+  "id": "q-48",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported mean width of a microcrack in cortical bone with the reported diameter of an osteocyte lacuna, approximately what is the ratio?",
+  "options": [
+   "About 1 to 1",
+   "About 5 to 1",
+   "About 12 to 1",
+   "About 30 to 1"
+  ],
+  "answer": "About 5 to 1",
+  "source_chunks": [
+   92262,
+   39451
+  ],
+  "answer_needle": "97",
+  "source": "chunk 92262: 'mean width of 97+/-38 um'; chunk 39451: 'lacunae (15-25 um diameter)'",
+  "notes": "97 / ~20 ~= 5. 1 = assuming comparable size; 12 and 30 = decimal slips."
+ },
+ {
+  "id": "q-49",
+  "domain": "morphology",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported mean thickness of the occipital external cortical plate with the reported typical thickness of a trabecula, approximately what is the ratio?",
+  "options": [
+   "About 6 to 1",
+   "About 17 to 1",
+   "About 40 to 1",
+   "About 100 to 1"
+  ],
+  "answer": "About 17 to 1",
+  "source_chunks": [
+   3234,
+   109589
+  ],
+  "answer_needle": "3\\.0\\s*mm",
+  "source": "chunk 3234: 'the external cortex was thickest within the occipital bone, averaging a grand mean of 3.0 mm'; chunk 109589: 'a trabecula is typically around 50-300 um thick'",
+  "notes": "3000 um / ~175 um = 17. 6 = using the 300 um trabecula; 40 and 100 = decimal slips."
+ },
+ {
+  "id": "q-50",
+  "domain": "mechanics",
+  "type": "quantitative_reasoning",
+  "question": "Comparing the reported total muscle force applied in a cranial finite-element model with the reported experimental failure load of a proximal femur, approximately what is the ratio?",
+  "options": [
+   "About 0.25 to 1",
+   "About 0.57 to 1",
+   "About 1.3 to 1",
+   "About 2.5 to 1"
+  ],
+  "answer": "About 0.57 to 1",
+  "source_chunks": [
+   36114,
+   195721
+  ],
+  "answer_needle": "4743",
+  "source": "chunk 36114: 'total muscle force (2682 N)'; chunk 195721: 'failure load: 4743 N'",
+  "notes": "2682 / 4743 = 0.57. 1.3 = inverting; 0.25 and 2.5 = decimal slips."
+ }
+]

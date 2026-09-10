@@ -5,11 +5,14 @@ Run MCQ items through one experimental arm and grade deterministically.
 
 Arms
 ----
-  bare   huatuogpt-bone with the MCQ instruction only. No retrieval, no graph,
-         no critic. This is the parametric-knowledge baseline.
-  (rag / graph / full to follow — the arm only changes what evidence is put in
-   front of the model; the instruction and grading stay identical, so any
-   difference between arms is attributable to the evidence.)
+  bare    huatuogpt-bone with the MCQ instruction only. No retrieval, no graph.
+  rag     + top-5 corpus passages (same LIT_TOP_K / LIT_CHAR_BUDGET as the API)
+  graph   + up to 12 one-hop knowledge-graph edges (same as the critic gets)
+  full    + both
+
+The arm changes ONLY what evidence is appended to the USER message. The system
+prompt and the grading path are byte-identical across arms, so any difference
+between arms is attributable to the evidence and nothing else.
 
 Design notes
 ------------
@@ -81,10 +84,84 @@ def extract_letter(raw: str) -> tuple[str | None, str]:
     return None, "unparsed"
 
 
-def build_prompt(item: dict, order: list[str]) -> str:
+LIT_TOP_K = 5
+LIT_CHAR_BUDGET = 4200
+
+_retriever = None
+
+
+def _get_retriever():
+    """Loaded lazily — the bare arm must never pay the 588 MB / SPECTER2 cost."""
+    global _retriever
+    if _retriever is None:
+        from retrieval.retriever import BoneGraphRetriever
+        _retriever = BoneGraphRetriever()
+        _retriever.load()
+    return _retriever
+
+
+def fetch_literature(question: str) -> list[dict]:
+    """Mirrors api/main.py::_fetch_literature — same top-k, dedup and budget.
+
+    The retriever load is deliberately OUTSIDE the try. A load failure must
+    crash the run, not silently yield zero passages — that produced a complete
+    but meaningless "rag" result once already.
+    """
+    r = _get_retriever()
+    try:
+        results = r.query(question, top_k=LIT_TOP_K * 2)
+    except Exception:
+        return []
+    seen, out, budget = set(), [], LIT_CHAR_BUDGET
+    per = max(400, LIT_CHAR_BUDGET // max(1, LIT_TOP_K))
+    for r in results:
+        title = (r.get("title") or "").strip()
+        key = title.lower()
+        if key and key in seen:
+            continue
+        seen.add(key)
+        snippet = (r.get("text") or "").strip().replace("\n", " ")[:per]
+        if budget - len(snippet) < 0:
+            break
+        budget -= len(snippet)
+        out.append({"rank": len(out) + 1, "title": title or "(untitled)",
+                    "year": r.get("year"), "snippet": snippet,
+                    "score": round(r.get("score") or 0.0, 3)})
+        if len(out) >= LIT_TOP_K:
+            break
+    return out
+
+
+def build_evidence(arm: str, question: str) -> tuple[str, dict]:
+    """Return (evidence_block, meta). Retrieval uses the QUESTION ONLY — never
+    the options, or the correct answer's phrasing would steer what comes back."""
+    blocks, meta = [], {}
+    if arm in ("rag", "full"):
+        passages = fetch_literature(question)
+        meta["n_passages"] = len(passages)
+        meta["passage_titles"] = [p["title"][:70] for p in passages]
+        meta["top_passage_score"] = passages[0]["score"] if passages else None
+        if passages:
+            lines = [f"[L{p['rank']}] {p['title']}" + (f" ({p['year']})" if p.get("year") else "")
+                     + f"\n    {p['snippet']}" for p in passages]
+            blocks.append("Evidence from the literature:\n" + "\n".join(lines))
+        else:
+            blocks.append("Evidence from the literature:\n(no literature retrieved)")
+    if arm in ("graph", "full"):
+        from reasoning import kg_context
+        kg = kg_context.kg_facts(question)
+        meta["n_kg_facts"] = len(kg.get("facts") or [])
+        meta["kg_anchors"] = kg.get("anchors") or []
+        blocks.append("Knowledge-graph facts:\n" + kg_context.format_facts(kg))
+    return ("\n\n".join(blocks), meta)
+
+
+def build_prompt(item: dict, order: list[str], evidence: str = "") -> str:
     lines = [item["question"], ""]
     for L, opt in zip(LETTERS, order):
         lines.append(f"{L}. {opt}")
+    if evidence:
+        lines += ["", evidence]
     lines += ["", "Give your final answer as \\boxed{LETTER}."]
     return "\n".join(lines)
 
@@ -104,8 +181,8 @@ def call_model(system_prompt: str, prompt: str, timeout: int, num_predict: int) 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arm", default="bare", choices=["bare"])
-    ap.add_argument("--items", default="eval/mcq/items_draft_v1.json")
+    ap.add_argument("--arm", default="bare", choices=["bare", "rag", "graph", "full"])
+    ap.add_argument("--items", default="eval/mcq/items_reason.json")
     ap.add_argument("--out", default=None)
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--limit", type=int, default=0)
@@ -133,7 +210,12 @@ def main() -> None:
         rng.shuffle(order)
         gold = LETTERS[order.index(it["answer"])]
 
-        prompt = build_prompt(it, order)
+        evidence, ev_meta = build_evidence(args.arm, it["question"])
+        if n == 1 and args.arm in ("rag", "full") and not ev_meta.get("n_passages"):
+            sys.exit(f"ABORT: arm '{args.arm}' retrieved 0 passages on the first "
+                     f"item. Evidence is not reaching the model — check LD_PRELOAD "
+                     f"(see run_api.sh) before trusting any result.")
+        prompt = build_prompt(it, order, evidence)
         try:
             raw, secs = call_model(system_prompt, prompt, args.timeout, args.num_predict)
             err = None
@@ -148,6 +230,7 @@ def main() -> None:
             "id": it["id"], "domain": it["domain"], "type": it["type"],
             "gold_letter": gold, "predicted": letter, "parse": how,
             "correct": ok, "seconds": round(secs, 1), "error": err,
+            "prompt_chars": len(prompt), "evidence": ev_meta,
             "shuffled_options": order, "raw": raw,
         })
         flag = "ok " if ok else "XX "
@@ -162,6 +245,12 @@ def main() -> None:
     print(f"  chance         : 0.250")
     print(f"  mean latency   : {sum(r['seconds'] for r in results)/n:.1f}s")
     print(f"  parse failures : {sum(1 for r in results if r['parse'] in ('unparsed','error'))}")
+    print(f"  mean prompt    : {sum(r['prompt_chars'] for r in results)//n} chars "
+          f"(~{sum(r['prompt_chars'] for r in results)//n//4} tok, ctx 8192)")
+    if args.arm in ("rag", "full"):
+        print(f"  mean passages  : {sum(r['evidence'].get('n_passages',0) for r in results)/n:.1f}")
+    if args.arm in ("graph", "full"):
+        print(f"  mean kg facts  : {sum(r['evidence'].get('n_kg_facts',0) for r in results)/n:.1f}")
     print("=" * 60)
 
     print("\n  per domain:")
