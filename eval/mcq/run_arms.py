@@ -195,7 +195,7 @@ def main() -> None:
     system_prompt = load_prompt(prompt_path)
     prompt_sha = hashlib.sha256(system_prompt.encode()).hexdigest()[:12]
 
-    out_path = Path(args.out or f"eval/mcq/run_{args.arm}_seed{args.seed}.json")
+    out_path = Path(args.out or f"eval/mcq/results/run_{args.arm}_seed{args.seed}.json")
     items = json.loads(Path(args.items).read_text())
     if args.limit:
         items = items[:args.limit]
@@ -265,6 +265,7 @@ def main() -> None:
     print("  predicted    :", dict(Counter(r["predicted"] for r in results)))
     print("  gold spread  :", dict(Counter(r["gold_letter"] for r in results)))
 
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(
         {"arm": args.arm, "model": OLLAMA_MODEL, "seed": args.seed,
          "prompt_file": str(prompt_path), "prompt_sha256_12": prompt_sha,

@@ -23,7 +23,7 @@ Run
 ---
     .venv/bin/python -m eval.mcq.run_oracle \
         --items eval/mcq/items_reason.json \
-        --out   eval/mcq/run_oracle_reason_seed17.json
+        --out   eval/mcq/results/run_oracle_p1_seed17.json
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ def fetch_chunks(db: str, ids: list[int]) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--items", default="eval/mcq/items_reason.json")
-    ap.add_argument("--out", default="eval/mcq/run_oracle_seed17.json")
+    ap.add_argument("--out", default="eval/mcq/results/run_oracle_seed17.json")
     ap.add_argument("--db", default=CHUNKS_DB)
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--limit", type=int, default=0)
@@ -164,6 +164,7 @@ def main() -> None:
     if true_or:
         print(f"  true-oracle subset: {sum(r['correct'] for r in true_or)}/{len(true_or)}")
 
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(
         {"arm": "oracle", "seed": args.seed, "items_file": args.items,
          "prompt_file": args.prompt, "prompt_sha256_12": prompt_sha,

@@ -169,7 +169,7 @@ def build_evidence(question, timeout):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--items", default="eval/mcq/items_reason.json")
-    ap.add_argument("--out", default="eval/mcq/run_bm25rerank_seed17.json")
+    ap.add_argument("--out", default="eval/mcq/results/run_bm25rerank_seed17.json")
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--timeout", type=int, default=300)
@@ -226,6 +226,7 @@ def main() -> None:
     print(f"  source chunk   : {sum(r['source_chunk_retrieved'] for r in results)}/{n}")
     print(f"  mean prompt    : {sum(r['prompt_chars'] for r in results)//n} chars")
     print("="*64)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(
         {"arm": "bm25rerank", "seed": args.seed, "items_file": args.items,
          "prompt_file": args.prompt, "prompt_sha256_12": sha,

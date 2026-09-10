@@ -49,3 +49,6 @@ book-notes/
 
 # Claude Code local config (machine-specific permissions)
 .claude/
+
+# MCQ benchmark run outputs — raw generations, regenerate with eval/mcq/run_*.py
+eval/mcq/results/

@@ -34,7 +34,7 @@ Run
 ---
     .venv/bin/python -m eval.mcq.run_bm25 \
         --items eval/mcq/items_reason.json \
-        --out   eval/mcq/run_bm25_reason_v2_seed17.json
+        --out   eval/mcq/results/run_bm25_p1_seed17.json
 """
 
 from __future__ import annotations
@@ -252,7 +252,7 @@ def build_evidence(question: str, use_vector: bool = False, use_hyde: bool = Fal
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--items", default="eval/mcq/items_reason.json")
-    ap.add_argument("--out", default="eval/mcq/run_bm25_seed17.json")
+    ap.add_argument("--out", default="eval/mcq/results/run_bm25_seed17.json")
     ap.add_argument("--seed", type=int, default=17)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--timeout", type=int, default=300)
@@ -327,6 +327,7 @@ def main() -> None:
     print(f"  via            : {dict(Counter(v for r in results for v in r['evidence']['via']))}")
     print("=" * 62)
 
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(
         {"arm": "bm25", "seed": args.seed, "items_file": args.items,
          "prompt_file": args.prompt, "prompt_sha256_12": prompt_sha,
