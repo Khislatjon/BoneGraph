@@ -130,7 +130,7 @@ def run(
 
 def main() -> None:
     """
-    Parse command-line arguments and launch the pipeline.
+    Parse command-line arguments and video the pipeline.
 
     This function is called when you run:
         python -m ingestion.papers.pipeline [options]
