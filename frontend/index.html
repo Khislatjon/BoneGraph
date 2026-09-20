@@ -357,10 +357,12 @@ function Badge({ label, map, display }) {
 const Dots = () => <div className="dots"><span/><span/><span/></div>;
 
 // Shown while this request is queued behind others on the Jetson's single GPU.
-// `position` is how many callers are ahead; the estimate uses ~20s of GPU time
-// per answer, measured on the AGX Orin at MAXN.
+// `position` is how many callers are ahead. The estimate uses ~30s per slot,
+// measured end-to-end on the AGX Orin at MAXN with three concurrent askers
+// (real answers ran 491-776 tokens; the earlier 20s figure was a 120-token
+// synthetic benchmark and under-promised).
 const QueueNotice = ({ position }) => {
-  const secs = position * 20;
+  const secs = position * 30;
   const wait = secs < 60
     ? `about ${secs} seconds`
     : `about ${Math.round(secs / 60)} minute${secs >= 90 ? 's' : ''}`;
