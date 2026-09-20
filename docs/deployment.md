@@ -57,9 +57,10 @@ log rotation, and watch `df -h`. Add an M.2 (or USB 3) SSD and move
 1. **The databases are gitignored.** `data/db/` is not in the repo. You must
    transfer ~1.7 GB (mainly `chunks.db` 1.5 GB + `papers.db` 112 MB) from the
    dev machine to the Jetson (Step 5).
-2. **`huatuogpt-bone` is a custom Ollama model** with no Modelfile in the repo.
-   `ollama pull huatuogpt-bone` will fail — recreate it from its base + system
-   prompt (Step 3).
+2. **`huatuogpt-bone` is a custom Ollama model.** `ollama pull huatuogpt-bone`
+   will fail. `huatuogpt-bone.Modelfile` is in the repo, but its `FROM` line
+   points at a local `huatuogpt-bone.base.gguf` that is not — recreate the model
+   from its base + system prompt (Step 3).
 3. **The Mechanics tab needs TensorFlow + the D2IM weights** (Step 5b), neither of
    which is in `pip install -r requirements.txt` output by default on this box
    (TF is a heavy, platform-specific wheel) nor in git (weights are large). The
@@ -371,8 +372,13 @@ zero downtime:
 
 **How the frontend finds the API.** `API_BASE` in `frontend/index.html` and
 `frontend/admin.html` resolves to `https://api.bonegraph.org` on the public hosts
-(`bonegraph.org`, `www.`, `*.workers.dev`, `*.pages.dev`) and to `''` (same-origin)
-everywhere else — so local dev and hitting the Jetson directly still work.
+(`bonegraph.org`, `www.`, `*.workers.dev`, `*.pages.dev`) and to
+`http://localhost:8000` everywhere else. Same-origin is no longer a valid
+fallback: since the split the API serves no HTML, so the page and the API are
+never on the same origin. To drive a different box — a LAN IP, or this Jetson
+from another machine — set `localStorage.setItem('bg_api_base', 'http://<host>:8000')`
+in the browser console; that key wins over both branches. CORS is
+`allow_origins=["*"]`, so no proxy is needed.
 
 **Shipping frontend changes:** just `git push`. Cloudflare rebuilds and deploys;
 no Jetson involvement, and it works even while the Jetson is offline. **Backend

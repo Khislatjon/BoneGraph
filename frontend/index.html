@@ -237,18 +237,24 @@ const { useState, useEffect, useRef, Fragment } = React;
 // the page before the error message can be shown.
 const _rawFetch = window.fetch.bind(window);
 // This shell is served from Cloudflare's edge but the API runs on the Jetson behind
-// the tunnel, so on the public site API calls need an absolute origin. Everywhere
-// else — local dev, hitting the box directly — one process serves both, so
-// same-origin ('') is correct. Callers always pass a relative '/api/...' path.
-// .workers.dev covers deploy previews; .pages.dev is kept in case the project is
-// ever moved back to Pages.
+// the tunnel, so on the public site API calls need an absolute origin. Callers
+// always pass a relative '/api/...' path. .workers.dev covers deploy previews;
+// .pages.dev is kept in case the project is ever moved back to Pages.
+//
+// Locally the API no longer serves this page (it is API-only since the edge
+// split), so the two are never same-origin: this file is opened from disk or
+// from a static server on another port, and the API answers on :8000. Point at
+// it explicitly, which CORS already allows (allow_origins=["*"]). Override with
+//   localStorage.setItem('bg_api_base', 'http://192.168.1.x:8000')
+// to drive a different box — a LAN IP, or the Jetson directly.
 const API_BASE =
-  location.hostname === 'bonegraph.org' ||
-  location.hostname === 'www.bonegraph.org' ||
-  location.hostname.endsWith('.workers.dev') ||
-  location.hostname.endsWith('.pages.dev')
-    ? 'https://api.bonegraph.org'
-    : '';
+  localStorage.getItem('bg_api_base') ||
+  (location.hostname === 'bonegraph.org' ||
+   location.hostname === 'www.bonegraph.org' ||
+   location.hostname.endsWith('.workers.dev') ||
+   location.hostname.endsWith('.pages.dev')
+     ? 'https://api.bonegraph.org'
+     : 'http://localhost:8000');
 function authHeaders() {
   const token = localStorage.getItem('bg_token');
   return token ? { Authorization: 'Bearer ' + token } : {};

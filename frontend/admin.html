@@ -98,14 +98,16 @@ function fmtDate(iso){
 const CAT_ICON = {bug:'🐞',idea:'💡',question:'❓',praise:'🎉',other:'📝'};
 
 // See the API_BASE note in index.html: this page ships from Cloudflare's edge, the
-// API answers from the Jetson behind the tunnel; same-origin everywhere else.
+// API answers from the Jetson behind the tunnel; locally the API is a separate
+// process on :8000, overridable via the bg_api_base key.
 const API_BASE =
-  location.hostname === 'bonegraph.org' ||
-  location.hostname === 'www.bonegraph.org' ||
-  location.hostname.endsWith('.workers.dev') ||
-  location.hostname.endsWith('.pages.dev')
-    ? 'https://api.bonegraph.org'
-    : '';
+  localStorage.getItem('bg_api_base') ||
+  (location.hostname === 'bonegraph.org' ||
+   location.hostname === 'www.bonegraph.org' ||
+   location.hostname.endsWith('.workers.dev') ||
+   location.hostname.endsWith('.pages.dev')
+     ? 'https://api.bonegraph.org'
+     : 'http://localhost:8000');
 
 async function load(token){
   const url = API_BASE + '/api/admin/overview' + (token ? ('?token=' + encodeURIComponent(token)) : '');
