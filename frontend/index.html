@@ -104,6 +104,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .cite{color:var(--amber);font-size:.72em;font-weight:600;font-family:var(--mono)}
 .blink{color:var(--amber);animation:blink 1s steps(1) infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.queue-notice{display:flex;gap:10px;align-items:flex-start}
+.queue-text{font-size:14px;color:var(--text2);line-height:1.5}
+.queue-sub{font-size:12px;color:var(--text3);margin-top:3px}
 .dots{display:flex;gap:4px;align-items:center;padding:4px 0}
 .dots span{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:bounce 1.1s ease-in-out infinite}
 .dots span:nth-child(2){animation-delay:.18s}
@@ -352,6 +355,25 @@ function Badge({ label, map, display }) {
 
 // ── Dots / Spinner ────────────────────────────────────────────────────────────
 const Dots = () => <div className="dots"><span/><span/><span/></div>;
+
+// Shown while this request is queued behind others on the Jetson's single GPU.
+// `position` is how many callers are ahead; the estimate uses ~20s of GPU time
+// per answer, measured on the AGX Orin at MAXN.
+const QueueNotice = ({ position }) => {
+  const secs = position * 20;
+  const wait = secs < 60
+    ? `about ${secs} seconds`
+    : `about ${Math.round(secs / 60)} minute${secs >= 90 ? 's' : ''}`;
+  return (
+    <div className="queue-notice">
+      <Dots/>
+      <div className="queue-text">
+        Waiting for the GPU — <b>{position}</b> {position === 1 ? 'question' : 'questions'} ahead of yours.
+        <div className="queue-sub">Estimated wait {wait}. BoneGraph runs on a single Jetson, answering one question at a time.</div>
+      </div>
+    </div>
+  );
+};
 const Spinner = ({ dark }) => <span className={`spinner${dark?' dark':''}`}/>;
 
 // Strip the model's "Thinking" preamble — show only from "Final Response" onward.
@@ -498,6 +520,7 @@ function AskTab({ totalChunks }) {
   const [loading, setLoading]   = useState(false);
   const [streaming, setStreaming] = useState('');
   const [liveSource, setLiveSource] = useState(null);
+  const [queuePos, setQueuePos] = useState(0);    // >0 = N callers ahead on the GPU
   const [usage, setUsage]       = useState(null); // {prompt, completion, ctx}
   const endRef      = useRef(null);
   const inputRef    = useRef(null);
@@ -564,6 +587,7 @@ function AskTab({ totalChunks }) {
     setLoading(true);
     setStreaming('');
     setLiveSource(null);
+    setQueuePos(0);
     let finalAnswer = '';
     let sources = null;
     try {
@@ -586,7 +610,8 @@ function AskTab({ totalChunks }) {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
           if (ev.type === 'sources') { sources = ev.results; setLiveSource(ev.results); }
-          else if (ev.type === 'token') { finalAnswer += ev.content; setStreaming(finalAnswer); }
+          else if (ev.type === 'queue') { setQueuePos(ev.position); }
+          else if (ev.type === 'token') { setQueuePos(0); finalAnswer += ev.content; setStreaming(finalAnswer); }
           else if (ev.type === 'done')  {
             finalAnswer = ev.answer;
             if (typeof ev.prompt_tokens === 'number') {
@@ -599,6 +624,7 @@ function AskTab({ totalChunks }) {
     } catch(e) { finalAnswer = '⚠️ Error: ' + errText(e); }
     setStreaming('');
     setLiveSource(null);
+    setQueuePos(0);
     setMessages(prev => [...prev, { role:'assistant', content:finalAnswer, sources }]);
     setLoading(false);
     inputRef.current?.focus();
@@ -634,11 +660,13 @@ function AskTab({ totalChunks }) {
                   <div className="msg-avatar"><BoneSVG size={34}/></div>
                   <div className="msg-bubble">
                     <div className="msg-text">
-                      {streaming
-                        ? /final response/i.test(streaming)
-                          ? <>{parseCit(fixBasis(stripThinking(streaming)))}<span className="blink">▍</span></>
-                          : <Dots/>
-                        : <Dots/>}
+                      {queuePos > 0
+                        ? <QueueNotice position={queuePos}/>
+                        : streaming
+                          ? /final response/i.test(streaming)
+                            ? <>{parseCit(fixBasis(stripThinking(streaming)))}<span className="blink">▍</span></>
+                            : <Dots/>
+                          : <Dots/>}
                     </div>
                     {liveSource && <Sources results={liveSource}/>}
                   </div>
@@ -929,7 +957,12 @@ function ReasonTab() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'round_start') {
+          if (ev.type === 'queue') {
+            setStatus(ev.position > 0
+              ? `Waiting for the GPU — ${ev.position} ahead of you…`
+              : 'Reasoning…');
+          }
+          else if (ev.type === 'round_start') {
             phase = ev.phase;
             if (ev.phase === 'agent') setStatus('Reasoning…');
             else if (ev.phase === 'critic') setStatus(ev.round === 2 ? 'Critic reviewing…' : 'Critic re-checking…');

@@ -42,6 +42,7 @@ import math
 import os
 import re
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -58,6 +59,86 @@ from config.settings import PAPERS_DB_PATH, TEXTBOOKS_DB_PATH, CHUNKS_DB_PATH, D
 OLLAMA_URL   = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "huatuogpt-bone"
 GUARD_MODEL  = "llama3.2:3b"  # general-purpose classifier for topic guard
+
+
+# ── GPU request queue ─────────────────────────────────────────────────────────
+#
+# Ollama serialises generation on the Jetson's single GPU: concurrent requests
+# are handled strictly FIFO, so the Nth caller waits roughly N × the generation
+# time. Measured on the AGX Orin at MAXN, one ~500-token answer costs ~20s of
+# GPU time, so eight simultaneous askers means the last one waits ~2.5 minutes.
+#
+# The wait itself is unavoidable on one GPU. What we can avoid is it looking
+# like a hung request: we take a ticket before the first LLM call and stream the
+# caller's position while they queue, so a long wait reads as "busy" rather than
+# "broken".
+#
+# This does NOT reduce throughput — it mirrors the serialisation Ollama already
+# imposes, it just makes it observable.
+
+
+class _GpuQueue:
+    """FIFO ticket queue guarding the single GPU.
+
+    A waiter is at the head of `_waiting` when it is its turn. Tickets are
+    removed on release from wherever they sit, so a caller that disconnects
+    mid-queue drops out without stalling the ones behind it.
+    """
+
+    def __init__(self) -> None:
+        self._cv = threading.Condition()
+        self._waiting: list[int] = []
+        self._next = 0
+
+    def take(self) -> int:
+        with self._cv:
+            ticket = self._next
+            self._next += 1
+            self._waiting.append(ticket)
+            return ticket
+
+    def position(self, ticket: int) -> int:
+        """0 = it is this ticket's turn; N > 0 = N callers ahead of it."""
+        with self._cv:
+            try:
+                return self._waiting.index(ticket)
+            except ValueError:
+                return 0
+
+    def wait(self, ticket: int, timeout: float) -> bool:
+        """Block up to `timeout`. True once this ticket reaches the head."""
+        with self._cv:
+            if self._waiting and self._waiting[0] == ticket:
+                return True
+            self._cv.wait(timeout)
+            return bool(self._waiting) and self._waiting[0] == ticket
+
+    def release(self, ticket: int) -> None:
+        with self._cv:
+            if ticket in self._waiting:
+                self._waiting.remove(ticket)
+            self._cv.notify_all()
+
+
+_gpu_queue = _GpuQueue()
+GPU_QUEUE_POLL_S = 2.0   # how often a waiter re-reports its position
+
+
+def _await_gpu_turn(ticket: int):
+    """Generator: yield SSE `queue` frames until it is `ticket`'s turn.
+
+    Yields nothing at all when the GPU is free, so the common single-user path
+    is byte-for-byte unchanged. When a caller did queue, a final position-0
+    frame tells the client to clear the waiting message.
+    """
+    announced = False
+    while not _gpu_queue.wait(ticket, GPU_QUEUE_POLL_S):
+        ahead = _gpu_queue.position(ticket)
+        if ahead > 0:
+            announced = True
+            yield f"data: {json.dumps({'type':'queue','position':ahead})}\n\n"
+    if announced:
+        yield f"data: {json.dumps({'type':'queue','position':0})}\n\n"
 
 
 # ── Shared topic guard (Ask + Reasoning tabs) ────────────────────────────────
@@ -505,7 +586,9 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         prompt_tokens = max(1, round(char_count / 3.5))
         completion_tokens = 0
         answer = ""
+        ticket = _gpu_queue.take()
         try:
+            yield from _await_gpu_turn(ticket)
             resp = requests.post(
                 OLLAMA_URL,
                 json={"model": OLLAMA_MODEL, "messages": messages, "stream": True, "options": {"temperature": 0, "num_ctx": 8192}},
@@ -530,6 +613,10 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+        finally:
+            # Must run on the abandoned-client path too (GeneratorExit), or the
+            # queue behind this caller never advances.
+            _gpu_queue.release(ticket)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -1010,7 +1097,11 @@ async def reason_chat(
             except Exception:
                 kg = {"facts": [], "anchors": []}
 
+        # One ticket covers the whole agent → critic → revision pipeline, so a
+        # reasoning turn is not interleaved with other callers' generations.
+        ticket = _gpu_queue.take()
         try:
+            yield from _await_gpu_turn(ticket)
             if literature:
                 yield f"data: {json.dumps({'type':'literature','passages':literature})}\n\n"
             if kg.get("facts"):
@@ -1097,6 +1188,9 @@ async def reason_chat(
             yield f"data: {json.dumps({'type':'error','message':'Could not connect to Ollama. Run: ollama serve'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+        finally:
+            # Runs on the quick-mode early return and on client disconnect too.
+            _gpu_queue.release(ticket)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
