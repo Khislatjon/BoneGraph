@@ -1,6 +1,6 @@
 # BoneGraph
 
-**An intelligent research assistant for bone science** — morphology, mechanics, pathology, imaging, and biomaterials.
+**An intelligent research assistant for bone science**: morphology, mechanics, pathology, imaging, and biomaterials.
 
 [![Live](https://img.shields.io/badge/live-bonegraph.org-2ea44f)](https://bonegraph.org)
 [![Status](https://img.shields.io/badge/status-public%20beta-blue)]()
@@ -13,7 +13,7 @@ question-answering** over a curated literature corpus, **raw semantic search**,
 and **deep-learning image mechanics** that predicts bone displacement and strain
 fields from a single scan.
 It runs on a 248,629-chunk embedding index, a hand-cleaned bone knowledge graph,
-and open-weight models served through [Ollama](https://ollama.com) — fully local,
+and open-weight models served through [Ollama](https://ollama.com), fully local,
 with no third-party API calls at inference time.
 
 🔗 **Live beta:** [bonegraph.org](https://bonegraph.org) (running on an NVIDIA Jetson AGX Orin)
@@ -30,15 +30,15 @@ Most "chat with your papers" tools stop at retrieval + generation. BoneGraph add
 the two things a research assistant actually needs to be trusted:
 
 - **Deterministic grounding.** The Reasoning tab checks every answer against
-  hard-coded fracture-mechanics rules and a bone knowledge graph — physics that
+  hard-coded fracture-mechanics rules and a bone knowledge graph: physics that
   doesn't depend on what the model felt like saying.
 - **It learns from you, honestly.** Correct it once and the correction sticks:
   Reasoning turns your 👎 into a durable rule applied on every future answer;
   Vision remembers a misidentified scan and gets it right the next time a similar
   image appears. This is retrieval and rule-application, **not** opaque weight
-  updates — you can list, edit, toggle, and delete everything it has learned.
+  updates: you can list, edit, toggle, and delete everything it has learned.
 
-The whole system is deliberately scoped to **bone science** — depth over breadth.
+The whole system is deliberately scoped to **bone science**: depth over breadth.
 
 ---
 
@@ -46,7 +46,7 @@ The whole system is deliberately scoped to **bone science** — depth over bread
 
 Each tab is a distinct pipeline over a shared corpus + knowledge graph, exposed by [`api/main.py`](api/main.py).
 
-### 1 · Chat — conversational RAG
+### 1 · Chat: conversational RAG
 Retrieval-augmented question-answering over the **BoneScholar** corpus. A
 two-stage bone-relevance guard (lexical pass → `llama3.2:3b` fallback) keeps
 questions in domain; SPECTER2 retrieves the top passages; **`huatuogpt-bone`**
@@ -54,17 +54,17 @@ streams an answer with inline `[N]` citations that link to the exact source DOI.
 The References section is rebuilt server-side so citations never drift.
 Multi-turn via a bounded sliding window.
 
-### 2 · Search — raw semantic retrieval
-Semantic search over the full corpus with **no LLM in the loop** — what you see
+### 2 · Search: raw semantic retrieval
+Semantic search over the full corpus with **no LLM in the loop**: what you see
 is exactly what the retriever returns. Filter by source (papers/textbooks) and
 year; each hit shows the passage, metadata, a DOI link, and its similarity score.
 The fastest way to do literature review and to sanity-check what Chat and
 Reasoning are reading.
 
-### 3 · Reasoning — agent + critic, grounded in physics and a knowledge graph
+### 3 · Reasoning: agent + critic, grounded in physics and a knowledge graph
 A self-correcting loop. A **reasoning agent** (`huatuogpt-bone`) drafts a
 Point/Basis answer; it is then checked two ways:
-- **Deterministic physical grounding** — fracture-mechanics rules in
+- **Deterministic physical grounding**: fracture-mechanics rules in
   [`reasoning/physical_grounding.py`](reasoning/physical_grounding.py), evaluated in code, not by an LLM.
 - **A critic** (`huatuogpt-bone`) that weighs the draft against retrieved
   literature and **1-hop knowledge-graph facts** ([`reasoning/kg_context.py`](reasoning/kg_context.py)),
@@ -73,56 +73,56 @@ Point/Basis answer; it is then checked two ways:
 Disputes trigger a revision (hard 2-iteration cap). **Quick** and **Deep** modes
 trade latency for the full evidence loop. When you 👎 and explain, `llama3.2:3b`
 proposes a structured **user rule**; once you confirm it, it's enforced on every
-future request — the "second chat is better" loop. Rules can be listed, toggled,
+future request: the "second chat is better" loop. Rules can be listed, toggled,
 deleted, and bulk-imported from the in-app Rules manager.
 
-### 4 · Vision — image analysis, trained grounding + correction memory
+### 4 · Vision: image analysis, trained grounding + correction memory
 Upload an X-ray, MRI, micro-CT, or histology image and **`llava:13b`** returns a
 structured identification, anchored two ways:
 
-- **A trained region head** ([`vision/classifier.py`](vision/classifier.py)) — an
+- **A trained region head** ([`vision/classifier.py`](vision/classifier.py)), an
   MLP over **frozen BiomedCLIP** features, trained on **MURA** upper-limb X-rays
   (~36.8k train / 3.2k val). It scores **92.6% accuracy / 0.918 macro-F1** on the
   7-way region task over unseen validation data, and its prediction is passed to
   the VLM as a hint, so the answer is anchored to a model trained on bone data
   rather than the VLM guessing unaided. Inputs outside that distribution (spine,
   MRI, CT, micro-CT) are out of scope, and an image detected as out-of-scope has
-  its label **withheld** rather than injected — the confident-wrong failure mode
+  its label **withheld** rather than injected: the confident-wrong failure mode
   came from injecting it anyway.
   Training write-up: [`docs/vision/training.md`](docs/vision/training.md).
-- **Correction memory** — a 👎 + note is stored keyed by a **BiomedCLIP image
+- **Correction memory**: a 👎 + note is stored keyed by a **BiomedCLIP image
   embedding** (the original plus rotated/flipped augments, so a re-windowed or
   rotated copy of the same scan still matches). The next time a similar image
-  appears, the prior correction is recalled and fed to the model — *don't make
+  appears, the prior correction is recalled and fed to the model: *don't make
   the same misidentification twice*.
 
 The two are ordered, not blended: a recalled correction **suppresses** the region
 hint, because a user correction outranks a trained guess. The hint runs on the
 first turn only. Unlike Reasoning, the Vision tab has **no critic and no
-deterministic rule tier** by design, and both components degrade gracefully — if
+deterministic rule tier** by design, and both components degrade gracefully: if
 the head's weights or the encoder are absent, the tab still answers from the VLM
 alone.
 
-> The Vision tab is explicitly **research and educational only — not a clinical diagnostic tool.**
+> The Vision tab is explicitly **research and educational only, not a clinical diagnostic tool.**
 
-### 5 · Mechanics — deep-learning displacement & strain prediction
+### 5 · Mechanics: deep-learning displacement & strain prediction
 The quantitative counterpart to Vision. Upload one **undeformed micro-CT slice**
-and **D2IM** (Soar, Palanca, Dall'Ara & Tozzi, *J. Orthop. Translat.* 2024 —
+and **D2IM** (Soar, Palanca, Dall'Ara & Tozzi, *J. Orthop. Translat.* 2024;
 [paper](https://www.sciencedirect.com/science/article/pii/S2352431624000828),
 [code](https://github.com/PeterSoar/D2IM_Prototype)) predicts the **displacement
 field** (u, v, w) and, by differentiating the axial component, the **axial strain
-field** ε_zz — from the greyscale image alone, no FE model or DVC at inference.
+field** ε_zz, from the greyscale image alone, no FE model or DVC at inference.
 The tab returns a labelled figure (input · displacement · strain) plus summary
 statistics in physical units (peak strain, displacement range). A bone mask can
 be supplied; otherwise an approximate one is derived from the scan.
 
-D2IM is a fully isolated, swappable adapter ([`mechanics/d2im.py`](mechanics/d2im.py)) —
+D2IM is a fully isolated, swappable adapter ([`mechanics/d2im.py`](mechanics/d2im.py):
 TensorFlow is lazy-imported and optional, so the other four tabs run without it,
 and the [**D2IM-Strain**](https://www.biorxiv.org/content/10.64898/2026.03.31.715417v2)
 follow-up drops in by changing the weights path. Architecture:
 [`docs/mechanics/architecture.md`](docs/mechanics/architecture.md).
 
-> The Mechanics tab is **research and educational only — not a clinical tool.**
+> The Mechanics tab is **research and educational only, not a clinical tool.**
 
 ---
 
@@ -132,13 +132,13 @@ BoneGraph is behind a lightweight **email/password login** ([`api/auth_store.py`
 Your account scopes everything you teach it: your Reasoning rules and Vision
 corrections are tied to your email and never leak into another user's session.
 The 8 built-in physical-grounding rules are global and ship with the app.
-Passwords are PBKDF2-HMAC-SHA256 with per-user salts (stdlib only) — a sensible
+Passwords are PBKDF2-HMAC-SHA256 with per-user salts (stdlib only), a sensible
 threat model for a single-install research tool, not a public identity provider.
 
 A **"Send feedback"** button posts bug reports / ideas to a separate store
 ([`api/beta_feedback.py`](api/beta_feedback.py)); a token-gated **admin dashboard**
-at `bonegraph.org/admin` — a static page served from the edge, reading
-`/api/admin/*` — shows signups and feedback for the maintainer.
+at `bonegraph.org/admin` (a static page served from the edge, reading
+`/api/admin/*`) shows signups and feedback for the maintainer.
 
 ---
 
@@ -147,7 +147,7 @@ at `bonegraph.org/admin` — a static page served from the edge, reading
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python serve.py          # API on http://localhost:8000 — see the note below
+python serve.py          # API on http://localhost:8000 (see the note below)
 ```
 
 `serve.py` starts the **API only**. Since the [edge split](#deployment) the
@@ -155,7 +155,7 @@ backend no longer serves the frontend: every route it exposes is under `/api/*`,
 and `http://localhost:8000/` is a 404 by design. Browse the endpoints at
 `http://localhost:8000/docs`.
 
-To run the UI against it, serve `frontend/` from any static server — the same
+To run the UI against it, serve `frontend/` from any static server; the same
 files Cloudflare publishes, no build step:
 
 ```bash
@@ -178,20 +178,20 @@ ollama create huatuogpt-bone -f huatuogpt-bone.Modelfile
 ```
 
 > The Modelfile's `FROM` line points at `./huatuogpt-bone.base.gguf`, the
-> HuatuoGPT-o1-8B weights — **not** in the repo (too large). Supply that file
+> HuatuoGPT-o1-8B weights, **not** in the repo (too large). Supply that file
 > next to the Modelfile, or repoint `FROM` at a base you already have, before
 > running `ollama create`. Full walk-through in
 > [docs/deployment.md](docs/deployment.md), Step 3.
 
-SPECTER2 (text embeddings) and BiomedCLIP (Vision — correction memory *and* the
+SPECTER2 (text embeddings) and BiomedCLIP (Vision: correction memory *and* the
 region head's frozen features) download automatically from HuggingFace on first
 use. Chat, Search, and Reasoning work fully offline once the models are present
 and the embedding index is built; Vision additionally needs `llava:13b`, plus
-`data/models/vision_region_head.pt` for the trained grounding hint — without it
+`data/models/vision_region_head.pt` for the trained grounding hint; without it
 the tab runs on the VLM alone.
 
 > **Note:** the corpus and graph databases (`data/db/`, ~1.7 GB) are gitignored.
-> A fresh clone has the code but not the data — either build the pipeline from
+> A fresh clone has the code but not the data: either build the pipeline from
 > scratch (below) or copy `data/db/` from an existing install.
 
 ---
@@ -211,7 +211,7 @@ the tab runs on the VLM alone.
 Model names, the Ollama base URL (`OLLAMA_URL`), timeouts, and chunking
 parameters are centralised in [`config/settings.py`](config/settings.py) and
 overridable via environment variables. Each model sits behind a single swap
-point — changing the model leaves the pipeline untouched.
+point, so changing the model leaves the pipeline untouched.
 
 ---
 
@@ -286,38 +286,38 @@ Results are saved to `eval/retrieval/results.json`.
 > under dense top-5 retrieval versus **31/50** under BM25. See the rationale in
 > [`eval/mcq/build_fts_index.py`](eval/mcq/build_fts_index.py).
 
-### Grounded reasoning — MCQ ([`eval/mcq/`](eval/mcq/))
+### Grounded reasoning: MCQ ([`eval/mcq/`](eval/mcq/))
 
 A 50-item multiple-choice benchmark of questions that must be answered by
 **calculating with reported quantities**, not by recognising a familiar phrase.
 Each item is built from a quantity stated somewhere in the corpus
 (`source_chunks` records exactly which passage), but the answer itself appears
-nowhere — it takes a unit conversion and an arithmetic step — so an item is
+nowhere (it takes a unit conversion and an arithmetic step), so an item is
 solved only if the deciding number actually reaches the prompt. That makes the
 set a probe of **grounding**, not recall.
 
-Grading is deterministic letter extraction from `\boxed{}` — no LLM judge, which
+Grading is deterministic letter extraction from `\boxed{}`, with no LLM judge, which
 would have to be stronger in-domain than the system it grades. Options are
 shuffled per item under a fixed seed, `temperature=0`, and every raw generation
 is stored so refusals and hedges can be diagnosed rather than silently scored
 wrong.
 
-The arms share one system prompt and one grading path — **only the evidence
+The arms share one system prompt and one grading path: **only the evidence
 appended to the user message changes**, so any difference is attributable to
 retrieval and nothing else. Accuracy at `seed=17`, n=50:
 
 | Arm | What it sees | prompt v1 | prompt v2 |
 |---|---|---|---|
-| `bare` (closedbook) | nothing — the model alone | 0.36 | 0.42 |
+| `bare` (closedbook) | nothing, the model alone | 0.36 | 0.42 |
 | `bm25` | 14 whole chunks (~1,700 chars each) by lexical rank | 0.46 | 0.52 |
 | `bm25rerank` | a 150-deep BM25 pool reranked down to 4 | 0.46 | **0.58** |
 | `oracle` | the passage known to hold the answer, by chunk id | 0.66 | **0.78** |
 
 Three readings, and the first is not flattering. **The shipped Chat/Reasoning
-retrieval path scored 13/50 (26%) on these items — below closed-book's 18/50.**
+retrieval path scored 13/50 (26%) on these items, below closed-book's 18/50.**
 The oracle arm exists to disambiguate that: at 66% it proves the model *can* use
 the evidence, so the whole gap was retrieval failing to deliver it. Three causes
-were found and fixed in the `bm25` arms — per-passage truncation at 840 chars
+were found and fixed in the `bm25` arms: per-passage truncation at 840 chars
 (the deciding quantity sat past that cut in 7 of 10 oracle items), no lexical
 channel at all, and question-shaped queries embedding far from property tables.
 See the failure analyses in the [`run_bm25.py`](eval/mcq/run_bm25.py) and
@@ -329,7 +329,7 @@ Second: a large ceiling remains. Oracle at 0.78 against the best real retrieval
 at 0.58 means the outstanding 20 points are a *retrieval* problem, not a model
 one. Third: the prompt carries as much weight as the evidence. v2 (state values
 → convert units → calculate → match) buys +6 to +12 points over v1 in every arm,
-because most failures are unit-mixing rather than ignorance — and precision only
+because most failures are unit-mixing rather than ignorance, and precision only
 converts under v2, where the model uses evidence when it has it (61% with the
 needle vs 37% without, against a near-flat 48/42 under v1).
 
@@ -343,12 +343,12 @@ python -m eval.mcq.run_bm25rerank  --prompt eval/mcq/prompt_v2.txt
 python -m eval.mcq.run_oracle      --prompt eval/mcq/prompt_v2.txt
 ```
 
-`run_arms.py` also carries the original `rag`, `graph` and `full` arms — the
+`run_arms.py` also carries the original `rag`, `graph` and `full` arms, the
 shipped pipeline's own evidence path, kept so the 26% result above stays
 reproducible.
 
 Run outputs land in `eval/mcq/results/` (gitignored). The BM25 index is not in
-version control — `chunks.db` isn't either — so `build_fts_index.py` is the
+version control (`chunks.db` isn't either), so `build_fts_index.py` is the
 reproduction path for the two lexical arms.
 
 ### Other harnesses
@@ -361,13 +361,13 @@ loop end to end.
 
 ## Deployment
 
-The public beta is a **split deployment** — no open ports, automatic HTTPS,
+The public beta is a **split deployment**: no open ports, automatic HTTPS,
 near-zero running cost:
 
-- **Frontend** — `frontend/` ships as an **assets-only Cloudflare Worker**, served
+- **Frontend**: `frontend/` ships as an **assets-only Cloudflare Worker**, served
   from the global edge at **bonegraph.org**. No build step (JSX is transpiled in
   the browser); `git push` redeploys it. It stays up even when the Jetson doesn't.
-- **API** — `run_api.sh` → `uvicorn api.main:app` on `127.0.0.1:8000` plus Ollama,
+- **API**: `run_api.sh` → `uvicorn api.main:app` on `127.0.0.1:8000` plus Ollama,
   on an **NVIDIA Jetson AGX Orin 64 GB** at home, reached through a **Cloudflare
   Tunnel** at **api.bonegraph.org**. The frontend calls it cross-origin via
   `API_BASE`; the backend serves no HTML at all.
@@ -383,22 +383,22 @@ config, Worker setup, model recreation, DB transfer, pre-launch checklist) in
 ## Building the pipeline from scratch
 
 ```bash
-# 1 — Collect papers (set CROSSREF_EMAIL + WILEY_TDM_TOKEN in .env first)
+# 1. Collect papers (set CROSSREF_EMAIL + WILEY_TDM_TOKEN in .env first)
 cp .env.example .env
 python -m ingestion.papers.pipeline              # metadata only
 python -m ingestion.papers.pipeline --download   # + open-access PDFs
 
-# 2 — Ingest textbooks (PDFs in data/raw/textbooks/<Source>/book.pdf)
+# 2. Ingest textbooks (PDFs in data/raw/textbooks/<Source>/book.pdf)
 python -m ingestion.textbooks.pipeline
 
-# 3 — Extract → filter → chunk → embed
+# 3. Extract → filter → chunk → embed
 python -m processing.extract_papers
 python -m processing.extract_textbooks
 python -m scripts.filter_english
 python -m processing.chunk_all
 python -m processing.embed                       # resumable; --force re-embeds
 
-# 4 — Build the knowledge graph
+# 4. Build the knowledge graph
 python -m reasoning.extractor --source textbooks # LLM triple extraction (resumable)
 python -m scripts.clean_graph                    # six-stage cleanup
 python -m scripts.reclassify_concepts            # concept retyping
@@ -412,13 +412,13 @@ python -m scripts.reclassify_concepts            # concept retyping
 
 ```
 BoneGraph/
-├── api/                     # FastAPI backend — /api/* only, serves no HTML
+├── api/                     # FastAPI backend: /api/* only, serves no HTML
 │   ├── main.py              #   all endpoints, prompts, critic loop, auth wiring
 │   ├── auth_store.py        #   email/password accounts + sessions (auth.db)
 │   └── beta_feedback.py     #   "Send feedback" store (beta_feedback.db)
 ├── frontend/                # Single-file React app (in-browser Babel), Cloudflare-served
 │   ├── index.html           #   Chat · Search · Reasoning · Vision · Mechanics tabs + login
-│   ├── admin.html           #   admin dashboard (/admin) — static, calls /api/admin/*
+│   ├── admin.html           #   admin dashboard (/admin): static, calls /api/admin/*
 │   ├── wrangler.jsonc       #   assets-only Worker config (build root = frontend/)
 │   └── static/
 ├── ingestion/
@@ -451,7 +451,7 @@ BoneGraph/
 ├── data/db/                 # papers · chunks · ontology · feedback · auth (gitignored)
 ├── docs/                    # per-tab architecture docs + deployment guide
 ├── huatuogpt-bone.Modelfile # custom Ollama model definition (base GGUF not in git)
-├── run_api.sh               # production launcher (aarch64 workarounds) — the Jetson
+├── run_api.sh               # production launcher (aarch64 workarounds): the Jetson
 ├── serve.py                 # Uvicorn launcher → API on http://localhost:8000
 └── tests/
 ```
@@ -462,21 +462,21 @@ BoneGraph/
 
 | Document | Description |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | System-wide overview — the tabs, shared substrate, models, design principles |
+| [docs/architecture.md](docs/architecture.md) | System-wide overview: the tabs, shared substrate, models, design principles |
 | [docs/deployment.md](docs/deployment.md) | Cloudflare edge frontend + Jetson API deployment runbook |
 | [docs/chat/](docs/chat/) | Chat tab + shared ingestion / RAG pipeline docs |
 | [docs/search/README.md](docs/search/README.md) | Search tab |
-| [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab — agent + critic loop, rule tiers, KG grounding |
-| [docs/vision/architecture.md](docs/vision/architecture.md) | Vision tab — VLM + correction memory (read the scope banner first) |
-| [docs/vision/training.md](docs/vision/training.md) | Vision tab — MURA region head: data, training, results |
-| [docs/mechanics/architecture.md](docs/mechanics/architecture.md) | Mechanics tab — D2IM adapter, preprocessing, strain derivation |
+| [docs/reasoning/architecture.md](docs/reasoning/architecture.md) | Reasoning tab: agent + critic loop, rule tiers, KG grounding |
+| [docs/vision/architecture.md](docs/vision/architecture.md) | Vision tab: VLM + correction memory (read the scope banner first) |
+| [docs/vision/training.md](docs/vision/training.md) | Vision tab: MURA region head: data, training, results |
+| [docs/mechanics/architecture.md](docs/mechanics/architecture.md) | Mechanics tab: D2IM adapter, preprocessing, strain derivation |
 
 ---
 
 ## Tests
 
 ```bash
-pip install pytest        # not in requirements.txt — dev-only
+pip install pytest        # not in requirements.txt; dev-only
 pytest tests/ -v
 ```
 
