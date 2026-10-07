@@ -60,11 +60,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .sb-item.active .sb-item-icon{opacity:1}
 .sb-feedback-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
 .sb-feedback-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
-.sb-profile-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;font-family:var(--sans);font-size:13px;color:var(--text2);transition:background .12s,color .12s,border-color .12s}
-.sb-profile-row:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
-.sb-profile-name{display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.sb-logout-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text2);cursor:pointer;font-family:var(--sans);flex-shrink:0;transition:background .12s,color .12s,border-color .12s}
-.sb-logout-btn:hover{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
 .sb-foot{padding:14px 16px;border-top:1px solid var(--border);min-height:73px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
 .corpus-badge{font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:6px}
 .corpus-dot{width:6px;height:6px;border-radius:50%;background:#1a7a4e;flex-shrink:0}
@@ -232,12 +227,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 <script type="text/babel">
 const { useState, useEffect, useRef, Fragment } = React;
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-// Wraps window.fetch so every request carries the bearer token. A 401 from any
-// endpoint except /api/auth/* means the session expired — clear it and force
-// back to the login screen. /api/auth/* is excluded so a wrong-password login
-// attempt's 401 reaches the caller (AuthScreen) to display, instead of reloading
-// the page before the error message can be shown.
+// ── API access ────────────────────────────────────────────────────────────────
+// There is no login. Every request carries a random id this browser made up for
+// itself, which the API uses only to keep the rules and corrections you teach it
+// separate from other visitors'. It names nobody and is not used for analytics.
 const _rawFetch = window.fetch.bind(window);
 // This shell is served from Cloudflare's edge but the API runs on the Jetson behind
 // the tunnel, so on the public site API calls need an absolute origin. Callers
@@ -258,9 +251,22 @@ const API_BASE =
    location.hostname.endsWith('.pages.dev')
      ? 'https://api.bonegraph.org'
      : 'http://localhost:8000');
+function clientId() {
+  let id = localStorage.getItem('bg_client_id');
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID()
+      : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('bg_client_id', id);
+  }
+  return id;
+}
 function authHeaders() {
+  const headers = { 'X-Client-Id': clientId() };
+  // Browsers that signed in before registration was dropped keep their token, so
+  // the rules taught under that account still apply.
   const token = localStorage.getItem('bg_token');
-  return token ? { Authorization: 'Bearer ' + token } : {};
+  if (token) headers.Authorization = 'Bearer ' + token;
+  return headers;
 }
 // Shown whenever the API can't be reached — the frontend is on Cloudflare's edge
 // but the API lives on the Jetson behind the tunnel, so a WiFi drop there makes
@@ -291,12 +297,6 @@ async function apiFetch(url, opts = {}) {
     resp = await _rawFetch(API_BASE + url, { ...opts, headers });
   } catch (e) {
     throw serverDownError();  // fetch rejects only when no response arrived at all
-  }
-  if (resp.status === 401 && !url.startsWith('/api/auth/')) {
-    localStorage.removeItem('bg_token');
-    localStorage.removeItem('bg_fullname');
-    localStorage.removeItem('bg_email');
-    window.location.reload();
   }
   // 502/503/504 are Cloudflare telling us the tunnel has no origin — i.e. the
   // Jetson is offline. No caller handles these, and on a streaming endpoint they'd
@@ -2271,11 +2271,11 @@ const TABS = [
   { id:'mechanics', label:'Mechanics', icon:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 12.5h11M4 12.5V6M7.5 12.5V3.5M11 12.5V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2.5 6l5-2.5L12.5 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ];
 
-function FeedbackModal({ tab, onClose, userFullName, userEmail }) {
+function FeedbackModal({ tab, onClose }) {
   const [category, setCategory] = useState('idea');
-  const [name, setName]         = useState(userFullName || '');
+  const [name, setName]         = useState('');
   const [message, setMessage]   = useState('');
-  const [email, setEmail]       = useState(userEmail || '');
+  const [email, setEmail]       = useState('');
   const [status, setStatus]     = useState('idle'); // idle | sending | done | error
   const canSend = name.trim() && message.trim();
   const cats = [
@@ -2356,92 +2356,11 @@ function FeedbackModal({ tab, onClose, userFullName, userEmail }) {
   );
 }
 
-function AuthScreen({ onAuth }) {
-  const [mode, setMode]         = useState('login'); // 'login' | 'register'
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError]       = useState('');
-  const [busy, setBusy]         = useState(false);
-  const canSubmit = email.trim() && password && !busy && (mode === 'login' || fullName.trim());
-
-  const submit = async e => {
-    e.preventDefault();
-    if (!canSubmit) return;
-    setBusy(true); setError('');
-    try {
-      const fd = new FormData();
-      if (mode === 'register') fd.append('full_name', fullName.trim());
-      fd.append('email', email.trim());
-      fd.append('password', password);
-      const r = await apiFetch(`/api/auth/${mode}`, { method: 'POST', body: fd });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || 'Something went wrong');
-      onAuth(data.token, data.full_name, data.email);
-    } catch (err) {
-      setError(err.message || 'Something went wrong');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',width:'100%',background:'var(--bg)'}}>
-      <form onSubmit={submit}
-        style={{width:'min(380px,90%)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,.1)',padding:'28px 26px',display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-          <BoneSVG size={30}/>
-          <span style={{fontFamily:'var(--sans)',fontSize:19,fontWeight:600,color:'var(--text)'}}>BoneGraph</span>
-        </div>
-        <div style={{fontSize:13,color:'var(--text3)',marginBottom:4}}>
-          {mode === 'login' ? 'Log in to continue.' : 'Create an account to get started.'}
-        </div>
-        {mode === 'register' && (
-          <input value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
-            placeholder="Full Name"
-            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
-        )}
-        <input value={email} onChange={e => setEmail(e.target.value)} autoFocus={mode === 'login'}
-          type="email" placeholder="Email"
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
-        <div style={{position:'relative',display:'flex'}}>
-          <input value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'}
-            placeholder="Password"
-            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border)',borderRadius:8,padding:'9px 38px 9px 12px',fontSize:13,fontFamily:'var(--sans)',background:'var(--surface)',color:'var(--text)'}}/>
-          <button type="button" onClick={() => setShowPassword(s => !s)}
-            title={showPassword ? 'Hide password' : 'Show password'}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-            style={{position:'absolute',right:1,top:1,bottom:1,width:34,display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'none',cursor:'pointer',color:'var(--text3)',padding:0}}>
-            {showPassword ? (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.5 6.5a2 2 0 0 0 2.8 2.8M3.2 3.2C1.9 4.1 1 5.4 1 6.5c0 1.5 2.7 4 6.5 4 1 0 2-.2 2.8-.5M5.5 2.7c.6-.1 1.1-.2 1.5-.2 3.8 0 6.5 2.5 6.5 4 0 .7-.6 1.6-1.6 2.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M1.5 1.5l11 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 7.5C1 6 3.7 3.5 7.5 3.5S14 6 14 7.5 11.3 11.5 7.5 11.5 1 9 1 7.5z" stroke="currentColor" strokeWidth="1.3"/><circle cx="7.5" cy="7.5" r="1.8" stroke="currentColor" strokeWidth="1.3"/></svg>
-            )}
-          </button>
-        </div>
-        {error && <div style={{color:'#b02020',fontSize:13}}>{error}</div>}
-        <button type="submit" disabled={!canSubmit}
-          style={{background:'var(--navy)',color:'#fff',border:'none',borderRadius:8,padding:'9px 18px',fontSize:13,cursor:canSubmit?'pointer':'not-allowed',opacity:canSubmit?1:.5}}>
-          {busy ? 'Please wait…' : (mode === 'login' ? 'Log in' : 'Register')}
-        </button>
-        <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
-          style={{background:'transparent',border:'none',color:'var(--text3)',fontSize:12.5,cursor:'pointer',textAlign:'center'}}>
-          {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Log in'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
 function App() {
   const [tab, setTab]     = useState(() => localStorage.getItem('bl-tab') || 'ask');
   const [stats, setStats] = useState(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authToken, setAuthToken] = useState(() => localStorage.getItem('bg_token'));
-  const [fullName, setFullName]   = useState(() => localStorage.getItem('bg_fullname'));
-  const [email, setEmail]         = useState(() => localStorage.getItem('bg_email'));
   const [theme, setTheme]         = useState(() => localStorage.getItem('bg_theme') || 'light');
 
   useEffect(() => {
@@ -2451,32 +2370,11 @@ function App() {
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
-    if (!authToken) return;
     apiFetch('/api/stats').then(r => r.json()).then(setStats).catch(() => {});
-  }, [authToken]);
+  }, []);
 
   const switchTab = id => { setTab(id); localStorage.setItem('bl-tab', id); setSidebarOpen(false); };
   const activeLabel = (TABS.find(t => t.id === tab) || {}).label || 'BoneGraph';
-
-  const handleAuth = (token, name, userEmail) => {
-    localStorage.setItem('bg_token', token);
-    localStorage.setItem('bg_fullname', name);
-    localStorage.setItem('bg_email', userEmail);
-    setAuthToken(token);
-    setFullName(name);
-    setEmail(userEmail);
-  };
-  const logout = async () => {
-    try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
-    localStorage.removeItem('bg_token');
-    localStorage.removeItem('bg_fullname');
-    localStorage.removeItem('bg_email');
-    setAuthToken(null);
-    setFullName(null);
-    setEmail(null);
-  };
-
-  if (!authToken) return <AuthScreen onAuth={handleAuth}/>;
 
   return (
     <div className="app-shell" style={{display:'flex',height:'100dvh',width:'100%',overflow:'hidden'}}>
@@ -2504,15 +2402,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <div style={{padding:'0 8px 8px'}}>
-          <div className="sb-profile-row">
-            <span className="sb-profile-name" title={fullName}>
-              <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2.5 13c0-2.76 2.24-4.5 5-4.5s5 1.74 5 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-              {fullName}
-            </span>
-            <button onClick={logout} className="sb-logout-btn" title="Log out">Log out</button>
-          </div>
-        </div>
         <div style={{padding:'0 8px 8px'}}>
           <button onClick={() => setFeedbackOpen(true)} className="sb-feedback-btn"
             title="Send feedback about the beta">
@@ -2550,12 +2439,13 @@ function App() {
           <div className="panel-inner"><MechanicsTab/></div>
         </div>
       </main>
-      {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)} userFullName={fullName} userEmail={email}/>}
+      {feedbackOpen && <FeedbackModal tab={tab} onClose={() => setFeedbackOpen(false)}/>}
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f375398fc23c40b39147a52c443d6213"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>

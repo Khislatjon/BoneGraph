@@ -35,7 +35,7 @@ The goal is not a generic question-answering chatbot. The goal is a system that 
 ## The product — five tabs
 
 BoneGraph is one React app with five tabs, each a distinct pipeline over a shared
-substrate (corpus + embeddings + knowledge graph + models). Behind a login.
+substrate (corpus + embeddings + knowledge graph + models). Open access: no registration or login.
 
 | Tab | Internal name | What it does | Primary model | LLM in the loop? | Deep doc |
 |-----|---------------|--------------|---------------|:---------------:|----------|
@@ -63,7 +63,7 @@ next to Vision's qualitative one.
 │           served from the global edge at bonegraph.org                     │
 │                                                                            │
 │  index.html   single-file React app (Babel in-browser)                     │
-│               Login · Chat · Search · Reasoning · Vision · Mechanics       │
+│               Chat · Search · Reasoning · Vision · Mechanics (no login)    │
 │  admin.html   static admin dashboard (/admin) · "Send feedback" → /api     │
 └───────────────────────────────────┬────────────────────────────────────────┘
                                     │  HTTPS, cross-origin → api.bonegraph.org
@@ -71,7 +71,7 @@ next to Vision's qualitative one.
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │  API — FastAPI (api/main.py) · /api/* ONLY, serves no HTML                 │
-│  Auth (Bearer token → user_id = email) gates every data endpoint           │
+│  No login: X-Client-Id (random, per browser) → user_id scopes taught data  │
 │                                                                            │
 │  /api/ask   /api/search  /api/reason/*  /api/vision/*  /api/mechanics/*    │
 │  RAG chat   cosine only  agent+critic   VLM + head +   D2IM CNN            │
@@ -108,7 +108,7 @@ spirit survives — Search/Chat/Vision are perception, Reasoning is the reasonin
 layer, Mechanics is prediction — but the system is best understood tab-by-tab.
 
 Note what the substrate arrow does *not* carry: Mechanics touches neither the
-corpus nor the graph. It shares the app, the auth layer and the frontend, and
+corpus nor the graph. It shares the app, the visitor-id layer and the frontend, and
 nothing else.
 
 ---
@@ -251,18 +251,22 @@ change. See [mechanics/architecture.md](mechanics/architecture.md).
 
 ---
 
-## Accounts & per-user data
+## Visitor identity & per-user data
 
-Every data endpoint is behind email/password auth (`api/auth_store.py`):
+There are no accounts. The site opens straight to the tabs:
 
-- Register/login returns a Bearer **session token**; `get_current_user` resolves
-  it to the account's **email**, which becomes the `user_id` threaded everywhere.
-- That `user_id` scopes per-user data: a clinician's Reasoning rules and Vision
-  corrections never leak into another account's. The 8 built-in Tier-1 grounding
-  rules stay global and hardcoded.
-- Passwords are PBKDF2-HMAC-SHA256 with per-user salts (stdlib only); tokens are
-  `secrets.token_urlsafe`. This is a per-install tool, not a public identity
-  provider — good enough for that threat model. Stored in `auth.db`.
+- The frontend generates a random id on first visit (localStorage `bg_client_id`)
+  and sends it as `X-Client-Id`; `get_current_user` turns it into the `user_id`
+  threaded everywhere (`anon:<id>`). It names nobody.
+- That `user_id` scopes per-user data: one visitor's Reasoning rules and Vision
+  corrections never leak into another's. The 8 built-in Tier-1 grounding rules
+  stay global and hardcoded. Clearing browser data starts a fresh, empty scope.
+- Visits are counted in aggregate only, by Cloudflare Web Analytics (cookieless)
+  loaded from the page; the API keeps no usage log.
+- Legacy: browsers that signed in before registration was dropped still send a
+  Bearer token, which keeps resolving to that account's email so its rules are
+  not orphaned. `api/auth_store.py` and `auth.db` remain only for this; the
+  register/login endpoints are gone.
 
 **Two-tier rules (Reasoning):** Tier 1 = the 8 built-in physical rules, shipped
 with releases; Tier 2 = each user's own rules (from feedback + bulk import),
@@ -282,7 +286,7 @@ Two completely separate feedback channels:
    embeddings, no recall — just for the maintainer to read.
 
 **Admin dashboard** (`bonegraph.org/admin`, `frontend/admin.html`) is a static
-page served from the edge alongside the app. It shows signups + beta feedback by
+page served from the edge alongside the app. It shows past signups + beta feedback by
 calling `/api/admin/overview`, gated by the `FEEDBACK_ADMIN_TOKEN` env var
 (required in production; open when unset locally).
 
@@ -291,7 +295,6 @@ calling `/api/admin/overview`, gated by the `FEEDBACK_ADMIN_TOKEN` env var
 ## API surface
 
 ```
-Auth     POST /api/auth/register · /api/auth/login · /api/auth/logout · GET /api/auth/me
 Stats    GET  /api/stats
 Chat     POST /api/ask                         (SSE)
 Search   POST /api/search                      (JSON)
@@ -326,7 +329,7 @@ serves. Interactive API docs remain at `/docs`.
 | `ontology_raw.db` · `ontology_pre_typed.db` | Pre-cleanup / pre-reclassification graph snapshots | — |
 | `reasoning_feedback.db` | Reasoning: events, corrections, user_rules | small |
 | `vision_feedback.db` | Vision: events, corrections, correction_embeddings | small |
-| `auth.db` | Accounts + sessions (created on first signup) | small |
+| `auth.db` | Legacy accounts + sessions (no new signups) | small |
 | `beta_feedback.db` | Product feedback (created on first submission) | small |
 
 ---
@@ -361,6 +364,7 @@ enables depth over breadth, and is enforced by the topic guard on Chat/Reasoning
 | 6 — Mechanics tab | 🟢 Live (Jun 2026) | D2IM single-slice displacement + strain inference; TF optional and lazy · [mechanics/architecture.md](mechanics/architecture.md) |
 | 5 — Feedback loop | 🟢 Reasoning + Vision live | Reasoning user rules; Vision correction memory; Chat/Search feedback into retrieval still planned |
 | — Accounts + beta | 🟢 Live (Jun 2026) | Email/password auth, per-user scoping, admin dashboard, deployed at bonegraph.org |
+| — Open access | 🟢 Oct 2026 | Registration dropped; anonymous browser id for scoping, Cloudflare Web Analytics for visits |
 | — Edge split | 🟢 Live (Jul 2026) | Frontend to a Cloudflare Worker, Jetson API-only · [deployment.md](deployment.md) |
 | — Evaluation | 🟢 Retrieval + MCQ | Ranking benchmark; 50-item grounded-reasoning MCQ across four retrieval arms (`eval/`) |
 
@@ -469,8 +473,8 @@ BoneGraph/
 │   └── mcq/                    50-item grounded-reasoning MCQ, four retrieval arms
 │
 ├── api/                        FastAPI backend
-│   ├── main.py                 All endpoints, prompts, critic loop, auth wiring
-│   ├── auth_store.py           Email/password accounts + sessions (auth.db)
+│   ├── main.py                 All endpoints, prompts, critic loop, visitor-id wiring
+│   ├── auth_store.py           Legacy accounts + sessions (auth.db); no new signups
 │   └── beta_feedback.py        Product-feedback store (beta_feedback.db)
 │
 ├── frontend/                   React web UI — published to Cloudflare's edge

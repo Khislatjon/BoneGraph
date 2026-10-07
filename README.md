@@ -128,17 +128,22 @@ follow-up drops in by changing the weights path. Architecture:
 
 ## Accounts & privacy
 
-BoneGraph is behind a lightweight **email/password login** ([`api/auth_store.py`](api/auth_store.py)).
-Your account scopes everything you teach it: your Reasoning rules and Vision
-corrections are tied to your email and never leak into another user's session.
-The 8 built-in physical-grounding rules are global and ship with the app.
-Passwords are PBKDF2-HMAC-SHA256 with per-user salts (stdlib only), a sensible
-threat model for a single-install research tool, not a public identity provider.
+BoneGraph has **no registration and no login**: the site opens straight to the
+tabs. Your browser generates a random id on first visit and sends it with each
+request; it scopes everything you teach the system, so your Reasoning rules and
+Vision corrections never leak into another visitor's session. It names nobody,
+and clearing your browser data resets it. The 8 built-in physical-grounding
+rules are global and ship with the app.
+
+Visits are measured in aggregate only, with Cloudflare Web Analytics, which is
+cookieless; the API keeps no record of who asked what.
+(Accounts created before registration was dropped keep working through their
+saved session; [`api/auth_store.py`](api/auth_store.py) remains only for that.)
 
 A **"Send feedback"** button posts bug reports / ideas to a separate store
 ([`api/beta_feedback.py`](api/beta_feedback.py)); a token-gated **admin dashboard**
 at `bonegraph.org/admin` (a static page served from the edge, reading
-`/api/admin/*`) shows signups and feedback for the maintainer.
+`/api/admin/*`) shows past signups and feedback for the maintainer.
 
 ---
 
@@ -413,11 +418,11 @@ python -m scripts.reclassify_concepts            # concept retyping
 ```
 BoneGraph/
 ├── api/                     # FastAPI backend: /api/* only, serves no HTML
-│   ├── main.py              #   all endpoints, prompts, critic loop, auth wiring
-│   ├── auth_store.py        #   email/password accounts + sessions (auth.db)
+│   ├── main.py              #   all endpoints, prompts, critic loop, visitor-id wiring
+│   ├── auth_store.py        #   legacy accounts + sessions (auth.db); no new signups
 │   └── beta_feedback.py     #   "Send feedback" store (beta_feedback.db)
 ├── frontend/                # Single-file React app (in-browser Babel), Cloudflare-served
-│   ├── index.html           #   Chat · Search · Reasoning · Vision · Mechanics tabs + login
+│   ├── index.html           #   Chat · Search · Reasoning · Vision · Mechanics tabs (no login)
 │   ├── admin.html           #   admin dashboard (/admin): static, calls /api/admin/*
 │   ├── wrangler.jsonc       #   assets-only Worker config (build root = frontend/)
 │   └── static/

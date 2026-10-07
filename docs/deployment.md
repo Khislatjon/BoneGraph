@@ -230,13 +230,12 @@ WantedBy=multi-user.target
 chmod +x run_api.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now bonegraph
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/api/stats   # expect 401
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/api/stats   # expect 200
 ```
 
 The API is **API-only** — it no longer serves any HTML, so `/` returns **404**,
-not 200. Smoke-test an API route instead: `/api/stats` returns **401
-Not authenticated** (it's auth-gated) once startup is complete — a 401 means the
-app is up.
+not 200. Smoke-test an API route instead: `/api/stats` returns **200** with the
+corpus counts once startup is complete (there is no login to get past).
 
 `--host 127.0.0.1` keeps the app local; the Cloudflare Tunnel is the only path in
 from the internet. Startup loads the retriever + graph before the port answers, so
@@ -294,7 +293,7 @@ Run it as a service:
 ```bash
 sudo cloudflared service install
 sudo systemctl enable --now cloudflared
-curl -s -o /dev/null -w '%{http_code}\n' https://api.bonegraph.org/api/stats   # expect 401
+curl -s -o /dev/null -w '%{http_code}\n' https://api.bonegraph.org/api/stats   # expect 200
 ```
 
 ## Step 8 — Verify end-to-end
@@ -420,7 +419,7 @@ changes still need** `ssh` to the Jetson + `git pull` + restart (Operations belo
 - [ ] `data/db/` transferred (chunks.db + papers.db + ontology.db)
 - [ ] `run_api.sh` executable; systemd `ExecStart` points at it
 - [ ] Both services `enabled` (survive reboot) and `active`
-- [ ] `api.bonegraph.org/api/stats` → 401 (API up via tunnel)
+- [ ] `api.bonegraph.org/api/stats` → 200 (API up via tunnel)
 - [ ] Worker deployed; `bonegraph.org` + `www.` routes point at it
       (`GET bonegraph.org/index.html` → 307)
 - [ ] `https://bonegraph.org` reachable; all five tabs render and reach the API

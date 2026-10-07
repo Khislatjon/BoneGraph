@@ -363,53 +363,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Auth ───────────────────────────────────────────────────────────────────────
-# Email/password accounts (api/auth_store.py). The email becomes the
-# `user_id` threaded through reasoning/feedback_store.py and
-# vision/correction_store.py so Tier-2 learned rules and Vision corrections are
-# scoped per account instead of all landing in the shared "local" bucket. The
-# 8 built-in Tier-1 physical-grounding rules stay hardcoded and global — they
-# are not touched by this.
+# ── Visitor identity ───────────────────────────────────────────────────────────
+# There are no accounts: the app opens straight to the tabs. The frontend sends a
+# random id it generated itself (X-Client-Id, kept in the browser's localStorage)
+# and that becomes the `user_id` threaded through reasoning/feedback_store.py and
+# vision/correction_store.py, so Tier-2 learned rules and Vision corrections stay
+# scoped to the browser that taught them instead of changing answers for every
+# visitor. The id is functional only and names nobody.
+# The 8 built-in Tier-1 physical-grounding rules stay hardcoded and global.
+#
+# Browsers that signed in before registration was dropped still send their old
+# Bearer token; it keeps resolving to the account's email so rules taught under
+# an account are not orphaned. No new accounts can be created.
 
-def get_current_user(authorization: str = Header(None)) -> str:
-    from api.auth_store import get_user_by_token
-    token = authorization[7:].strip() if authorization and authorization.lower().startswith("bearer ") else ""
-    user = get_user_by_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user["email"]
-
-
-@app.post("/api/auth/register")
-async def auth_register(full_name: str = Form(...), email: str = Form(...), password: str = Form(...)):
-    from api.auth_store import create_user, create_session
-    try:
-        user = create_user(full_name, email, password)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"token": create_session(user["id"]), "full_name": user["full_name"], "email": user["email"]}
+CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 
-@app.post("/api/auth/login")
-async def auth_login(email: str = Form(...), password: str = Form(...)):
-    from api.auth_store import verify_user, create_session
-    user = verify_user(email, password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    return {"token": create_session(user["id"]), "full_name": user["full_name"], "email": user["email"]}
-
-
-@app.post("/api/auth/logout")
-async def auth_logout(authorization: str = Header(None)):
-    from api.auth_store import delete_session
+def get_current_user(authorization: str = Header(None), x_client_id: str = Header(None)) -> str:
     if authorization and authorization.lower().startswith("bearer "):
-        delete_session(authorization[7:].strip())
-    return {"ok": True}
-
-
-@app.get("/api/auth/me")
-async def auth_me(user_id: str = Depends(get_current_user)):
-    return {"email": user_id}
+        from api.auth_store import get_user_by_token
+        user = get_user_by_token(authorization[7:].strip())
+        if user:
+            return user["email"]
+    if x_client_id and CLIENT_ID_RE.match(x_client_id):
+        return f"anon:{x_client_id}"
+    return "anon"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1959,8 +1937,9 @@ async def list_feedback_admin(token: str = Query("")):
 
 @app.get("/api/admin/overview")
 async def admin_overview(token: str = Query("")):
-    """Users + feedback for the /admin dashboard. Gated by FEEDBACK_ADMIN_TOKEN
-    when that env var is set (recommended in production); open locally when unset."""
+    """Feedback + the accounts created before registration was dropped, for the
+    /admin dashboard. Gated by FEEDBACK_ADMIN_TOKEN when that env var is set
+    (recommended in production); open locally when unset."""
     from api.beta_feedback import list_feedback, count as count_feedback
     from api.auth_store import list_users, count_users
     admin_token = os.getenv("FEEDBACK_ADMIN_TOKEN", "")
