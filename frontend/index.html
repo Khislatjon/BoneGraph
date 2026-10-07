@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BoneGraph</title>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('bg_theme')||'light')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
 <link rel="icon" href="/static/bonegraph-icon.svg" type="image/svg+xml">
-<script src="/static/react.dev.js"></script>
-<script src="/static/react-dom.dev.js"></script>
+<script src="/static/react.min.js"></script>
+<script src="/static/react-dom.min.js"></script>
 <script src="/static/babel.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -192,6 +193,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .report-findings{padding-left:16px;display:flex;flex-direction:column;gap:4px}
 .report-findings li{font-size:13.5px;line-height:1.55}
 
+/* Loading skeleton — static markup inside #root that mirrors the real shell
+   (same classes), shown until React mounts and replaces it. */
+.sk-bar{display:block;background:var(--border);border-radius:6px;flex-shrink:0;animation:sk 1.4s ease-in-out infinite}
+.sk-pulse{animation:sk 1.4s ease-in-out infinite}
+@keyframes sk{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.sk-bar,.sk-pulse{animation:none}}
+
 /* Mobile top bar — hidden on desktop, shown below the breakpoint */
 .mobile-bar{display:none}
 .sb-backdrop{display:none}
@@ -222,7 +230,50 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#928f82">Loading BoneGraph…</div></div>
+<div id="root">
+  <div class="app-shell" style="display:flex;height:100dvh;width:100%;overflow:hidden" role="status" aria-label="Loading BoneGraph">
+    <div class="mobile-bar">
+      <span class="sk-bar" style="width:20px;height:14px"></span>
+      <span class="mobile-title"><img src="/static/bonegraph-icon.svg" width="20" height="20" alt=""><span class="sk-bar" style="width:52px;height:11px"></span></span>
+    </div>
+    <aside class="sidebar">
+      <div class="sb-logo">
+        <div class="sb-logo-icon"><img src="/static/bonegraph-icon.svg" width="34" height="34" alt=""></div>
+        <div class="sb-logo-meta"><div class="sb-logo-title"><span class="sb-logo-text">BoneGraph</span><span class="sb-beta">beta</span></div></div>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-item"><span class="sk-bar" style="width:16px;height:16px"></span><span class="sk-bar" style="width:40px;height:10px"></span></div>
+        <div class="sb-item"><span class="sk-bar" style="width:16px;height:16px"></span><span class="sk-bar" style="width:52px;height:10px"></span></div>
+        <div class="sb-item"><span class="sk-bar" style="width:16px;height:16px"></span><span class="sk-bar" style="width:76px;height:10px"></span></div>
+        <div class="sb-item"><span class="sk-bar" style="width:16px;height:16px"></span><span class="sk-bar" style="width:46px;height:10px"></span></div>
+        <div class="sb-item"><span class="sk-bar" style="width:16px;height:16px"></span><span class="sk-bar" style="width:80px;height:10px"></span></div>
+      </nav>
+      <div style="padding:0 8px 8px"><span class="sk-bar" style="height:38px;border-radius:8px"></span></div>
+      <div style="padding:0 8px 14px"><span class="sk-bar" style="height:38px;border-radius:8px"></span></div>
+    </aside>
+    <main class="main">
+      <div class="panel active">
+        <div class="ask">
+          <div class="chat-area">
+            <div class="chat-inner">
+              <div class="empty-state">
+                <div class="empty-avatar sk-pulse"><img src="/static/bonegraph-icon.svg" width="100" height="100" alt=""></div>
+                <span class="sk-bar" style="width:170px;height:20px;margin-top:8px"></span>
+                <span class="sk-bar" style="width:280px;max-width:80%;height:11px;margin-bottom:10px"></span>
+                <div class="chips">
+                  <span class="sk-bar" style="width:250px;height:32px;border-radius:999px"></span>
+                  <span class="sk-bar" style="width:300px;height:32px;border-radius:999px"></span>
+                  <span class="sk-bar" style="width:270px;height:32px;border-radius:999px"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-bar"><div class="chat-wrap"><span class="sk-bar" style="flex:1;height:44px;border-radius:10px"></span></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
 
 <script type="text/babel">
 const { useState, useEffect, useRef, Fragment } = React;
