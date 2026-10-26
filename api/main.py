@@ -83,19 +83,35 @@ class _GpuQueue:
     A waiter is at the head of `_waiting` when it is its turn. Tickets are
     removed on release from wherever they sit, so a caller that disconnects
     mid-queue drops out without stalling the ones behind it.
+
+    As a backstop, a head ticket held longer than GPU_MAX_HOLD_S is evicted
+    the next time a waiter checks in. A real answer takes ~20-35s (a full
+    reasoning turn a few minutes at most), so only a leaked ticket ever gets
+    that old, and without eviction it blocks everyone behind it forever.
     """
 
     def __init__(self) -> None:
         self._cv = threading.Condition()
         self._waiting: list[int] = []
         self._next = 0
+        self._head_since = time.monotonic()   # when the current head got its turn
 
     def take(self) -> int:
         with self._cv:
             ticket = self._next
             self._next += 1
+            if not self._waiting:
+                self._head_since = time.monotonic()
             self._waiting.append(ticket)
             return ticket
+
+    def _evict_stale_head(self) -> None:
+        # Caller holds self._cv.
+        if self._waiting and time.monotonic() - self._head_since > GPU_MAX_HOLD_S:
+            stale = self._waiting.pop(0)
+            self._head_since = time.monotonic()
+            print(f"[gpu-queue] evicted ticket {stale}: held the GPU over {GPU_MAX_HOLD_S:.0f}s", flush=True)
+            self._cv.notify_all()
 
     def position(self, ticket: int) -> int:
         """0 = it is this ticket's turn; N > 0 = N callers ahead of it."""
@@ -108,6 +124,7 @@ class _GpuQueue:
     def wait(self, ticket: int, timeout: float) -> bool:
         """Block up to `timeout`. True once this ticket reaches the head."""
         with self._cv:
+            self._evict_stale_head()
             if self._waiting and self._waiting[0] == ticket:
                 return True
             self._cv.wait(timeout)
@@ -116,12 +133,42 @@ class _GpuQueue:
     def release(self, ticket: int) -> None:
         with self._cv:
             if ticket in self._waiting:
+                if self._waiting[0] == ticket:
+                    self._head_since = time.monotonic()
                 self._waiting.remove(ticket)
             self._cv.notify_all()
 
 
 _gpu_queue = _GpuQueue()
 GPU_QUEUE_POLL_S = 2.0   # how often a waiter re-reports its position
+GPU_MAX_HOLD_S = 300.0   # a head ticket older than this is treated as leaked
+
+
+class _ClosingStreamingResponse(StreamingResponse):
+    """StreamingResponse that always closes its sync generator when it ends.
+
+    Starlette runs a sync generator through iterate_in_threadpool and, when the
+    client disconnects, cancels the stream without closing the generator. Its
+    `finally` (which releases the GPU ticket) then runs only if the generator
+    happens to be garbage-collected. On 20 Oct 2026 one never was: its ticket
+    held the head of the queue for six days and every later question queued
+    behind it. Closing the generator here makes the release deterministic.
+    """
+
+    def __init__(self, content, **kwargs) -> None:
+        super().__init__(content, **kwargs)
+        self._gen = content
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            try:
+                self._gen.close()
+            except ValueError:
+                # Still executing in a worker thread; the queue's stale-head
+                # eviction reclaims the ticket instead.
+                pass
 
 
 def _await_gpu_turn(ticket: int):
@@ -564,6 +611,7 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
         prompt_tokens = max(1, round(char_count / 3.5))
         completion_tokens = 0
         answer = ""
+        resp = None
         ticket = _gpu_queue.take()
         try:
             yield from _await_gpu_turn(ticket)
@@ -593,10 +641,13 @@ async def ask(question: str = Form(...), top_k: int = Form(8), history: str = Fo
             yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
         finally:
             # Must run on the abandoned-client path too (GeneratorExit), or the
-            # queue behind this caller never advances.
+            # queue behind this caller never advances. Closing the Ollama stream
+            # stops it generating for a reader that has gone.
+            if resp is not None:
+                resp.close()
             _gpu_queue.release(ticket)
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return _ClosingStreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ── Reasoning tab — reasoning agent (Phase 2) ─────────────────────────────────
@@ -708,19 +759,22 @@ def _llm_stream(messages, result_out: dict, temperature=0.3):
         stream=True,
         timeout=240,
     )
-    resp.raise_for_status()
     chunks: list[str] = []
     evc = 0
-    for line in resp.iter_lines():
-        if not line:
-            continue
-        data = json.loads(line)
-        if data.get("done"):
-            evc = data.get("eval_count", 0)
-            continue
-        t = data["message"]["content"]
-        chunks.append(t)
-        yield t
+    try:
+        resp.raise_for_status()
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            data = json.loads(line)
+            if data.get("done"):
+                evc = data.get("eval_count", 0)
+                continue
+            t = data["message"]["content"]
+            chunks.append(t)
+            yield t
+    finally:
+        resp.close()
     result_out["full"] = "".join(chunks)
     result_out["eval_count"] = evc
 
@@ -1170,7 +1224,7 @@ async def reason_chat(
             # Runs on the quick-mode early return and on client disconnect too.
             _gpu_queue.release(ticket)
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return _ClosingStreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ── Reasoning tab — feedback + user rules (Phase 4) ───────────────────────────
@@ -1536,19 +1590,22 @@ def _vlm_stream(img_b64: str, instruction: str, prompt: str, history: list[dict]
         stream=True,
         timeout=240,
     )
-    resp.raise_for_status()
     chunks: list[str] = []
     evc = 0
-    for line in resp.iter_lines():
-        if not line:
-            continue
-        data = json.loads(line)
-        if data.get("done"):
-            evc = data.get("eval_count", 0)
-            continue
-        t = data["message"]["content"]
-        chunks.append(t)
-        yield t
+    try:
+        resp.raise_for_status()
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            data = json.loads(line)
+            if data.get("done"):
+                evc = data.get("eval_count", 0)
+                continue
+            t = data["message"]["content"]
+            chunks.append(t)
+            yield t
+    finally:
+        resp.close()
     result_out["full"] = "".join(chunks)
     result_out["eval_count"] = evc
 
